@@ -56,12 +56,15 @@ NED_utm = projectRaster(from = NED,
                        res = 30, 
                        filename = gsub(NED$layer@file@name,
                                        pattern = "_1",
-                                       replacement = "_UTM"))
+                                       replacement = "_UTM"),
+                       overwrite = T)
 dem <- NED_utm$layer@file@name
 
+# build DEM directory 
 outpath="./processed_data/dem"
 if(!dir.exists(outpath)) dir.create(outpath)
 
+# Build wshed specific out path directory 
 dir_path <- file.path(outpath,"MFC")
   # make directory per site 
 if(!dir.exists(dir_path)) dir.create(dir_path)
@@ -90,7 +93,9 @@ basins <- raster(paste0(dir_path,"/dem_basins.tif"))
 plot(basins)
 
 # build a boolean mask of MFC 
+# this needs to be genrallized. 
 mfc_mask = basins == 84
+mfc_mask[is.na(mfc_mask[])] = 0
 # plot(mfc_rast)
 raster::writeRaster(mfc_rast, paste0(dir_path,"/dem_mfc_mask.tif"))
 
@@ -152,32 +157,37 @@ map(dem_files, function(h){
     overwrite=T)
 })
 
-## loop for sub watersheds 
+## loop for sub watersheds -- do this later 
 
 iso_mask = mask(iso, mfc_mask, maskvalue = 1, inverse = T)
 
-for(i in unique(iso_mask)){
-  temp_path = mfc_path %>% gsub(., pattern = "MFC", replacement = paste0("sub_",i))
-  if(!dir.exists(temp_path)){dir.create(temp_path)}
-  
-  map(dem_files[1:(length(dem_files)-2)], function(h){
-    # print(h)
-    temp <- raster(h) %>% mask(., mfc_mask, maskvalue = 1, inverse = T) %>% 
-      mask(., iso_mask==i, maskvalue = 1, inverse = T)
-    
-    #trim_NA, check shared extent and that it makes sense for post processing 
-    
-    print(h)
-    temp <- temp %>% trim()
-    
-   #save out 
-   writeRaster(temp, filename = gsub(
-      gsub(h,pattern = "dem/MFC", replacement = paste0("ASC/sub_",i,"")),
-      pattern = ".tif", replacement = ".asc"), 
-      overwrite=T)
-  })
-  
-}
+# for(i in unique(iso_mask)){
+#   temp_path = mfc_path %>% gsub(., pattern = "MFC", replacement = paste0("sub_",i))
+#   if(!dir.exists(temp_path)){dir.create(temp_path)}
+#   
+#   map(dem_files[1:(length(dem_files)-2)], function(h){
+#     # print(h)
+#     temp <- raster(h) %>% mask(., mfc_mask, maskvalue = 1, inverse = T) %>% 
+#       mask(., iso_mask==i, maskvalue = 1, inverse = T)
+#     
+#     #trim_NA, check shared extent and that it makes sense for post processing 
+#     
+#     print(
+#       gsub(
+#         gsub(h,pattern = "dem/MFC", replacement = paste0("ASC/sub_",i,"")),
+#         pattern = ".tif", replacement = ".asc")
+#       )
+#       
+#     temp <- temp %>% trim()
+#     
+#    #save out 
+#    writeRaster(temp, filename = gsub(
+#       gsub(h,pattern = "dem/MFC", replacement = paste0("ASC/sub_",i,"")),
+#       pattern = ".tif", replacement = ".asc"), 
+#       overwrite=T)
+#   })
+#   
+# }
 
 
 
@@ -185,14 +195,22 @@ for(i in unique(iso_mask)){
 ### soils-----------------------------------------
 
 # how to treat ssurgo components majority or component weighted?
-
-
 majority_comps = ssurgo$tabular$component %>% group_by(mukey) %>% 
   slice(which.max(comppct.r))
 
 # check no dropped or duplicated mamp unit keys (mukeys)
-# unique(ssurgo$tabular$component$mukey) %in% unique(majority_comps$mukey)
-# duplicated(majority_comps$mukey)
+if(!all((unique(ssurgo$tabular$component$mukey) %in% unique(majority_comps$mukey)))){
+  warning(paste0("MUKEY [", 
+                (unique(ssurgo$tabular$component$mukey)[
+                  !(unique(ssurgo$tabular$component$mukey) %in% 
+                     unique(majority_comps$mukey))]), 
+                "] is not represented by a major component \n"))}
+
+if(all(duplicated(majority_comps$mukey))){
+  warning(paste0("MUKEY [", 
+                 majority_comps$mukey[duplicated(majority_comps$mukey)], 
+                 "] is duplicated\n"))
+}
 
 # ssurgo$tabular$chorizon$dbthirdbar.r %>% names
 
@@ -320,9 +338,10 @@ MFC_spatial = left_join(ssurgo$spatial %>%
                             mutate(mukey = as.character(mukey))) %>% 
   full_join(., layer)
 
-rast_list <- list()
 
-# build out rasters for each
+# build out rasters for each MFC and ISO watershed, 
+# **Check extent between hydro and soil asc
+
 for(i in unique(MFC_spatial$layer)){
   for(j in names(MFC_spatial)[8:15]){
     temp = terra::rasterize(MFC_spatial %>% 
@@ -334,59 +353,63 @@ for(i in unique(MFC_spatial$layer)){
     
     
     #build MFC layers 
-    temp_mfc <-raster(temp) %>%crop(., mfc_mask) %>%  mask(., mfc_mask, maskvalue = 1, inverse = T)
+    temp_mfc <-raster(temp) %>% mask(., mfc_mask, maskvalue = 1, inverse = T) 
    
-     writeRaster(temp_mfc, filename = gsub(
-      gsub(h,pattern = "dem/MFC", replacement = paste0("ASC/sub_",i,"")),
-      pattern = ".tif", replacement = ".asc"), 
+     writeRaster(temp_mfc, filename = paste0(
+       "./processed_data/ASC/MFC/",j,"_",i,".asc"), 
       overwrite=T)
-    
-    #build iso layers 
-    for(i in unique(iso_mask)){
-      temp_path = mfc_path %>% gsub(., pattern = "MFC", replacement = paste0("sub_",i))
-      if(!dir.exists(temp_path)){dir.create(temp_path)}
-      
-      map(dem_files[1:(length(dem_files)-2)], function(h){
-        # print(h)
-        temp <- temp %>% mask(., mfc_mask, maskvalue = 1, inverse = T) %>% 
-          mask(., iso_mask==i, maskvalue = 1, inverse = T)
-        
-        #trim_NA, check shared extent and that it makes sense for post processing 
-        
-        print(h)
-        temp <- temp %>% trim()
-        
-        #save out 
-        writeRaster(temp, filename = gsub(
-          gsub(h,pattern = "dem/MFC", replacement = paste0("ASC/sub_",i,"")),
-          pattern = ".tif", replacement = ".asc"), 
-          overwrite=T)
-      })
-      
-    }
-    
-    rast_list = c(rast_list, temp)
   }
 }
 
-test <- MFC_spatial_A %>% st_within(., )
+### land cover ----- 
+# reclassify to row_crop, forest, grass, other
+# unique(NLCD)
+# [1] 11 21 22 23 24 31 42 52 71 81 82 90 95
+NLCD_reclass_ma =matrix(data = c(
+  11, 1, #water
+  21, 2, #urban/other
+  22, 2, #urban/other
+  23, 2, #urban/other
+  24, 2, #urban/other
+  31, 2, #rock/barren/other
+  42, 3, #forest
+  52, 4, #shrub
+  71, 5, #grass
+  81, 5, #grass/pasture
+  82, 6, # row crop
+  90, 3, #woody wetlands
+  95, 5), # grassy wetland
+  ncol =2, byrow = T)
 
-mapview(MFC_spatial_A["wthirdbar.r"])
+NLCD_reclass <- reclassify(NLCD, NLCD_reclass_ma) %>% projectRaster(., NED_utm)
+temp_mfc <- NLCD_reclass %>% mask(., mfc_mask, maskvalue = 1, inverse = T) 
 
-testit <- map(MFC_spatial %>% names, 
-              function(H){ MFC_spatial %>%
-                  st_transform(.,crs(mfc_rast)) %>% vect() %>%
-                  terra::rasterize(.,rast(mfc_rast), field = "hzdepb.r")})
-    # wbt_wetness_index(sca = paste0(dir_path, "/flow_accum.tif"),
-    #                     slope = paste0(dir_path, "/slope.tif"),
-    #                     output = paste0(dir_path,"/TWI.tif"))
+writeRaster(temp_mfc, filename = paste0(
+  "./processed_data/ASC/MFC/NLCD_simple.asc"), 
+  overwrite=T)
 
-wbt_snap_pour_points()
+## clip all thefiles at once 
+## loop for sub watersheds -- do this later 
+#  load all MFC asc 
 
-wbt_pour
-?wbt_watershed()
-  
-  return(dir_path)
+mfc_asc_files = list.files(path = "./processed_data/ASC/MFC/", full.names = T)
+tst <- rast(mfc_asc_files)
+iso_mask = mask(iso, mfc_mask, maskvalue = 1, inverse = T)
 
+for(k in unique(iso_mask)){
+    temp_path = mfc_path %>% gsub(., pattern = "MFC", replacement = paste0("sub_",k))
+    if(!dir.exists(temp_path)){dir.create(temp_path)}
 
+      temp <- tst %>% crop(., rast(iso_mask)) %>% 
+        mask(., rast(iso_mask)==k, maskvalue = 1, inverse = T) %>% trim
+
+      writeRaster(temp_mfc, filename = paste0(temp_path,"/",j,"_",i,".asc"),
+        overwrite=T)
+
+  }
+
+# re imagine the building of iso build full set then load as a stack and mask all at once
+#
+
+print("The asc file package complete")
 
