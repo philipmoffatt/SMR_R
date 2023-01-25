@@ -3,6 +3,7 @@ library(mapview)
 library(raster)
 library(FedData)
 library(sf)
+library(terra)
 
 ## define MFC ----
 raw_path = "./raw_data"
