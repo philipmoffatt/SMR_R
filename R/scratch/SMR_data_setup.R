@@ -381,7 +381,7 @@ NLCD_reclass_ma =matrix(data = c(
   95, 5), # grassy wetland
   ncol =2, byrow = T)
 
-NLCD_reclass <- reclassify(NLCD, NLCD_reclass_ma) %>% projectRaster(., NED_utm)
+NLCD_reclass <- reclassify(NLCD, NLCD_reclass_ma) %>% projectRaster(., NED_utm, method = "ngb")
 temp_mfc <- NLCD_reclass %>% mask(., mfc_mask, maskvalue = 1, inverse = T) 
 
 writeRaster(temp_mfc, filename = paste0(
