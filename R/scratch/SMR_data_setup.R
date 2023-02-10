@@ -414,3 +414,24 @@ for(k in unique(iso_mask)){
 
 print("The asc file package complete")
 
+# setting up out path to folder for unit converted maps and watershed properties file
+imitate_smr_setup = file.path("./processed_data", "/imitate_smr_setup")
+
+if(!dir.exists(imitate_smr_setup)) { 
+  dir.create(imitate_smr_setup)
+}
+
+# set values for watershed properties
+wshed_id = 79
+area_cells = freq(mfc_mask, value = 1)
+res_vol = 5
+res_coeff = 0.01
+
+# build frame from values
+wshed_frame = data.frame(wshed_id, area_cells, res_vol, res_coeff)
+
+# write out .ini file to imitation folder
+write.table(wshed_frame, sep = " ", row.names = F, col.names = F, file = paste0(imitate_smr_setup, "/wshed_res_properties.ini"))
+
+
+
