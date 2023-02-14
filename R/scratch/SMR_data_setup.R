@@ -414,8 +414,12 @@ for(k in unique(iso_mask)){
 
 print("The asc file package complete")
 
+
+### ----- Unit Conversions and Renaming for Perl Script ----- ###
+
 # setting up out path to folder for unit converted maps and watershed properties file
-imitate_smr_setup = file.path("./processed_data", "/imitate_smr_setup")
+imitate_smr_setup = file.path("./processed_data", "imitate_smr_setup")
+copy_from_path = file.path ("./processed_data/ASC/MFC")
 
 if(!dir.exists(imitate_smr_setup)) { 
   dir.create(imitate_smr_setup)
@@ -432,6 +436,173 @@ wshed_frame = data.frame(wshed_id, area_cells, res_vol, res_coeff)
 
 # write out .ini file to imitation folder
 write.table(wshed_frame, sep = " ", row.names = F, col.names = F, file = paste0(imitate_smr_setup, "/wshed_res_properties.ini"))
+
+# copying over and renaming rasters so they fit into SMR perl
+copy_from = c("/dem_breached.asc", "/dem_streams.asc", "/dem_mfc_mask.asc")
+copy_to = c("/el.asc", "/strms_30m.asc", "/watershed.asc")
+
+# rasters that just need a name change
+for (x in 1:length(copy_from)) {
+  if (!file.exists(paste0(imitate_smr_setup, copy_to[x]))) {
+    converted <- raster(paste0(copy_from_path, copy_from[x]))
+    file.copy(paste0(copy_from_path, copy_from[x]), paste0(imitate_smr_setup, copy_to[x]))
+  }
+}
+
+# converting from % to moisture content (/100)
+percentages = c("/wfifteenbar.r_A.asc", "/wfifteenbar.r_B.asc",
+                "/wthirdbar.r_A.asc", "/wthirdbar.r_B.asc",
+                "/wsatiated.r_A.asc", "/wsatiated.r_B.asc"
+                )
+
+moisture_contents = c("/wiltpt_mc_A.asc", "/wiltpt_mc_B.asc",
+                        "/fieldcap_mc_A.asc", "/fieldcap_mc_B.asc",
+                        "/sat_mc_A.asc", "/sat_mc_B.asc"
+                        )
+
+for (x in 1:length(percentages)) {
+  if (!file.exists(paste0(imitate_smr_setup, moisture_contents[x]))) {
+    converted <- raster(paste0(copy_from_path, percentages[x])) / 100
+    raster::writeRaster(converted, paste0(imitate_smr_setup, moisture_contents[x]))
+  }
+}
+
+# converting from um/second to cm/day (*8.64)
+um_per_second = c("/ksat.r_A.asc", "/ksat.r_B.asc")
+cm_per_day = c("/Ksat_matrix_A.asc", "/Ksat_matrix_B.asc")
+
+for (x in 1:length(um_per_second)) {
+  if (!file.exists(paste0(imitate_smr_setup, cm_per_day[x]))) {
+    converted <- raster(paste0(copy_from_path, um_per_second[x])) * 8.64
+    raster::writeRaster(converted, paste0(imitate_smr_setup, cm_per_day[x]))
+  }
+}
+
+# calculate soil depths based based on stream cells
+initial_depth_names = c("/depth_A.asc", "/depth_B.asc")
+output_depth_names = c("/soil_depth_A.asc", "/soil_depth_B.asc")
+soil_depth_fun <- function(x, y) {
+  z <- ifelse(x>0, 1, y) 
+  return(z)
+  }
+
+for (x in 1:length(initial_depth_names)) {
+  if (!file.exists(paste0(imitate_smr_setup, output_depth_names[x]))) {
+    
+    depth_rast <- raster(paste0(copy_from_path, initial_depth_names[x]))
+    streams <- raster(paste0(imitate_smr_setup, "/strms_30m.asc"))
+    
+    depth_rast[is.na(depth_rast)] <- 0  # Set NA values to 0
+    streams[is.na(streams)] <- 0  # Set NA values to 0
+
+    soil_depth <- overlay(streams, depth_rast, fun=soil_depth_fun)
+    soil_depth[soil_depth == 0] <- NA
+    
+    raster::writeRaster(soil_depth, paste0(imitate_smr_setup, output_depth_names[x]))
+  }
+}
+
+# combined soil depth (A+B)
+combined_depth <- raster(paste0(imitate_smr_setup, "/soil_depth_A.asc")) + 
+                  raster(paste0(imitate_smr_setup, "/soil_depth_B.asc"))
+
+raster::writeRaster(
+  combined_depth,
+  paste0(imitate_smr_setup, "/soil_depth.asc")
+  )
+
+# calculate the combined saturation amount
+sat_amt <- raster(paste0(imitate_smr_setup, "/sat_mc_A.asc")) * 
+           raster(paste0(imitate_smr_setup, "/soil_depth_A.asc")) + 
+           raster(paste0(imitate_smr_setup, "/sat_mc_B.asc")) * 
+           raster(paste0(imitate_smr_setup, "/soil_depth_B.asc"))
+
+raster::writeRaster(
+  sat_amt,
+  paste0(imitate_smr_setup, "/sat_amt.asc")
+  )
+
+# calculate the combined wilting point amount
+wiltpt_amt <- 
+  raster(paste0(imitate_smr_setup, "/wiltpt_mc_A.asc")) * 
+  raster(paste0(imitate_smr_setup, "/soil_depth_A.asc")) + 
+  raster(paste0(imitate_smr_setup, "/wiltpt_mc_B.asc")) * 
+  raster(paste0(imitate_smr_setup, "/soil_depth_B.asc"))
+
+raster::writeRaster(
+  wiltpt_amt,
+  paste0(imitate_smr_setup, "/wiltpt_amt.asc")
+)
+
+# setting residual floats for calculating fieldcap_amts
+residual_A <- 0.02
+residual_B <- 0.02
+
+fieldcap_amt_A <- 
+  raster(paste0(imitate_smr_setup, "/fieldcap_mc_A.asc")) * 
+  raster(paste0(imitate_smr_setup, "/soil_depth_A.asc")) -
+  raster(paste0(imitate_smr_setup, "/soil_depth_A.asc")) *
+  residual_A
+
+fieldcap_amt_B <- 
+  raster(paste0(imitate_smr_setup, "/fieldcap_mc_B.asc")) * 
+  raster(paste0(imitate_smr_setup, "/soil_depth_B.asc")) -
+  raster(paste0(imitate_smr_setup, "/soil_depth_B.asc")) *
+  residual_B
+
+fieldcap_amt <- fieldcap_amt_A + fieldcap_amt_B
+
+raster::writeRaster(fieldcap_amt_A, paste0(imitate_smr_setup, "/fieldcap_amt_A.asc"))
+raster::writeRaster(fieldcap_amt_B, paste0(imitate_smr_setup, "/fieldcap_amt_B.asc"))
+raster::writeRaster(fieldcap_amt, paste0(imitate_smr_setup, "/fieldcap_amt.asc"))
+
+# make Ksubsurface from Ksat_matrix_A
+Ksubsurface <- 
+  raster(paste0(imitate_smr_setup, "/Ksat_matrix_A.asc")) / 500
+
+raster::writeRaster(Ksubsurface, paste0(imitate_smr_setup, "/Ksubsurface.asc"))
+
+# make ETreduction from fieldcap_amt and total soil_depth
+ETreduction_mc <-
+  raster(paste0(imitate_smr_setup, "/fieldcap_amt.asc")) *
+  0.8 /
+  raster(paste0(imitate_smr_setup, "/soil_depth.asc"))
+
+raster::writeRaster(ETreduction_mc, paste0(imitate_smr_setup, "/ETreduction_mc.asc"))
+
+# make Ksat_mpores from Ksat_matrices
+Ksat_mpore_A = 
+  raster(paste0(imitate_smr_setup, "/Ksat_matrix_A.asc")) *
+  10
+
+Ksat_mpore_B = 
+  raster(paste0(imitate_smr_setup, "/Ksat_matrix_B.asc")) /
+  2
+
+raster::writeRaster(Ksat_mpore_A, paste0(imitate_smr_setup, "/Ksat_mpore_A.asc"))
+raster::writeRaster(Ksat_mpore_B, paste0(imitate_smr_setup, "/Ksat_mpore_B.asc"))
+
+# make Kfc_A and Kfc_B with: Ksat_matrix_A/B, sat_mc_A/B, fieldcap_amt_A/B,
+# and soil_depth_A/B --> using Bresler's formula
+
+Kfc_A <-
+  raster(paste0(imitate_smr_setup, "/Ksat_matrix_A.asc")) *
+  exp(
+    (-13.0 / raster(paste0(imitate_smr_setup, "/sat_mc_A.asc"))) * 
+    (raster(paste0(imitate_smr_setup, "/sat_mc_A.asc")) - 
+       fieldcap_amt_A/raster(paste0(imitate_smr_setup, "/soil_depth_A.asc")))
+    )
+
+Kfc_B <-
+  raster(paste0(imitate_smr_setup, "/Ksat_matrix_B.asc")) *
+  exp(
+    (-13.0 / raster(paste0(imitate_smr_setup, "/sat_mc_B.asc"))) * 
+      (raster(paste0(imitate_smr_setup, "/sat_mc_B.asc")) - 
+         fieldcap_amt_B/raster(paste0(imitate_smr_setup, "/soil_depth_B.asc")))
+  )
+
+raster::writeRaster(Kfc_A, paste0(imitate_smr_setup, "/Kfc_A.asc"))
+raster::writeRaster(Kfc_B, paste0(imitate_smr_setup, "/Kfc_B.asc"))
 
 
 
