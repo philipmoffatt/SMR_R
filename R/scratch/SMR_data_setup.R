@@ -605,4 +605,51 @@ raster::writeRaster(Kfc_A, paste0(imitate_smr_setup, "/Kfc_A.asc"))
 raster::writeRaster(Kfc_B, paste0(imitate_smr_setup, "/Kfc_B.asc"))
 
 
+# FLOW DIRECTION PROGRAM
+#    A "flow unit" is an elevation difference of one unit for an adjacent
+#    cell.  An elevation difference of one unit for a diagonal cell would
+#    be 1/(square root of 2)=0.707  flow units.
 
+el <- rast("/Users/duncanjurayj/Documents/SMR_R/processed_data/imitate_smr_setup/el.asc")
+#el <- rast(el)
+
+# Calculate the differences with the 8-neighbors cells 
+
+## check direction is not flipped ####
+diff_n <- el - (terra::shift(el,0, 30) %>% terra::extend(.,el) %>% terra::crop(.,el))
+diff_ne <- (el - (terra::shift(el, 30, 30) %>% terra::extend(.,el) %>% terra::crop(.,el)))* 0.707
+diff_e <- el - (terra::shift(el, 30, 0) %>% terra::extend(.,el) %>% terra::crop(.,el))
+diff_se <- (el - (terra::shift(el, 30, -30) %>% terra::extend(.,el) %>% terra::crop(.,el)))* 0.707
+diff_s <- el - (terra::shift(el, 0,-30) %>% terra::extend(.,el) %>% terra::crop(.,el))
+diff_sw <- (el - ((terra::shift(el, -30, -30) %>% terra::extend(.,el) %>% terra::crop(.,el))))* 0.707
+diff_w <- el - (terra::shift(el, -30, 0) %>% terra::extend(.,el) %>% terra::crop(.,el))
+diff_nw <- (el - (terra::shift(el, -30, 30) %>% terra::extend(.,el) %>% terra::crop(.,el)))* 0.707
+
+
+# Take the maximum with 0.0
+# 
+# diff_ne[diff_ne < 0] <- 0
+# diff_e[diff_e < 0] <- 0
+# diff_se[diff_se < 0] <- 0
+# diff_s[diff_s < 0] <- 0
+# diff_sw[diff_sw < 0] <- 0
+# diff_w[diff_w < 0] <- 0
+# diff_nw[diff_nw < 0] <- 0
+# 
+
+slope_delta <- rast(list(diff_n, diff_ne, diff_e, diff_se, diff_s, diff_sw, diff_w, diff_nw))
+names(slope_delta) <- c("diff_n", "diff_ne", "diff_e", "diff_se", "diff_s", "diff_sw", "diff_w", "diff_nw")
+slope_delta[slope_delta < 0] <- 0
+
+
+# Sum the differences
+flowunits <- sum(slope_delta)
+
+#    The following maps are the percent of the cell's neighbors in a direction
+#    that will flow to the cell.  For example, "north", is the percent of the
+#    lateral flow out of the cell to the north that will flow to the cell.
+
+percent_flow = slope_delta/flowunits
+names(percent_flow) <- c("n", "ne", "e", "se", "s", "sw", "w", "nw")
+
+plot(percent_flow)
