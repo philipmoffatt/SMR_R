@@ -200,6 +200,20 @@ annual_mass_balance <- function(combined_data) {
     theme(plot.title = element_text(hjust = 0.5))
 }
 
+swe_debug <- function(combined_data) {
+  
+  ggplot(data=combined_data) +
+    #scale_y_continuous(trans='log10') +
+    geom_line(aes(x=date, y=ice_content, color='Ice Content')) +
+    geom_line(aes(x=date, y=liquid_water, color='Liquid Water')) +
+    geom_line(aes(x=date, y=snow_cm, color='Snow')) +
+    geom_line(aes(x=date, y=swe_cm, color='SWE')) + 
+    ggtitle('Snow Water Equivalent and its Components') +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    ylab('cm')
+
+}
+
 # # calling functions all above functions
 # 
 # flux_vector <- c('runoff_cm', 'precip_cm', 'rain_cm', 
@@ -209,22 +223,23 @@ annual_mass_balance <- function(combined_data) {
 #                  'perc_cm', 'swe_cm', 'condens_cm', 
 #                  'snow_cm', 'baseflow')
 # 
-# VaM_data <- preprocessing(
-#   "./raw_data/discharge_historical/USGSdischarge.csv",
-#   "./raw_data/smr_output/MFC_mass_balance_79_1.csv",
-#   "1965-10-01",
-#   "1970-10-01",
-#   c('wshed_id', 'date', 'year', 'runoff_cm', 'precip_cm', 'rain_cm', 'actualET_flow_cm', 'canopy_evap_cm', 'snowmelt_cm', 'storage_amt_cm', 'throughfall_cm', 'canopy_storage_amt_cm', 'perc_cm', 'Q', 'swe_cm', 'condens_cm', 'snow_cm', 'baseflow', 'srad', 'latent', 'sensible', 'lw', 'q_rain_ground', 'q_total')
-# )
-# 
-# NSE_Q <- nse_Q(VaM_data)
-# KGE_Q <- kge_Q(VaM_data)
+ VaM_data <- preprocessing(
+  "./raw_data/discharge_historical/USGSdischarge.csv",
+   "./raw_data/smr_output/MFC_mass_balance_79.csv",
+   "1965-10-01",
+   "1970-10-01",
+   c('wshed_id', 'date', 'year', 'runoff_cm', 'precip_cm', 'rain_cm', 'actualET_flow_cm', 'canopy_evap_cm', 'snowmelt_cm', 'storage_amt_cm', 'throughfall_cm', 'canopy_storage_amt_cm', 'perc_cm', 'Q', 'swe_cm', 'condens_cm', 'snow_cm', 'baseflow', 'srad', 'latent', 'sensible', 'lw', 'q_rain_ground', 'q_total', 'ice_content', 'liquid_water')
+ )
+ 
+ NSE_Q <- nse_Q(VaM_data)
+ KGE_Q <- kge_Q(VaM_data)
 # 
 # annual_mass_balance(VaM_data)
 # flux_ts_loop(VaM_data, flux_vector)
 # 
 # annual_fluxes(VaM_data, flux_vector)
 # radiation_ts(VaM_data)
-# SAM_check(VaM_data)
-# Q_comparison(VaM_data)
+ SAM_check(VaM_data)
+ Q_comparison(VaM_data)
+ swe_debug(VaM_data)
 # 
