@@ -860,10 +860,40 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 			print `r.stats.zonal base=watershed cover=q.total out=temp29 method=sum --o --quiet`;
 			print $q_total_{$wshed_id} = `r.stats -A input=temp29`;
 			$q_total_{$wshed_id} = $q_total_{$wshed_id}*1;
+			
+		# **********************************  30 ***************************************
+		# ice.content
+			print `r.stats.zonal base=watershed cover=ice.content out=temp30 method=sum --o --quiet`;
+			print $ice_content_{$wshed_id} = `r.stats -A input=temp30`;
+			$ice_content_{$wshed_id} = $ice_content_{$wshed_id}*1;
+
+		# ********************************** 31  ***************************************
+		# liquid.water
+			print `r.stats.zonal base=watershed cover=liquid.water out=temp31 method=sum --o --quiet`;
+			print $liquid_water_{$wshed_id} = `r.stats -A input=temp31`;
+			$liquid_water_{$wshed_id} = $liquid_water_{$wshed_id}*1;
+			
+		# **********************************  32 ***************************************
+		# refreeze
+			print `r.stats.zonal base=watershed cover=refreeze out=temp32 method=sum --o --quiet`;
+			print $refreeze_{$wshed_id} = `r.stats -A input=temp32`;
+			$refreeze_{$wshed_id} = $refreeze_{$wshed_id}*1;
+			
+		# **********************************  33 ***************************************
+		# vap.d.air
+			print `r.stats.zonal base=watershed cover=vap.d.air out=temp33 method=sum --o --quiet`;
+			print $vap_d_air_{$wshed_id} = `r.stats -A input=temp33`;
+			$vap_d_air_{$wshed_id} = $vap_d_air_{$wshed_id}*1;
+	
+		# **********************************  33 ***************************************
+		# vap.d.snow
+			print `r.stats.zonal base=watershed cover=vap.d.snow out=temp34 method=sum --o --quiet`;
+			print $vap_d_snow_{$wshed_id} = `r.stats -A input=temp34`;
+			$vap_d_snow_{$wshed_id} = $vap_d_snow_{$wshed_id}*1;
 
 		#  Create mass balance output file
 		open(OUT, ">>/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || die("Cannot Open File");
-		print OUT "$wshed_id $date $year $runoff_cm_{$wshed_id} $precip_cm_{$wshed_id} $rain_cm_{$wshed_id} $actualET_flow_cm_{$wshed_id} $canopy_evap_cm_{$wshed_id} $snowmelt_cm_{$wshed_id} $storage_amt_cm_{$wshed_id} $throughfall_cm_{$wshed_id} $canopy_storage_amt_cm_{$wshed_id} $perc_cm_{$wshed_id} $Q_{$wshed_id} $swe_cm_{$wshed_id} $condens_cm_{$wshed_id} $snow_cm_{$wshed_id} $base_flow_{$wshed_id} $srad_{$wshed_id} $latent_{$wshed_id} $sensible_{$wshed_id} $lw_{$wshed_id} $q_rain_ground_cm_{$wshed_id} $q_total_{$wshed_id}\n";
+		print OUT "$wshed_id $date $year $runoff_cm_{$wshed_id} $precip_cm_{$wshed_id} $rain_cm_{$wshed_id} $actualET_flow_cm_{$wshed_id} $canopy_evap_cm_{$wshed_id} $snowmelt_cm_{$wshed_id} $storage_amt_cm_{$wshed_id} $throughfall_cm_{$wshed_id} $canopy_storage_amt_cm_{$wshed_id} $perc_cm_{$wshed_id} $Q_{$wshed_id} $swe_cm_{$wshed_id} $condens_cm_{$wshed_id} $snow_cm_{$wshed_id} $base_flow_{$wshed_id} $srad_{$wshed_id} $latent_{$wshed_id} $sensible_{$wshed_id} $lw_{$wshed_id} $q_rain_ground_cm_{$wshed_id} $q_total_{$wshed_id} $ice_content_{$wshed_id} $liquid_water_{$wshed_id} $refreeze_{$wshed_id} $vap_d_air_{$wshed_id} $vap_d_snow_{$wshed_id}\n";
 		close(OUT); 
 
 
