@@ -731,8 +731,8 @@ write.table(historical_joined,
 )
 
 
-# write out the historical Pullman file
-write.table(historical_joined[1:10,], 
+# write out the mini historical Pullman file
+write.table(historical_joined[387,], 
             file="./raw_data/weather/pullman_historical_mini.csv", 
             col.names=FALSE, 
             row.names=FALSE
