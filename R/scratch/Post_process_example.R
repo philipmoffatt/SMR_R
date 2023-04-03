@@ -15,10 +15,10 @@ getwd()
 
 VaM_data <- preprocessing(
   "./raw_data/discharge_historical/USGSdischarge.csv",
-  "./raw_data/smr_output/MFC_mass_balance_79_1.csv",
+  "./raw_data/smr_output/mfc_mb_2023-03-31.csv",
   "1965-10-01",
   "1970-10-01",
-  c('wshed_id', 'date', 'year', 'runoff_cm', 'precip_cm', 'rain_cm', 'actualET_flow_cm', 'canopy_evap_cm', 'snowmelt_cm', 'storage_amt_cm', 'throughfall_cm', 'canopy_storage_amt_cm', 'perc_cm', 'Q', 'swe_cm', 'condens_cm', 'snow_cm', 'baseflow', 'srad', 'latent', 'sensible', 'lw', 'q_rain_ground', 'q_total')
+  c('wshed_id', 'date', 'year', 'runoff_cm', 'precip_cm', 'rain_cm', 'actualET_flow_cm', 'canopy_evap_cm', 'snowmelt_cm', 'storage_amt_cm', 'throughfall_cm', 'canopy_storage_amt_cm', 'perc_cm', 'Q', 'swe_cm', 'condens_cm', 'snow_cm', 'baseflow', 'srad', 'latent', 'sensible', 'lw', 'q_rain_ground', 'q_total', 'ice_content', 'liquid_water', 'refreeze', 'vap_d_air', 'vap_d_snow')
 )
 
 NSE_Q <- nse_Q(VaM_data)
