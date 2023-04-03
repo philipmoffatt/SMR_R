@@ -165,7 +165,7 @@ radiation_ts <- function(combined_data) {
     )
   
   ggplot(data=combined_data) +
-    #scale_y_continuous(trans='log10') +
+    scale_y_continuous(trans='log10') +
     geom_line(aes(x=date, y=srad, color='Srad')) +
     geom_line(aes(x=date, y=latent, color='Latent')) +
     geom_line(aes(x=date, y=sensible, color='Sensible')) + 
@@ -200,46 +200,36 @@ annual_mass_balance <- function(combined_data) {
     theme(plot.title = element_text(hjust = 0.5))
 }
 
+# function just for determing if ice.content or liquid.water is contributing to
+# swe inflation
 swe_debug <- function(combined_data) {
   
   ggplot(data=combined_data) +
     #scale_y_continuous(trans='log10') +
     geom_line(aes(x=date, y=ice_content, color='Ice Content')) +
     geom_line(aes(x=date, y=liquid_water, color='Liquid Water')) +
+    geom_line(aes(x=date, y=refreeze, color='Refreeze')) +
     geom_line(aes(x=date, y=snow_cm, color='Snow')) +
     geom_line(aes(x=date, y=swe_cm, color='SWE')) + 
     ggtitle('Snow Water Equivalent and its Components') +
     theme(plot.title = element_text(hjust = 0.5)) +
-    ylab('cm')
+    ylab('cm') + 
+    guides(color=guide_legend(title='SWE Variables'))
 
 }
 
-# # calling functions all above functions
-# 
-# flux_vector <- c('runoff_cm', 'precip_cm', 'rain_cm', 
-#                  'actualET_flow_cm', 'canopy_evap_cm', 
-#                  'snowmelt_cm', 'storage_amt_cm', 
-#                  'throughfall_cm', 'canopy_storage_amt_cm', 
-#                  'perc_cm', 'swe_cm', 'condens_cm', 
-#                  'snow_cm', 'baseflow')
-# 
- VaM_data <- preprocessing(
-  "./raw_data/discharge_historical/USGSdischarge.csv",
-   "./raw_data/smr_output/MFC_mass_balance_79.csv",
-   "1965-10-01",
-   "1970-10-01",
-   c('wshed_id', 'date', 'year', 'runoff_cm', 'precip_cm', 'rain_cm', 'actualET_flow_cm', 'canopy_evap_cm', 'snowmelt_cm', 'storage_amt_cm', 'throughfall_cm', 'canopy_storage_amt_cm', 'perc_cm', 'Q', 'swe_cm', 'condens_cm', 'snow_cm', 'baseflow', 'srad', 'latent', 'sensible', 'lw', 'q_rain_ground', 'q_total', 'ice_content', 'liquid_water')
- )
- 
- NSE_Q <- nse_Q(VaM_data)
- KGE_Q <- kge_Q(VaM_data)
-# 
-# annual_mass_balance(VaM_data)
-# flux_ts_loop(VaM_data, flux_vector)
-# 
-# annual_fluxes(VaM_data, flux_vector)
-# radiation_ts(VaM_data)
- SAM_check(VaM_data)
- Q_comparison(VaM_data)
- swe_debug(VaM_data)
-# 
+# function to confirm that value inflation comes from tiny rh rather than large
+# vap.d.air which is in the numerator
+q.latent_debug <- function(combined_data) {
+  
+  ggplot(data=combined_data) +
+    #scale_y_continuous(trans='log10') +
+    geom_line(aes(x=date, y=vap_d_air, color='Vap_d_air')) +
+    geom_line(aes(x=date, y=vap_d_snow, color='Vap_d_snow')) +
+    ggtitle('Size of vap.d.air compared to vap.d.snow') +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    ylab('Vapor Density (kg/m^3)') + 
+    guides(color=guide_legend(title='Vapor Density Variable'))
+  
+}
+        
