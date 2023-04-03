@@ -764,4 +764,7 @@ d %>%
   geom_point(aes(year,sum_pet))+
   geom_line(aes(year,tot_p))
 
-
+ggplot(historical_joined) +
+  geom_point(aes(date, tdew)) +
+  geom_point(aes(date, tavg, color="tavg"))
+  

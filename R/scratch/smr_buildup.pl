@@ -534,7 +534,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	foreach $hrly_tmp (@hourly_tmp_array)
 		{
 #			print `r.mapcalc 'temp = $hrly_tmp' --o`; # MZ 20170210
-			print `r.mapcalc 'temp = $hrly_tmp-($temp_LR/1000)*($el - $low_site_el)' --o`;  # switched order of el and low_site_el as is in the intial lapse rate calculations above
+			print `r.mapcalc 'temp = $hrly_tmp + ($temp_LR/1000)*($el - $low_site_el)' --o`;  # switched order of el and low_site_el as is in the intial lapse rate calculations above
 			print `r.mapcalc 'temp_sum = max(0.0,temp)+temp_sum' --o`;
 
 		};
@@ -544,7 +544,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	foreach $hrly_tmp (@hourly_tmp_array)
 		{
 #			print `r.mapcalc 'temp = $hrly_tmp' --o`; # MZ 20170210
-			print `r.mapcalc 'temp = $hrly_tmp-($temp_LR/1000)*(el - $low_site_el)' --o`; # switched order of el and low_site_el as is in the intial lapse rate calculations above
+			print `r.mapcalc 'temp = $hrly_tmp + ($temp_LR/1000)*(el - $low_site_el)' --o`; # switched order of el and low_site_el as is in the intial lapse rate calculations above
 
 			#print "$hrly_tmp \n";
 
