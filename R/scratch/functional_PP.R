@@ -16,6 +16,7 @@ preprocessing <- function(
     modeled_path, 
     start_date, 
     end_date, 
+    date_of_run,
     modeled_headers
     ) 
   {
@@ -40,6 +41,19 @@ preprocessing <- function(
     rename(validation_Q = mean_discharge_cms)
   
   modeled_data <- merge(modeled_data, validation_data)
+  
+  if (grepl(modeled_path, 'MFC_mass_balance_79.csv')) {
+    file.rename(
+      modeled_path,
+      paste0(
+        './raw_data/smr_output/',
+        paste0(
+          paste0('mfc_mb_', date_of_run),
+          '.csv'
+          )
+        )
+      )
+  }
 
   return(modeled_data)
   
@@ -223,7 +237,7 @@ swe_debug <- function(combined_data) {
 q.latent_debug <- function(combined_data) {
   
   ggplot(data=combined_data) +
-    #scale_y_continuous(trans='log10') +
+    scale_y_continuous(trans='log10') +
     geom_line(aes(x=date, y=vap_d_air, color='Vap_d_air')) +
     geom_line(aes(x=date, y=vap_d_snow, color='Vap_d_snow')) +
     ggtitle('Size of vap.d.air compared to vap.d.snow') +
