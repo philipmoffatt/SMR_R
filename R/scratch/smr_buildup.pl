@@ -296,7 +296,7 @@ while (<$WEATHER>) {
 # this equation may be wrong 
 print `r.mapcalc 'precip = (el*$precip_LR+$mean_annual_sea_level_precip) / ($mean_annual_onsite_precip) * $precip' --o`;
 print `r.mapcalc 'tavg = $tavg + ($temp_LR/1000) * (el - $low_site_el)' --o`;
-print `r.mapcalc 'tdew = $tdew + ($temp_LR/1000) * (el - $low_site_el - el)' --o`;
+print `r.mapcalc 'tdew = $tdew + ($temp_LR/1000) * (el - $low_site_el)' --o`;
 print `r.mapcalc 'rain = if(tavg>tmax_rain,precip,if(tavg<tmin_snow,0.0,(tavg-tmin_snow)/(tmax_rain-tmin_snow)*precip))' --o`;
 print `r.mapcalc 'snow = precip-rain' --o`;
 
@@ -534,7 +534,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	foreach $hrly_tmp (@hourly_tmp_array)
 		{
 #			print `r.mapcalc 'temp = $hrly_tmp' --o`; # MZ 20170210
-			print `r.mapcalc 'temp = $hrly_tmp-($temp_LR/1000)*($low_site_el - el)' --o`;
+			print `r.mapcalc 'temp = $hrly_tmp-($temp_LR/1000)*($el - $low_site_el)' --o`;  # switched order of el and low_site_el as is in the intial lapse rate calculations above
 			print `r.mapcalc 'temp_sum = max(0.0,temp)+temp_sum' --o`;
 
 		};
@@ -544,7 +544,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	foreach $hrly_tmp (@hourly_tmp_array)
 		{
 #			print `r.mapcalc 'temp = $hrly_tmp' --o`; # MZ 20170210
-			print `r.mapcalc 'temp = $hrly_tmp-($temp_LR/1000)*($low_site_el - el)' --o`;
+			print `r.mapcalc 'temp = $hrly_tmp-($temp_LR/1000)*(el - $low_site_el)' --o`; # switched order of el and low_site_el as is in the intial lapse rate calculations above
 
 			#print "$hrly_tmp \n";
 
@@ -702,15 +702,15 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	# the idea here is too sum up the daily runoff if it's february (month == 2) and then 
 	# if the day is 60, which will be right at the end of february write out the file to 
 	# an ascii (it will be hard to say if this works until we start trying to run the model)
-	if ($month == 2) {
+	if ($month == 10) {
 		`r.mapcalc 'runoff_feb_$year = runoff_feb_$year + runoff_daily_flow' --o`;
 		}
 
 	# this outputs accumulated and average february runoff but doesn't account for shortened 
 	# february --> this may need to be changed.
-	if ($doy == 61) {
+	if ($doy == 300) {
 		print `r.mapcalc 'average_feb_runoff_$year = runoff_feb_$year / 29' --o`;
-		print `r.out.ascii input=average_feb_runoff output=feb_avg_runoff_$year`;
+		print `r.out.ascii input=average_feb_runoff output='/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/feb_avg_runoff_$year'`;
 		}
 
 	#print "\n \n";
