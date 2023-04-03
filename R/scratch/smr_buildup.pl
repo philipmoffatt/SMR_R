@@ -301,8 +301,8 @@ print `r.mapcalc 'rain = if(tavg>tmax_rain,precip,if(tavg<tmin_snow,0.0,(tavg-tm
 print `r.mapcalc 'snow = precip-rain' --o`;
 
 # THESE ARE STILL FROM MICA!!! NEED TO UPDATE -- Duncan 3/12/23 --> these have been updated to get MM from Pullman: Duncan 3/13/23
-print `r.mapcalc 'pet_data = (1.8281*$pet-0.2486)' --o`;
-print `r.mapcalc "pet = (pet_data - $pet)*(el - $low_site_el)/($low_site_el - $high_site_el)+pet_data" --o`;
+print `r.mapcalc 'pet_data = (1.8281 * $pet - 0.2486)' --o`;
+print `r.mapcalc "pet = (pet_data - $pet) * (el - $low_site_el)/($high_site_el - $low_site_el)+pet_data" --o`;
 #print `r.mapcalc "pet = (pet_data-$pet)*($low_site_el-el)/($high_site_el-$low_site_el)+pet_data" --o`;
 # interception is calculated for Spruce trees based on work by Lankreijer et al. 1999, Agricultural and Forest
 # Meteorology 98-99:595.  Max Storage of Canopy was taken as 2.0 mm.  During rain, evaporation is 0.04 mm/hr.
