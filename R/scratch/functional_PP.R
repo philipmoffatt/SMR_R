@@ -8,14 +8,16 @@ library(RColorBrewer)
 library(gridExtra)
 library(grid)
 library(cowplot)
-
+library(raster)
+library(mapview)
 
 # data pre-processing and alignment function
 preprocessing <- function(
     validation_path, 
     modeled_path, 
     start_date, 
-    end_date, 
+    end_date,
+    rename,
     date_of_run,
     modeled_headers
     ) 
@@ -42,7 +44,8 @@ preprocessing <- function(
   
   modeled_data <- merge(modeled_data, validation_data)
   
-  if (grepl(modeled_path, 'MFC_mass_balance_79.csv')) {
+  if (rename) {
+    if (grepl('MFC_mass_balance_79.csv', modeled_path)) {
     file.rename(
       modeled_path,
       paste0(
@@ -53,8 +56,9 @@ preprocessing <- function(
           )
         )
       )
+    }
   }
-
+  
   return(modeled_data)
   
   }
@@ -247,3 +251,4 @@ q.latent_debug <- function(combined_data) {
   
 }
         
+
