@@ -723,7 +723,6 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	print `r.mapcalc 'runoff_daily_flow = runoff_daily_flow+runoff_flow' --o`;
 
 	print `r.mapcalc 'saturation = storage_amt/sat_amt*100.0' --o`;
-	print `r.mapcalc 'runoff_$year = runoff_flow+runoff_$year' --o`;
 
 	}; # end of the 6 hours loop
 
@@ -734,7 +733,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	print `r.mapcalc 'runoff_daily_flow = runoff_daily_flow+road_runoff' --o`;
 	print `r.mapcalc 'input_daily_balance = input_daily - (snowmelt + throughfall)' --o`;
 
-	print `r.mapcalc 'psat_$year = psat_$year + if(saturation>=100,1,0)' --o`;
+	#print `r.mapcalc 'psat_$year = psat_$year + if(saturation>=100,1,0)' --o`;
 
 
 #____________________________________________________________________________________
