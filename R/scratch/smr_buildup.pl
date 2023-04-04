@@ -140,38 +140,6 @@ print `r.mapcalc 'mass_balance_total = 0.0' --o`;
 print `r.mapcalc 'canopy_storage_amt_pre = 0.0' --o`;
 print `r.mapcalc 'storage_amt_pre = storage_amt' --o`;
 
-# added in for updating maximum storage map start values -- DJ, 2/20/23
-print `r.mapcalc 'max_storage_A_horizon = 0.0' --o`;
-print `r.mapcalc 'max_storage_B_horizon = 0.0' --o`;
-print `r.mapcalc 'max_storage = 0.0' --o`;
-print `r.mapcalc 'max_runoff = 0.0' --o`;
-
-# annual and monthly map initialization
-print `r.mapcalc 'runoff_1965 = 0.0' --o`;
-print `r.mapcalc 'runoff_1966 = 0.0' --o`;
-print `r.mapcalc 'runoff_1967 = 0.0' --o`;
-print `r.mapcalc 'runoff_1968 = 0.0' --o`;
-print `r.mapcalc 'runoff_1969 = 0.0' --o`;
-print `r.mapcalc 'runoff_1970 = 0.0' --o`;
-print `r.mapcalc 'runoff_1971 = 0.0' --o`;
-print `r.mapcalc 'runoff_1972 = 0.0' --o`;
-print `r.mapcalc 'runoff_1973 = 0.0' --o`;
-print `r.mapcalc 'runoff_1974 = 0.0' --o`;
-print `r.mapcalc 'runoff_1975 = 0.0' --o`;
-print `r.mapcalc 'runoff_1976 = 0.0' --o`;
-print `r.mapcalc 'runoff_1977 = 0.0' --o`;
-print `r.mapcalc 'runoff_1978 = 0.0' --o`;
-print `r.mapcalc 'runoff_1979 = 0.0' --o`;
-print `r.mapcalc 'runoff_1980 = 0.0' --o`;
-print `r.mapcalc 'runoff_1981 = 0.0' --o`;
-print `r.mapcalc 'runoff_1982 = 0.0' --o`;
-print `r.mapcalc 'runoff_1983 = 0.0' --o`;
-print `r.mapcalc 'runoff_1984 = 0.0' --o`;
-print `r.mapcalc 'runoff_1985 = 0.0' --o`;
-print `r.mapcalc 'runoff_1986 = 0.0' --o`;
-print `r.mapcalc 'runoff_1987 = 0.0' --o`;
-print `r.mapcalc 'runoff_1988 = 0.0' --o`;
-
 print `r.mapcalc 'runoff_feb_1965 = 0.0' --o`;
 print `r.mapcalc 'runoff_feb_1966 = 0.0' --o`;
 print `r.mapcalc 'runoff_feb_1967 = 0.0' --o`;
@@ -197,33 +165,108 @@ print `r.mapcalc 'runoff_feb_1986 = 0.0' --o`;
 print `r.mapcalc 'runoff_feb_1987 = 0.0' --o`;
 print `r.mapcalc 'runoff_feb_1988 = 0.0' --o`;
 
-print `r.mapcalc 'Psat_1965 = 0.0' --o`;
-print `r.mapcalc 'Psat_1966 = 0.0' --o`;
-print `r.mapcalc 'Psat_1967 = 0.0' --o`;
-print `r.mapcalc 'Psat_1968 = 0.0' --o`;
-print `r.mapcalc 'Psat_1969 = 0.0' --o`;
-print `r.mapcalc 'Psat_1970 = 0.0' --o`;
-print `r.mapcalc 'Psat_1971 = 0.0' --o`;
-print `r.mapcalc 'Psat_1972 = 0.0' --o`;
-print `r.mapcalc 'Psat_1973 = 0.0' --o`;
-print `r.mapcalc 'Psat_1974 = 0.0' --o`;
-print `r.mapcalc 'Psat_1975 = 0.0' --o`;
-print `r.mapcalc 'Psat_1976 = 0.0' --o`;
-print `r.mapcalc 'Psat_1977 = 0.0' --o`;
-print `r.mapcalc 'Psat_1978 = 0.0' --o`;
-print `r.mapcalc 'Psat_1979 = 0.0' --o`;
-print `r.mapcalc 'Psat_1980 = 0.0' --o`;
-print `r.mapcalc 'Psat_1981 = 0.0' --o`;
-print `r.mapcalc 'Psat_1982 = 0.0' --o`;
-print `r.mapcalc 'Psat_1983 = 0.0' --o`;
-print `r.mapcalc 'Psat_1984 = 0.0' --o`;
-print `r.mapcalc 'Psat_1985 = 0.0' --o`;
-print `r.mapcalc 'Psat_1986 = 0.0' --o`;
-print `r.mapcalc 'Psat_1987 = 0.0' --o`;
-print `r.mapcalc 'Psat_1988 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1965 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1966 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1967 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1968 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1969 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1970 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1971 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1972 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1973 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1974 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1975 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1976 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1977 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1978 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1979 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1980 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1981 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1982 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1983 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1984 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1985 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1986 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1987 = 0.0' --o`;
+print `r.mapcalc 'A_amt_feb_1988 = 0.0' --o`;
+
+print `r.mapcalc 'B_amt_feb_1965 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1966 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1967 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1968 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1969 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1970 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1971 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1972 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1973 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1974 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1975 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1976 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1977 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1978 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1979 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1980 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1981 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1982 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1983 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1984 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1985 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1986 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1987 = 0.0' --o`;
+print `r.mapcalc 'B_amt_feb_1988 = 0.0' --o`;
+
+print `r.mapcalc 'precip_1965 = 0.0' --o`;
+print `r.mapcalc 'precip_1966 = 0.0' --o`;
+print `r.mapcalc 'precip_1967 = 0.0' --o`;
+print `r.mapcalc 'precip_1968 = 0.0' --o`;
+print `r.mapcalc 'precip_1969 = 0.0' --o`;
+print `r.mapcalc 'precip_1970 = 0.0' --o`;
+print `r.mapcalc 'precip_1971 = 0.0' --o`;
+print `r.mapcalc 'precip_1972 = 0.0' --o`;
+print `r.mapcalc 'precip_1973 = 0.0' --o`;
+print `r.mapcalc 'precip_1974 = 0.0' --o`;
+print `r.mapcalc 'precip_1975 = 0.0' --o`;
+print `r.mapcalc 'precip_1976 = 0.0' --o`;
+print `r.mapcalc 'precip_1977 = 0.0' --o`;
+print `r.mapcalc 'precip_1978 = 0.0' --o`;
+print `r.mapcalc 'precip_1979 = 0.0' --o`;
+print `r.mapcalc 'precip_1980 = 0.0' --o`;
+print `r.mapcalc 'precip_1981 = 0.0' --o`;
+print `r.mapcalc 'precip_1982 = 0.0' --o`;
+print `r.mapcalc 'precip_1983 = 0.0' --o`;
+print `r.mapcalc 'precip_1984 = 0.0' --o`;
+print `r.mapcalc 'precip_1985 = 0.0' --o`;
+print `r.mapcalc 'precip_1986 = 0.0' --o`;
+print `r.mapcalc 'precip_1987 = 0.0' --o`;
+print `r.mapcalc 'precip_1988 = 0.0' --o`;
+
+print `r.mapcalc 'pet_1965 = 0.0' --o`;
+print `r.mapcalc 'pet_1966 = 0.0' --o`;
+print `r.mapcalc 'pet_1967 = 0.0' --o`;
+print `r.mapcalc 'pet_1968 = 0.0' --o`;
+print `r.mapcalc 'pet_1969 = 0.0' --o`;
+print `r.mapcalc 'pet_1970 = 0.0' --o`;
+print `r.mapcalc 'pet_1971 = 0.0' --o`;
+print `r.mapcalc 'pet_1972 = 0.0' --o`;
+print `r.mapcalc 'pet_1973 = 0.0' --o`;
+print `r.mapcalc 'pet_1974 = 0.0' --o`;
+print `r.mapcalc 'pet_1975 = 0.0' --o`;
+print `r.mapcalc 'pet_1976 = 0.0' --o`;
+print `r.mapcalc 'pet_1977 = 0.0' --o`;
+print `r.mapcalc 'pet_1978 = 0.0' --o`;
+print `r.mapcalc 'pet_1979 = 0.0' --o`;
+print `r.mapcalc 'pet_1980 = 0.0' --o`;
+print `r.mapcalc 'pet_1981 = 0.0' --o`;
+print `r.mapcalc 'pet_1982 = 0.0' --o`;
+print `r.mapcalc 'pet_1983 = 0.0' --o`;
+print `r.mapcalc 'pet_1984 = 0.0' --o`;
+print `r.mapcalc 'pet_1985 = 0.0' --o`;
+print `r.mapcalc 'pet_1986 = 0.0' --o`;
+print `r.mapcalc 'pet_1987 = 0.0' --o`;
+print `r.mapcalc 'pet_1988 = 0.0' --o`;
 
 #____________________________________________________________________________________
-#z
+#
 # START READING WEATHER DATA
 #____________________________________________________________________________________
 
@@ -510,7 +553,7 @@ print `r.mapcalc 'tsnow_surf = u.surface/24.0/(2.1*1000.0*min(swe/100.0,0.02)+10
 #print "\n \n";
 
 # assume road width is 5 m and assume road surface storage is 1.5 cm 
-# assume once surface storage is exceeded all runoff reaches stream
+# assume once surface storage is exceeded all  reaches stream
 # print `echo "road_runoff=if(roads==1.0,max(0.0,snowmelt+throughfall-1.5)*5.0/$gridsize,0.0)" | r.mapcalc`;
 #print `r.mapcalc 'road_runoff = if(roads==1.0,max(0.0,snowmelt+throughfall-1.5)*5.0/$gridsize,0.0)' --o`;
 print `r.mapcalc 'road_runoff = if(landuse==2.0,max(0.0,snowmelt+throughfall-1.5)/$gridsize,0.0)' --o`; #removed the x5 part of the road runoff (becuase grid size is already 30)
@@ -691,7 +734,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	print `r.mapcalc 'runoff_daily_flow = runoff_daily_flow+road_runoff' --o`;
 	print `r.mapcalc 'input_daily_balance = input_daily - (snowmelt + throughfall)' --o`;
 
-	print `r.mapcalc 'Psat_$year = Psat_$year + if(saturation>=100,1,0)' --o`;
+	print `r.mapcalc 'psat_$year = psat_$year + if(saturation>=100,1,0)' --o`;
 
 
 #____________________________________________________________________________________
@@ -699,24 +742,37 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 #  7. Output maps
 #____________________________________________________________________________________
 
-	# the idea here is too sum up the daily runoff if it's february (month == 2) and then 
+	# the idea here is too sum up the daily stats if it's february (month == 2) and then 
 	# if the day is 60, which will be right at the end of february write out the file to 
 	# an ascii (it will be hard to say if this works until we start trying to run the model)
-	if ($month == 10) {
+	if ($month == 2) {
 		`r.mapcalc 'runoff_feb_$year = runoff_feb_$year + runoff_daily_flow' --o`;
+		`r.mapcalc = 'A_amt_feb_$year = A_amt_feb_$year + storage_amt_A' --o`;
+		`r.mapcalc = 'B_amt_feb_$year = B_amt_feb_$year + storage_amt_B' --o`;
 		}
 
 	# this outputs accumulated and average february runoff but doesn't account for shortened 
 	# february --> this may need to be changed.
-	if ($doy == 300) {
-		print `r.mapcalc 'average_feb_runoff_$year = runoff_feb_$year / 29' --o`;
-		print `r.out.ascii input=average_feb_runoff output='/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/feb_avg_runoff_$year'`;
+	if ($doy == 62) {
+		print `r.mapcalc 'avg_feb_runoff_$year = runoff_feb_$year / 29' --o`;
+		print `r.out.gdal input=avg_feb_runoff_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_avg_runoff/feb_avg_runoff_$year.tif`;
+		
+		print `r.mapcalc 'avg_A_amt_feb_$year = A_amt_feb_$year / 29' --o`;
+		print `r.out.gdal input=avg_A_amt_feb_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_avg_A_amt/avg_A_amt_feb_$year.tif`;
+
+		print `r.mapcalc 'avg_B_amt_feb_$year = B_amt_feb_$year / 29' --o`;
+		print `r.out.gdal input=avg_B_amt_feb_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_avg_B_amt/avg_B_amt_feb_$year.tif`;
 		}
 
-	#print "\n \n";
-	#print "\n|----- OUTPUT ZONAL STATS -----|\n";
-	#print "\n \n";
+  # maps of annual precipitation and pet to confirm distribution is correct
+  # with respect to elevation
+  `r.mapcalc 'precip_$year = precip_$year + precip' --o`;
+  `r.mapcalc 'pet_$year = pet_$year + pet' --o`;
 
+  if ($doy >= 364) {
+    print `r.out.gdal input=precip_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/annual_precip/precip_$year.tif`;
+    print `r.out.gdal input=pet_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/annual_pet/pet_$year.tif`;
+  }
 
 	open($WATERSHED, '<', 'wshed_res_properties.ini') || "Can't open file\n";
 	while (<$WATERSHED>) {
