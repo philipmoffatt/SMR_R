@@ -674,7 +674,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	#	6. row crop: 0.068 - 0.147 cm
 
 
-	print `r.mapcalc 'ET_coeff = if(landuse==6.0,$cc_row_crop,if(landuse==5.0,$cc_grass,if(landuse==4.0,$cc_shrub,if(landuse==3.0,$cc_forest,if(landuse==2.0,$cc_urban,if(landuse==1.0,$cc_water,$cc_water))))))' --o`; # DJ - 3/14/23 --> taking out the -10 and removing the /100 below because our Kc values are small already
+	print `r.mapcalc 'ET_coeff = 1' --o`; #if(landuse==6.0,$cc_row_crop,if(landuse==5.0,$cc_grass,if(landuse==4.0,$cc_shrub,if(landuse==3.0,$cc_forest,if(landuse==2.0,$cc_urban,if(landuse==1.0,$cc_water,$cc_water))))))' --o`; # DJ - 3/14/23 --> taking out the -10 and removing the /100 below because our Kc values are small already # DJ 04/06/2023 -- commented out landuse effect to just use ETcoeff of 1.
 
 	print `r.mapcalc 'root_storage_amt = if(landuse==6.0,storage_amt,if(landuse==5.0,storage_amt,if(landuse==4.0,storage_amt,if(landuse==3.0,storage_amt_A,if(landuse==2.0,storage_amt,if(landuse==1.0,storage_amt,storage_amt))))))' --o`;
 
@@ -745,22 +745,28 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	# if the day is 60, which will be right at the end of february write out the file to 
 	# an ascii (it will be hard to say if this works until we start trying to run the model)
 	if ($month == 2) {
+	  
+	  #print `g.rename raster=runoff_feb_$year,runoff_feb --o`;
 		`r.mapcalc 'runoff_feb_$year = runoff_feb_$year + runoff_daily_flow' --o`;
-		`r.mapcalc = 'A_amt_feb_$year = A_amt_feb_$year + storage_amt_A' --o`;
-		`r.mapcalc = 'B_amt_feb_$year = B_amt_feb_$year + storage_amt_B' --o`;
+		
+		#print `g.rename raster=A_amt_feb_$year,A_amt_feb_$year_new --o`;
+		`r.mapcalc 'A_amt_feb_$year = A_amt_feb_$year + storage_amt_A' --o`;
+		
+		#print `g.rename raster=B_amt_feb_$year,B_amt_feb_$year_new --o`;
+		`r.mapcalc 'B_amt_feb_$year = B_amt_feb_$year + storage_amt_B' --o`;
 		}
 
 	# this outputs accumulated and average february runoff but doesn't account for shortened 
 	# february --> this may need to be changed.
 	if ($doy == 62) {
 		print `r.mapcalc 'avg_feb_runoff_$year = runoff_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_feb_runoff_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_avg_runoff/feb_avg_runoff_$year.tif`;
+		print `r.out.gdal input=avg_feb_runoff_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_outputs/feb_avg_runoff_$year.tif`;
 		
 		print `r.mapcalc 'avg_A_amt_feb_$year = A_amt_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_A_amt_feb_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_avg_A_amt/avg_A_amt_feb_$year.tif`;
+		print `r.out.gdal input=avg_A_amt_feb_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_outputs/avg_A_amt_feb_$year.tif`;
 
 		print `r.mapcalc 'avg_B_amt_feb_$year = B_amt_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_B_amt_feb_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_avg_B_amt/avg_B_amt_feb_$year.tif`;
+		print `r.out.gdal input=avg_B_amt_feb_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_outputs/avg_B_amt_feb_$year.tif`;
 		}
 
   # maps of annual precipitation and pet to confirm distribution is correct
@@ -768,7 +774,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
   `r.mapcalc 'precip_$year = precip_$year + precip' --o`;
   `r.mapcalc 'pet_$year = pet_$year + pet' --o`;
 
-  if ($doy >= 364) {
+  if ($doy >= 365) {
     print `r.out.gdal input=precip_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/annual_precip/precip_$year.tif`;
     print `r.out.gdal input=pet_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/annual_pet/pet_$year.tif`;
   }
