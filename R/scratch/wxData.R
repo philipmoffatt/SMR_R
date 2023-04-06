@@ -90,10 +90,7 @@ gridMET_p <- gridMET_p %>%
          tmax = tmax - 273.15,
          tavg = (tmax+tmin)/2,
          output = ifelse(month == 2, 1, 0),
-         l_turb = 2.5,
-         prcp = prcp/10,
-         pet_grass = pet_grass/10
-         )
+         l_turb = 2.5)
 
 gridMET_m <- gridMET_m %>%
   mutate(doy = yday(date),
@@ -104,10 +101,7 @@ gridMET_m <- gridMET_m %>%
          tmax = tmax - 273.15,
          tavg = (tmax+tmin)/2,
          output = ifelse(month == 2, 1, 0),
-         l_turb = 2.5,
-         prcp = prcp/10,
-         pet_grass = pet_grass/10
-         )
+         l_turb = 2.5)
 
 ### --------------------------------------- ###
 
@@ -425,9 +419,9 @@ gridMET_joined_m$cloud <-
 #   6. k: Von Karman's constant (0.41)
 #   7. u: the wind speed (dynamic part of the function, meters/second)
 
-# setup constants that won't change between land covers (should confirm these)
+# setup constants that won't change between land covers (assume standard height for wx sensor)
 zu_value <- 2
-zt_value <- 1
+zt_value <- 2
 k_value <- 0.41
 
 # making a vector of the land covers heights (meters)
