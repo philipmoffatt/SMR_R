@@ -250,5 +250,31 @@ q.latent_debug <- function(combined_data) {
     guides(color=guide_legend(title='Vapor Density Variable'))
   
 }
-        
+
+# this should take in map outputs a date of the model run and 
+# output those 
+# TO ADD: needs a feature that only adds a date if a date already exists
+get_map_outputs <- function(map_dir, model_run_date) {
+  
+  tif_files <- list.files(map_dir, pattern = ".tif$")
+  
+  for (file in tif_files) {
+    
+    var_name <- gsub(".tif$", "", file)
+    print(var_name)
+    
+    if (!(grepl(model_run_date, var_name))) {
+      new_file_name <- paste0(var_name, "_", model_run_date, ".tif")
+      assign(new_file_name, raster(paste0(map_dir, "/", file)), envir=globalenv())
+      file.rename(paste0(map_dir, "/", file), paste0(map_dir, "/", new_file_name))
+    }
+    
+    assign(var_name, raster(paste0(map_dir, "/", file)), envir=globalenv())
+    
+    
+  }
+}
+
+
+
 
