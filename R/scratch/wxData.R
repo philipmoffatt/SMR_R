@@ -90,10 +90,7 @@ gridMET_p <- gridMET_p %>%
          tmax = tmax - 273.15,
          tavg = (tmax+tmin)/2,
          output = ifelse(month == 2, 1, 0),
-         l_turb = 2.5,
-         prcp = prcp/10,
-         pet_grass = pet_grass/10
-         )
+         l_turb = 2.5)
 
 gridMET_m <- gridMET_m %>%
   mutate(doy = yday(date),
@@ -104,10 +101,7 @@ gridMET_m <- gridMET_m %>%
          tmax = tmax - 273.15,
          tavg = (tmax+tmin)/2,
          output = ifelse(month == 2, 1, 0),
-         l_turb = 2.5,
-         prcp = prcp/10,
-         pet_grass = pet_grass/10
-         )
+         l_turb = 2.5)
 
 ### --------------------------------------- ###
 
@@ -498,9 +492,9 @@ historical_weather <- wx[, c("date", "tmax", "tmin", "tobs", "prcp", "snow")] %>
          year = lubridate::year(date),
          month = lubridate::month(date),
          day = lubridate::day(date),
-         tmin = tmin/10,
-         tmax = tmax/10,
-         tobs = tobs/10,
+         tmin = tmin,
+         tmax = tmax,
+         tobs = tobs,
          tavg = (tmax+tmin)/2,
          output = ifelse(month == 2, 1, 0),
          l_turb = 2.5)
@@ -740,10 +734,25 @@ write.table(historical_joined[1:10,],
 
 ### ------------------------------------------------------- ###
 
+mc <- read.csv('raw_data/weather/micaCreekRh.csv')
 
 d <- historical_joined
 
-ggplot(d, aes(date,pet))+
+# compare rh_forest
+hist(mc$rh_veg, col='green', main='Mica Creek vs Missouri Flat', xlab='rh values')
+hist(d$rh_forest,col='red', add=TRUE)
+
+# compare timing
+ggplot()+
+  geom_path(data=d,aes(rh_forest))
+
+ggplot()+
+  geom_line(data=mc, aes(doy, rh_veg))+
+  geom_point(data = mc, aes(doy, rh_snow), alpha=0.1)
+# need to line these up
+plot(mc$rh_veg,d$rh_forest[1:365])
+
+ggplot(d, aes(date,pet)) +
   geom_point()
 
 ggplot(d, aes(date,rh_row_crop)) +
