@@ -637,7 +637,7 @@ historical_joined$tdew <- case_when(historical_joined$tmin <= 0 ~ historical_joi
 # reading in the predicted wind file an adding date information
 historical_predictd_wind <- read.csv("./raw_data/weather/Estimated Pullman Historic Wind Speed.csv")
 historical_predictd_wind$date <- as.Date(historical_predictd_wind$DATE, "%m/%d/%Y")
-historical_predictd_wind$avgWspd_kmph[historical_predictd_wind$avgWspd_kmph == 0] <- mean(historical_predictd_wind$avgWspd_kmph, na.rm = TRUE)
+historical_predictd_wind$avgWspd_kmph[historical_predictd_wind$avgWspd_kmph == 0] <- mean(historical_predictd_wind$avgWspd_kmph, na.rm=TRUE)
 
 # converting units of wind speed
 historical_predictd_wind$avgWspd_kmph <- historical_predictd_wind$avgWspd_kmph/3.6 # converts from km/hour to m/s

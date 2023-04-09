@@ -257,7 +257,7 @@ q.latent_debug <- function(combined_data) {
 get_map_outputs <- function(map_dir, model_run_date) {
   
   tif_files <- list.files(map_dir, pattern = ".tif$")
-  
+
   for (file in tif_files) {
     
     var_name <- gsub(".tif$", "", file)
@@ -271,10 +271,64 @@ get_map_outputs <- function(map_dir, model_run_date) {
     
     assign(var_name, raster(paste0(map_dir, "/", file)), envir=globalenv())
     
-    
   }
 }
 
+get_map_outputs(
+  '/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_outputs',
+  '2023-04-06'
+)
 
 
+# visualize soil moisture in a soil horizon
+storage_amt_feb <- function(soil_storage_rast, horizon_letter) {
+  
+  par(mar=c(1.8, 1.8, 1.8, 1.8))
+  plot(
+    soil_storage_rast, 
+    main=paste0('Average Soil Moisture in the ', horizon_letter, ' Horizon for February (cm)'),
+    axes=FALSE
+    )
+  
+}
+
+# visualize average February runoff
+runoff_feb <- function(avg_runoff_rast) {
+  
+  par(mar=c(1.8, 1.8, 1.8, 1.8))
+  plot(
+    avg_runoff_rast, 
+    main=paste0('Average Daily Runoff in February (cm)'),
+    axes=FALSE
+    )
+  
+}
+
+# visualize annual precipitation
+annual_precip_rast <- function(ann_precip) {
+  
+  par(mar=c(1.8, 1.8, 1.8, 1.8))
+  plot(
+    ann_precip, 
+    main=paste0('Annual Precipitation (cm)'),
+    axes=FALSE
+  )
+  
+}
+
+# visualize annual potential evapotranspiration
+annual_precip_rast <- function(ann_pet) {
+  
+  par(mar=c(1.8, 1.8, 1.8, 1.8))
+  plot(
+    ann_precip, 
+    main=paste0('Annual PET (cm)'),
+    axes=FALSE
+  )
+  
+}
+
+storage_amt_feb(`avg_A_amt_feb_2023-04-06`, 'A')
+storage_amt_feb(`avg_B_amt_feb_2023-04-06`, 'B')
+runoff_feb(`feb_avg_runoff_2023-04-06`)
 
