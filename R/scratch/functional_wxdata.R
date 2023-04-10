@@ -1,0 +1,349 @@
+# import libraries
+library(tidyverse)
+library(dplyr) 
+library(lubridate)
+library(AOI)
+library(climateR)
+library(rnoaa)
+library(chillR)
+library(humidity)
+library(bigleaf)
+library(mapview)
+library(sf)
+library(FAO56)
+
+# list of useful functions:
+# 1. function that takes in a single location --> gets the weather data for that location
+# and finds nearby locations at a different elevation and calculates the lapse rate
+# - this function should do all the initial formatting and etc
+# - this function could also try with multiple nearby locations and average it out
+#   - the lapse rate should be called as a helper function
+# 2. dissagregate
+# 3. 
+
+#visualizations:
+# 3. crop coefficient curves for each land cover --> https://cran.r-project.org/web/packages/FAO56/FAO56.pdf
+# 4. tavg, tmax, and time series
+# 5. tavg, tdew time series
+# 6. precipitation time series
+# 7. pet time series
+# 8. rh values for each land cover
+# 9. annual accumulated pet and precipitation fluxes
+# 10. the pet, temperature, and precipitation lapse rates
+# 11. outputs a summary markdown to give an intuitive sense for the data
+# 12. a function which takes in a few parameters and calls all of these
+
+# FUNCTIONS TO ADD LATER:
+# 1. some builtin functions that lets you visualize your own variables
+
+pull_gridMET <- function(site_name) {
+  
+  # establish AOI
+  AOI::aoi_get(site_name) %>% 
+    AOI::aoi_map(returnMap = TRUE)
+  
+  # pull lat and lon for site
+  cords <- geocode(site_name)
+  lat <- cords$lat
+  lon <- cords$lon
+
+  gridMETdata <- param_meta$gridmet
+  
+  # pull precipitation (mm), temp (C), pet (mm) from GRIDMET
+  AOI_p = AOI::geocode(site_name, pt = TRUE)
+  gridMET_data  = as.data.frame(getGridMET(AOI_p, param = c('prcp', 'tmax', 'tmin', 'pet_grass', 'srad', 'wind_vel'), 
+                                           startDate = "2000-01-01", 
+                                           endDate = "2022-12-31"))
+  
+  mapview(AOI_p)
+  
+  gridMET_data <- gridMET_data %>% 
+    mutate(year = lubridate::year(date), 
+           month = lubridate::month(date), 
+           day = lubridate::day(date),
+           tmax = tmax - 273.15,
+           tmin = tmin - 273.15,
+           tavg = (tmax+tmin)/2,
+           doy = yday(date),
+           l_turb = 2.5
+           )
+  
+  return(gridMET_data)
+  
+}
+
+get_hourly_temps <- function(gridMET, latitude) {
+  
+  gridMET_hourly <- gridMET[,c("tmin", "tmax", "year", "month", "day")] %>%
+    rename(Year = year, Day = day, Month = month, Tmin = tmin, Tmax = tmax) %>%
+    make_hourly_temps(latitude, year_file = ., keep_sunrise_sunset = FALSE) %>%
+    rename(year = Year, day = Day, month = Month, tmin = Tmin, tmax = Tmax)
+  
+  # Merge the two data.frames
+  gridMET_hourly <- merge(gridMET, gridMET_hourly)
+  
+  return(gridMET_hourly)
+}
+
+
+ann_Kc_curve <- function(time_params, Kc_params, planting_offset, gridMET, crop_name) {
+  
+  total_curve <- c(rep(Kc_params[["Kc_preplant"]], time_params[["preplant_len"]]),
+                   rep(Kc_params[["Kc_init"]], time_params[["init_len"]]),
+                   seq(Kc_params[["Kc_init"]], Kc_params[["Kc_mid"]], length.out = time_params[["dev_len"]]),
+                   rep(Kc_params[["Kc_mid"]], time_params[["mid_len"]]),
+                   seq(Kc_params[["Kc_mid"]], Kc_params[["Kc_end"]], length.out = time_params[["late_len"]]),
+                   rep(Kc_params[["Kc_post_harv"]], time_params[["post_len"]]))
+  
+  # checking that all sections add up to a year
+  stopifnot(length(total_curve) == sum(unlist(time_params)))
+  
+  doy <- as.numeric(1:365)
+  Kc <- round(total_curve, 4)
+  Kc_frame <- data.frame(doy = (doy + planting_offset) %% 365, Kc = Kc)
+  
+  # attach the Kc curve to gridMET
+  col_name <- paste0("Kc_", crop_name)
+  gridMET <- inner_join(gridMET, Kc_frame, by = c("doy" = "doy"))
+  colnames(gridMET)[colnames(gridMET) == "Kc"] <- col_name
+  
+  return(gridMET)
+}
+
+
+lapse_rates <- function(low_site, high_site, low_site_el, high_site_el) {
+  
+  # calculate elevation difference in meters
+  elevation_diff <- low_site_el - high_site_el
+  
+  # calculate precipitation lapse rate
+  pullman_mean_prcp <- mean(low_site$prcp, na.rm = TRUE)
+  moscow_mean_prcp <- mean(high_site$prcp, na.rm = TRUE)
+  prcp_lapse_rate <- ((pullman_mean_prcp - moscow_mean_prcp) / elevation_diff) * 1000
+  
+  # calculate temperature lapse rate
+  pullman_mean_tavg <- mean(low_site$tavg, na.rm = TRUE)
+  moscow_mean_tavg <- mean(high_site$tavg, na.rm = TRUE)
+  tavg_lapse_rate <- ((pullman_mean_tavg - moscow_mean_tavg) / elevation_diff) * 1000
+  
+  # calculate PET (grass) lapse rate
+  pullman_mean_pet <- mean(low_site$pet_grass, na.rm = TRUE)
+  moscow_mean_pet <- mean(high_site$pet_grass, na.rm = TRUE)
+  pet_grass_lapse_rate <- ((pullman_mean_pet - moscow_mean_pet) / elevation_diff) * 1000
+  
+  # produce a linear model for PET based on site elevations and PET
+  # setup variables for elevation and PET
+  moscow_mountain_el <- high_site_el
+  moscow_mountain_pet <- moscow_mean_pet
+  
+  pullman_el <- low_site_el
+  pullman_pet <- pullman_mean_pet
+  
+  # create data frame with xy values
+  pet_lm_data <- data.frame(x = c(pullman_pet,pullman_el), y = c(moscow_mountain_pet,moscow_mountain_el))
+  
+  # fit linear model
+  model_values <- summary(lm(y ~ x, data = pet_lm_data))
+  
+  # return data frame with lapse rates and PET linear model values
+  return(data.frame(precip_lapse_rate = prcp_lapse_rate,
+                    temp_lapse_rate = tavg_lapse_rate,
+                    pet_grass_lapse_rate = pet_grass_lapse_rate,
+                    pet_lm_intercept = model_values$coefficients[1],
+                    pet_lm_slope = model_values$coefficients[2]))
+}
+
+# calculate the dewpoint temperature
+dewpoint_temperature <- function(gridMET) {
+  
+  # create a new column for dew point temperature
+  gridMET$tdew <- case_when(gridMET$tmin <= 0 ~ gridMET$tmin * 0.7 - 2,
+                            gridMET$tmin > 0 ~ gridMET$tmin * 0.97 - 0.53)
+  
+  return(gridMET)
+}
+
+library(bigleaf)
+
+# calculate the cloud fraction
+calculate_cloud_fraction <- function(gridMET_df, latitude, longitude, timezone) {
+  
+  # setup sequence of days for potential radiation function
+  julian_year <- seq(1, 365)
+  
+  # calculate the sunrise, sunset, and daytime hours for each day based on day of year
+  # and latitude
+  annual_day_lengths <- daylength(latitude = latitude, JDay = julian_year, notimes.as.na = FALSE)
+  
+  # setup solar radiation data frame for merging with gridMET frames
+  srad_df <- 
+    data.frame(
+      doy = numeric(), 
+      srad_potential = numeric()
+    )
+  
+  for (day in julian_year) {
+    
+    # get the sunrise and sunset time for the corresponding day of year and build
+    # a sequence from them --> the 0.1 step is arbitrary
+    day_sequence <- 
+      seq(
+        from = annual_day_lengths$Sunrise[day], 
+        to = annual_day_lengths$Sunset[day],
+        by = 0.1
+      )
+    
+    # calculate the potential radiation for the sequence
+    potential_radiation <- 
+      potential.radiation(
+        doy = day,
+        hour = day_sequence,
+        latDeg = latitude,
+        longDeg = longitude,
+        timezone = timezone,
+        useSolartime = TRUE
+      )
+    
+    # take the average potential radiation to match a daily summary
+    mean_daily_srad <- mean(potential_radiation)
+    
+    # add average to corresponding position in the potential_srad dataframe
+    srad_df[day, "doy"] <- day
+    srad_df[day, "srad_potential"] <- mean_daily_srad
+    
+  }
+  
+  # add the repeating potential solar radiation frame to the gridMET dataframe
+  # based on doy
+  gridMET_joined <- inner_join(gridMET_df, srad_df[, c("doy", "srad_potential")], by = "doy")
+  
+  # cloud fraction is the ratio of the observed solar radiation to 
+  # potential solar radiation at that point
+  gridMET_joined$cloud <- gridMET_joined$srad / gridMET_joined$srad_potential
+  
+  return(gridMET_joined)
+}
+
+# heat transfer to resistance function
+heat_transfer_resistance <- function(zu, zt, k, d, zm, zh, u) {
+  rh <- (log((zu - d + zm) / zm) * log((zt - d + zh) / zh)) / (k^2 * u)
+  return(rh)
+}
+
+rh <- function(gridMET) {
+  
+  # setup constants that won't change between land covers (assume standard height for wx sensor)
+  zu_value <- 2
+  zt_value <- 2
+  k_value <- 0.41
+  
+  # making a vector of the land covers heights (meters)
+  # order of covers: water, urban, forest, shrub, grass, row crop
+  land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
+  land_cover_heights <- c(0.01, 0.01, 2.3, 2.3, 0.5, 1.2)
+
+  
+  # define zm based on land cover height
+  zm_value <- 0.1 * land_cover_heights
+  
+  for (landcover in seq_along(land_cover_heights)) {
+    
+    height <- land_cover_heights[landcover]
+    
+    # zero plane displacement height
+    d_value <- 0.65 * height
+    
+    rh_val <- heat_transfer_resistance(
+      zu = zu_value,
+      zt = zt_value,
+      k = k_value,
+      d = d_value,
+      zm = zm_value[landcover],
+      zh = 0.2 * zm_value[landcover],
+      u = gridMET[, "wind_vel"]
+    )
+    
+    gridMET[, paste0("rh_", land_cover_names[landcover])] <- rh_val
+    
+  }
+  
+  return(gridMET)
+}
+
+
+write_weather_data <- function(gridMET_joined, start_date, end_date, location) {
+  
+  # Create the directory if it doesn't exist
+  dir_path <- "./raw_data/weather"
+  if (!dir.exists(dir_path)) {
+    dir.create(dir_path, recursive = TRUE)
+  }
+  
+  # Select only rows within the specified date range
+  gridMET_joined_clipped <- gridMET_joined[as.Date(gridMET_joined$date) >= as.Date(start_date) &
+                                             as.Date(gridMET_joined$date) <= as.Date(end_date), ]
+  
+  # Write the clipped data to the file
+  output_file <- file.path(dir_path, paste0("gridMET_", location, ".csv"))
+  write.table(gridMET_joined_clipped,
+              file = output_file,
+              col.names = FALSE,
+              row.names = FALSE)
+  
+}
+
+# test building gridMET files with functions
+
+# initialize variables
+lat <- 46.7312700
+lon <- -117.1861
+high_el <- 1433
+low_el <- 784
+
+# setting up dictionaries for crop curves
+water_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
+water_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.6525, 'Kc_mid'=0.6525, 'Kc_end'=0.6525, 'Kc_post_harv'=0.30)
+
+urban_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
+urban_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.30, 'Kc_end'=0.30, 'Kc_post_harv'=0.30)
+
+# using FAO conifer values for now meaning it's static but that can change
+forest_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
+forest_Kc <- list('Kc_preplant'=1, 'Kc_init'=1, 'Kc_mid'=1, 'Kc_end'=1, 'Kc_post_harv'=1)
+
+# using deciduous orchard
+shrub_time <- list('preplant_len'=60, 'init_len'=20, 'dev_len'=70, 'mid_len'=90, 'late_len'=30, 'post_len'=95)
+shrub_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.45, 'Kc_mid'=0.95, 'Kc_end'=0.70, 'Kc_post_harv'=0.30)
+
+#relied on frost dates from AgWeatherNet: Pullman station: frost on --> May 1st, frost off --> September 19th --> splitting resiudal (125) in half for now
+grass_time <- list('preplant_len'=113, 'init_len'=10, 'dev_len'=20, 'mid_len'=64, 'late_len'=62, 'post_len'=96)
+grass_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.75, 'Kc_end'=0.75, 'Kc_post_harv'=0.30)
+
+# using spring wheat values for now
+#row_crop_time <- list('preplant_len'=75, 'init_len'=20, 'dev_len'=25, 'mid_len'=60, 'late_len'=30, 'post_len'=155)
+row_crop_time <- list('preplant_len'=0, 'init_len'=160, 'dev_len'=75, 'mid_len'=75, 'late_len'=25, 'post_len'=30)
+row_crop_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.7, 'Kc_mid'=1.15, 'Kc_end'=0.35, 'Kc_post_harv'=0.30)
+
+# calling functions
+gm_p <- pull_gridMET('Pullman, WA')
+gm_m <- pull_gridMET('Moscow, ID')
+
+get_hourly_temps(gm_p, lat)
+
+gm_p <- ann_Kc_curve(water_time, water_Kc, 0, gm_p, 'water')
+gm_p <- ann_Kc_curve(urban_time, urban_Kc, 0, gm_p, 'urban')
+gm_p <- ann_Kc_curve(forest_time, forest_Kc, 0, gm_p, 'forest')
+gm_p <- ann_Kc_curve(shrub_time, shrub_Kc, 0, gm_p, 'shrub')
+gm_p <- ann_Kc_curve(grass_time, grass_Kc, 0, gm_p, 'grass')
+gm_p <- ann_Kc_curve(row_crop_time, row_crop_Kc, 274, gm_p, 'row_crop')
+
+lapse_rate_frame <- lapse_rates(gm_p, gm_m, low_el, high_el)
+
+gm_p <- dewpoint_temperature(gm_p)
+
+gm_p <- calculate_cloud_fraction(gm_p, lat, lon, -8)
+
+gm_p <- rh(gm_p)
+
+
+  
