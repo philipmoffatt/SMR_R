@@ -200,11 +200,11 @@ ann_Kc_curve <- function(time_params, Kc_params) {
   
 }
 
-# setting up dictionaries for surface with static curves
+# setting up diciontaries for crop
 water_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
-water_Kc <- list('Kc_preplant'=0.6525, 'Kc_init'=0.6525, 'Kc_mid'=0.6525, 'Kc_end'=0.6525, 'Kc_post_harv'=0.6525)
+water_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.6525, 'Kc_mid'=0.6525, 'Kc_end'=0.6525, 'Kc_post_harv'=0.30)
 
-urban_time <- list('preplant_len'=c(60), 'init_len'=c(60), 'dev_len'=c(60), 'mid_len'=c(60), 'late_len'=c(60), 'post_len'=c(65))
+urban_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
 urban_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.30, 'Kc_end'=0.30, 'Kc_post_harv'=0.30)
 
 # using FAO conifer values for now meaning it's static but that can change
@@ -213,7 +213,7 @@ forest_Kc <- list('Kc_preplant'=1, 'Kc_init'=1, 'Kc_mid'=1, 'Kc_end'=1, 'Kc_post
 
 # using deciduous orchard
 shrub_time <- list('preplant_len'=60, 'init_len'=20, 'dev_len'=70, 'mid_len'=90, 'late_len'=30, 'post_len'=95)
-shrub_Kc <- list('Kc_preplant'=0.45, 'Kc_init'=0.45, 'Kc_mid'=0.95, 'Kc_end'=0.70, 'Kc_post_harv'=0.45)
+shrub_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.45, 'Kc_mid'=0.95, 'Kc_end'=0.70, 'Kc_post_harv'=0.30)
 
 #relied on frost dates from AgWeatherNet: Pullman station: frost on --> May 1st, frost off --> September 19th --> splitting resiudal (125) in half for now
 grass_time <- list('preplant_len'=113, 'init_len'=10, 'dev_len'=20, 'mid_len'=64, 'late_len'=62, 'post_len'=96)
@@ -427,7 +427,7 @@ k_value <- 0.41
 # making a vector of the land covers heights (meters)
 # order of covers: water, urban, forest, shrub, grass, row crop
 land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
-land_cover_heights <- c(0.01, 0.01, 1.3, 1.3, 1.3, 1.3)
+land_cover_heights <- c(0.01, 0.01, 2, 1.5, 0.5, 1.2)
 
 heat_transfer_resistance <- function(zu, zt, k, d, zm, zh, u) {
   
