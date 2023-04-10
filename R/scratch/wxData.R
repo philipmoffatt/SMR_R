@@ -439,7 +439,7 @@ heat_transfer_resistance <- function(zu, zt, k, d, zm, zh, u) {
 }
 
 # define zm outside of the for loop
-zm_value <- 0.1 * land_cover_heights
+zm_value <- 0.13 * land_cover_heights
 
 for (landcover in 1:length(land_cover_heights)) {
   
@@ -536,14 +536,14 @@ historical_joined <- merge(historical_weather, historical_hourly, by="date") %>%
 # NOTE: this is all using Pullman data
 #PET is potential evapotranspiration [mm day-1]
 #k is proportionality coefficient = 1^1 [unitless]
-#N is daytime length [x/12 hours]
+#N is daytime length [x/12 hours] --> maybe this is the issue? DJ -- 04/09/2023
 #es is saturation vapor pressure [mb]
 #T is average monthly temperature [°C]
 
 # produce average monthly temperature columns and adding them as daily values to historical_joined
 avg_temp_by_month_year <- historical_joined %>%
   group_by(year, month) %>%
-  summarise(avg_temp = mean(tavg))
+  summarise(avg_temp = mean(tavg, na.rm=T))
 
 # create a new data frame with all possible combinations of years and months
 all_years <- seq(min(historical_joined$year), max(historical_joined$year), by = 1)
@@ -574,8 +574,16 @@ sunshine <- read.csv("./raw_data/weather/sunshine_min_wallaWalla.csv") %>%
 
 # to apply SVP() function entire column with specific parameters
 apply_svp <- function(x) {
-  return(SVP(x, isK = FALSE, formula = "Clausius-Clapeyron"))
+  return(SVP(x, isK = FALSE, formula = "Murray"))
 }
+
+#es_svp <- function(x) {
+  
+#  return(
+#    (6.108*exp((17.27*x) / (x + 237.3)) )
+#  )
+  
+#}
 
 # too apply the day_length function in chillR to an entire column 
 apply_day_length <- function(x) {
@@ -587,8 +595,9 @@ apply_day_length <- function(x) {
 # HAMON METHOD VARIABLES
 # add in monthly averages as a daily record
 historical_joined <- merge(historical_joined, daily_avg_temps)
-# calculate new saturation vapor pressure columnusing chillR package
-historical_joined$sat_vapor_pressure <- apply(historical_joined[, "tavg", drop = FALSE], 1, apply_svp)
+# calculate new saturation vapor pressure columns using chillR package
+historical_joined$sat_vapor_pressure <- apply(historical_joined[, "avg_temp", drop = FALSE], 1, apply_svp)
+
 # calculate day_length using latitude and chillR package
 historical_joined$day_length <- apply(historical_joined[, "doy", drop = FALSE], 1, apply_day_length)
 # setup necessary variables for Hamon's method
@@ -608,9 +617,15 @@ historical_joined <- merge(historical_joined, sunshine)
 
 # HAMON PET AND CLOUD COVER FRACTION CALCULATION
 # calculate pet_hamon (with Hamon formula) --> pet is cm not mm
-historical_joined$pet_hamon <- proportionality_coefficient * 0.165 * 216.7 * (historical_joined$day_length / 12) * (historical_joined$sat_vapor_pressure / (historical_joined$avg_temp + 273.3)) / 10 # /10 to get cm
+historical_joined$pet_hamon <- ((proportionality_coefficient * 0.165 * 216.7) * (historical_joined$day_length / 12)) * (historical_joined$sat_vapor_pressure / (historical_joined$tavg + 273.3)) / 10 # /10 to get cm
+d <- historical_joined
+d %>%
+  group_by(year) %>%
+  summarise(sum_pet = sum(pet_hamon)) %>%
+  ggplot()+
+  geom_point(aes(year,sum_pet))
 
-# calculate cloud fraction as: 1 - (percent_sunshine / 100) --> 1 = full cloud cover, 0 = no cloud cover --> for all dataframes
+# calculate cloud fraction as: 1 - (percent_sunshine / 100) --> 1 = full cloud cover, 0 = no cloud cover --> for all data frames
 historical_joined$cloud <- 1 - (historical_joined$psun_percent / 100)
 
 # add the Kc curves to historical_joined
@@ -637,7 +652,23 @@ historical_joined$tdew <- case_when(historical_joined$tmin <= 0 ~ historical_joi
 # reading in the predicted wind file an adding date information
 historical_predictd_wind <- read.csv("./raw_data/weather/Estimated Pullman Historic Wind Speed.csv")
 historical_predictd_wind$date <- as.Date(historical_predictd_wind$DATE, "%m/%d/%Y")
-historical_predictd_wind$avgWspd_kmph[historical_predictd_wind$avgWspd_kmph == 0] <- mean(historical_predictd_wind$avgWspd_kmph, na.rm=TRUE)
+#historical_predictd_wind$avgWspd_kmph[historical_predictd_wind$avgWspd_kmph == 0] <- mean(historical_predictd_wind$avgWspd_kmph, na.rm=TRUE)
+
+non_zero_wind <- historical_predictd_wind$avgWspd_kmph[historical_predictd_wind$avgWspd_kmph != 0]
+mean_wind <- mean(non_zero_wind, na.rm = TRUE)
+sd_wind <- sd(non_zero_wind, na.rm = TRUE)
+
+zero_indices <- which(historical_predictd_wind$avgWspd_kmph <= 0)
+
+generated_values <- rnorm(length(zero_indices), mean = mean_wind, sd = sd_wind)
+
+# Check if any generated value is below 0 and re-sample if needed
+while(any(generated_values <= 0)) {
+  indices_to_resample <- which(generated_values <= 0)
+  generated_values[indices_to_resample] <- rnorm(length(indices_to_resample), mean = mean_wind, sd = sd_wind)
+}
+
+historical_predictd_wind$avgWspd_kmph[zero_indices] <- generated_values
 
 # converting units of wind speed
 historical_predictd_wind$avgWspd_kmph <- historical_predictd_wind$avgWspd_kmph/3.6 # converts from km/hour to m/s
