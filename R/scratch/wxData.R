@@ -427,7 +427,7 @@ k_value <- 0.41
 # making a vector of the land covers heights (meters)
 # order of covers: water, urban, forest, shrub, grass, row crop
 land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
-land_cover_heights <- c(0.01, 0.01, 2, 1.5, 0.5, 1.2)
+land_cover_heights <- c(0.001, 2, 2, 0.3, 0.9, 0.9)
 
 heat_transfer_resistance <- function(zu, zt, k, d, zm, zh, u) {
   
@@ -596,7 +596,7 @@ apply_day_length <- function(x) {
 # add in monthly averages as a daily record
 historical_joined <- merge(historical_joined, daily_avg_temps)
 # calculate new saturation vapor pressure columns using chillR package
-historical_joined$sat_vapor_pressure <- apply(historical_joined[, "avg_temp", drop = FALSE], 1, apply_svp)
+historical_joined$sat_vapor_pressure <- apply(historical_joined[, "tavg", drop = FALSE], 1, apply_svp)
 
 # calculate day_length using latitude and chillR package
 historical_joined$day_length <- apply(historical_joined[, "doy", drop = FALSE], 1, apply_day_length)
@@ -624,6 +624,21 @@ d %>%
   summarise(sum_pet = sum(pet_hamon)) %>%
   ggplot()+
   geom_point(aes(year,sum_pet))
+
+# CALIBRATION OF PET HAMON TO THE PULLMAN GRIDMET DATA
+historical_calibration_curve <- historical_joined %>%
+   group_by(month, day) %>%
+   summarise(pet_hamon = mean(pet_hamon)) %>%
+  filter(!(month == 2 & day == 29))
+ 
+gridMET_calibration_curve <- gridMET_joined_p %>%
+  group_by(month, day) %>%
+  summarise(pet = mean(pet)/10)
+
+calibration_coefficient <- model <- coef(lm(gridMET_calibration_curve$pet ~ 0 + historical_calibration_curve$pet_hamon))
+
+# apply the calibration coefficient to historical_joined
+historical_joined$pet_hamon <- historical_joined$pet_hamon * calibration_coefficient
 
 # calculate cloud fraction as: 1 - (percent_sunshine / 100) --> 1 = full cloud cover, 0 = no cloud cover --> for all data frames
 historical_joined$cloud <- 1 - (historical_joined$psun_percent / 100)
