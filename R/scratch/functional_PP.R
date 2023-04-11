@@ -17,7 +17,7 @@ preprocessing <- function(
     modeled_path, 
     start_date, 
     end_date,
-    rename,
+    rename=FALSE,
     date_of_run,
     modeled_headers
     ) 
@@ -64,60 +64,79 @@ preprocessing <- function(
   }
 
 
-# stream flow comparison function
-Q_comparison <- function(combined_data) {
+# stream flow comparison function --> baseflow is subtracted out right now 
+Q_comparison <- function(combined_data, log_transform=FALSE) {
+  
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
   
   comparison_plot <- ggplot(data=combined_data) +
     geom_line(aes(x=date, y=validation_Q, color='Validation')) +
-    geom_line(aes(x=date, y=Q, color='Modeled')) +
+    geom_line(aes(x=date, y=Q-baseflow, color='Modeled')) +
     ggtitle('Observed Versus Simulated Streamflow (with precip, rain, and snow)') +
     theme(plot.title = element_text(hjust = 0.5)) +
     theme(axis.title.x=element_blank()) +
     theme(axis.text.x=element_blank()) +
     ylab('Streamflow (m3/s)') +
-    scale_y_continuous(trans='log10') +
-    guides(color=guide_legend(title='Q Type'))
-
+    guides(color=guide_legend(title='Q Type')) +
+    scale_y_continuous(trans=y_trans)
+    
   precip_plot <- ggplot(data=combined_data) +
     geom_line(aes(x=date, y=precip_cm, color='Precipitation')) +
     geom_line(aes(x=date, y=rain_cm, color='Rain')) +
     geom_line(aes(x=date, y=snow_cm, color='Snow')) +
     xlab('Date') +
-    ylab('Precipitation, Rain, and Snow') +
+    ylab('Precipitation, Rain, and Snow') + 
+    scale_x_date(date_breaks = "1 month") + 
     guides(color=guide_legend(title='Precip Type')) +
-    scale_y_continuous(trans='log10')
+    scale_y_continuous(trans=y_trans)
   
   cowplot::plot_grid(comparison_plot, precip_plot, align = "v", ncol = 1, rel_heights = c(0.60, 0.40))
 }
 
 
 # function for plotting important components of SAM
-SAM_check <- function(combined_data) {
+SAM_check <- function(combined_data, log_transform=FALSE) {
+  
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
   
   ggplot(data=combined_data) +
-    scale_y_continuous(trans='log10') +
     geom_line(aes(x=date, y=snow_cm, color='Snow')) +
     geom_line(aes(x=date, y=swe_cm, color='SWE')) +
     geom_line(aes(x=date, y=snowmelt_cm, color='Snowmelt')) + 
     geom_line(aes(x=date, y=condens_cm, color='Condens')) +
     ggtitle('Relevant Snowmelt and Accumulation Variables') +
     theme(plot.title = element_text(hjust = 0.5)) +
-    guides(color=guide_legend(title='Precip Type'))
+    guides(color=guide_legend(title='Precip Type')) + 
+    scale_y_continuous(trans=y_trans)
   
 }
 
 # NSE function for entire period
 nse_Q <- function(combined_data) {
-  return(NSE(combined_data$Q, combined_data$validation_Q))
+  return(NSE(combined_data$Q-combined_data$baseflow, combined_data$validation_Q))
 }
 
 # KGE function for entire period
 kge_Q <- function(combined_data) {
-  return(KGE(combined_data$Q, combined_data$validation_Q))
+  return(KGE(combined_data$Q-combined_data$baseflow, combined_data$validation_Q))
 }
 
 # flux time-series function (looped through in flux_ts_loop())
-flux_ts <- function(combined_data, flux) {
+flux_ts <- function(combined_data, flux, log_transform = FALSE) {
+  
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
   
   flux_series <- combined_data[, flux] / 79384
   date_series <- combined_data[, 'date']
@@ -134,23 +153,28 @@ flux_ts <- function(combined_data, flux) {
               flux, ' from '), min_date), ' to '), max_date))) +
     theme(plot.title = element_text(hjust = 0.5)) +
     ylab(paste0(flux, ' (cm)')) +
-    xlab(paste0('Date'))
+    xlab(paste0('Date')) + 
+    scale_y_continuous(trans=y_trans)
   
 }
 
 # produces individual time series of fluxes by looping the flux_ts() function
-flux_ts_loop <- function(combined_data, fluxes) {
-  
-  combined_date <- combined_data
+flux_ts_loop <- function(combined_data, fluxes, log_transform=FALSE) {
   
   for (flux in fluxes) {
-    print(flux_ts(combined_data, flux))
+    print(flux_ts(combined_data, flux, log_transform = log_transform))
   }
   
 }
 
 # produces bar plot of the accumulated annual fluxes
-annual_fluxes <- function(combined_data, fluxes) {
+annual_fluxes <- function(combined_data, fluxes, log_transform = FALSE) {
+  
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
   
   fluxes <- c(fluxes, 'date', 'year')
   combined_data <- combined_data[, fluxes] %>% 
@@ -161,18 +185,25 @@ annual_fluxes <- function(combined_data, fluxes) {
   
   ggplot(data = combined_data, aes(x = year, y = sum_value, group = variable, color = variable, fill=variable)) +
     geom_bar(position='dodge', stat='identity') + 
-    scale_y_continuous(trans='log10') +
+    scale_y_continuous(trans=y_trans) +
     xlab("Year") +
     ylab("Total Value") +
-    #ylim(min(combined_data$sum_value), max(combined_data$sum_value)) +
     ggtitle("Annual Accumulateed Fluxes") +
     theme(plot.title = element_text(hjust = 0.5))
 
 }
 
 # produces a time series of the different radiation components
-radiation_ts <- function(combined_data) {
+radiation_ts <- function(combined_data, log_transform = FALSE) {
   
+  # Set log transform for y-axis scale
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
+  
+  # Divide all values in selected columns by 79384
   combined_data <- combined_data %>%
     mutate(
       srad = srad/79384,
@@ -183,20 +214,26 @@ radiation_ts <- function(combined_data) {
     )
   
   ggplot(data=combined_data) +
-    scale_y_continuous(trans='log10') +
     geom_line(aes(x=date, y=srad, color='Srad')) +
     geom_line(aes(x=date, y=latent, color='Latent')) +
     geom_line(aes(x=date, y=sensible, color='Sensible')) + 
     geom_line(aes(x=date, y=lw, color='Longwave')) +
     geom_line(aes(x=date, y=q_rain_ground, color='Rain Ground')) +
+    scale_y_continuous(trans=y_trans) + 
     ggtitle('Components of Radiation Budget') +
     theme(plot.title = element_text(hjust = 0.5)) +
     guides(color=guide_legend(title='Precip Type'))
   
 }
-
 # annual mass balance function
-annual_mass_balance <- function(combined_data) {
+annual_mass_balance <- function(combined_data, log_transform = FALSE) {
+  
+  # Set log transform for y-axis scale
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
   
   annual_combined <- combined_data %>%
     group_by(year) %>%
@@ -212,7 +249,7 @@ annual_mass_balance <- function(combined_data) {
     annual_combined$canopy_evap_cm
   
   ggplot(data=annual_combined) +
-    #scale_y_continuous(trans='log10') +
+    scale_y_continuous(trans=y_trans) +
     geom_line(aes(x=year, y=mass_balance)) +
     ggtitle('Annual Mass Balance') +
     theme(plot.title = element_text(hjust = 0.5))
@@ -220,30 +257,45 @@ annual_mass_balance <- function(combined_data) {
 
 # function just for determing if ice.content or liquid.water is contributing to
 # swe inflation
-swe_debug <- function(combined_data) {
+swe_debug <- function(combined_data, log_transform = FALSE) {
+  
+  # Set log transform for y-axis scale
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
   
   ggplot(data=combined_data) +
-    #scale_y_continuous(trans='log10') +
     geom_line(aes(x=date, y=ice_content, color='Ice Content')) +
     geom_line(aes(x=date, y=liquid_water, color='Liquid Water')) +
     geom_line(aes(x=date, y=refreeze, color='Refreeze')) +
     geom_line(aes(x=date, y=snow_cm, color='Snow')) +
     geom_line(aes(x=date, y=swe_cm, color='SWE')) + 
+    scale_y_continuous(trans=y_trans) + 
     ggtitle('Snow Water Equivalent and its Components') +
     theme(plot.title = element_text(hjust = 0.5)) +
     ylab('cm') + 
     guides(color=guide_legend(title='SWE Variables'))
-
+  
 }
+
 
 # function to confirm that value inflation comes from tiny rh rather than large
 # vap.d.air which is in the numerator
-q.latent_debug <- function(combined_data) {
+q.latent_debug <- function(combined_data, log_transform = FALSE) {
+  
+  # Set log transform for y-axis scale
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
   
   ggplot(data=combined_data) +
-    scale_y_continuous(trans='log10') +
     geom_line(aes(x=date, y=vap_d_air, color='Vap_d_air')) +
     geom_line(aes(x=date, y=vap_d_snow, color='Vap_d_snow')) +
+    scale_y_continuous(trans=y_trans) + 
     ggtitle('Size of vap.d.air compared to vap.d.snow') +
     theme(plot.title = element_text(hjust = 0.5)) +
     ylab('Vapor Density (kg/m^3)') + 
@@ -257,23 +309,29 @@ q.latent_debug <- function(combined_data) {
 get_map_outputs <- function(map_dir, model_run_date) {
   
   tif_files <- list.files(map_dir, pattern = ".tif$")
-
+  
   for (file in tif_files) {
     
     var_name <- gsub(".tif$", "", file)
     print(var_name)
     
-    if (!(grepl(model_run_date, var_name))) {
+    if (exists(var_name)) {
+      next
+    }
+    
+    if (grepl(model_run_date, file)) {
+      new_file_name <- file
+    } else {
       new_file_name <- paste0(var_name, "_", model_run_date, ".tif")
-      assign(new_file_name, raster(paste0(map_dir, "/", file)), envir=globalenv())
       file.rename(paste0(map_dir, "/", file), paste0(map_dir, "/", new_file_name))
     }
     
-    assign(var_name, raster(paste0(map_dir, "/", file)), envir=globalenv())
+    if (grepl(model_run_date, new_file_name)) {
+      assign(var_name, raster(paste0(map_dir, "/", new_file_name)), envir=globalenv())
+    }
     
   }
 }
-
 
 # visualize soil moisture in a soil horizon
 storage_amt_feb <- function(soil_storage_rast, horizon_letter) {
@@ -322,5 +380,6 @@ annual_precip_rast <- function(ann_pet) {
   )
   
 }
+
 
 
