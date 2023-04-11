@@ -47,9 +47,9 @@ my $filename = 'wshed_res_properties.ini';
 open(my $WATERSHED, '<', $filename) || die "Cannot open the watershed properties file";
 
 # Read each line of the file and assign values based on watershed ID
-#print "\n \n";
-#print "\n|----- READING WATERSHED PROPERTIES -----|\n";
-#print "\n \n";
+print "\n \n";
+print "\n|----- READING WATERSHED PROPERTIES -----|\n";
+print "\n \n";
 while (my $line = <$WATERSHED>) {
 	chop($line);
 	($wshed_id,$area_cells,$res_vol,$res_coeff) = split(' ', $line);
@@ -60,14 +60,14 @@ while (my $line = <$WATERSHED>) {
 		$res_coeff_{$wshed_id} = $res_coeff;
 		$base_flow_{$wshed_id} = 0.0;
 		
-		#print "	|---- Properties of watershed with ID: $wshed_id ----|\n";
-		#print "		number of cells in watershed: $area_cells\n";
-		#print "		cell size (m): $gridsize\n";
-		#print "		total watershed area (m^2): $area_{$wshed_id}\n";
-        #print "		res_vol: $res_vol_{$wshed_id}\n";
-        #print "		res_coeff: $res_coeff_{$wshed_id}\n";
-        #print "		base_flow: $base_flow_{$wshed_id}\n\n";
-		#print "	|-------------------------------------------------|\n";
+		print "	|---- Properties of watershed with ID: $wshed_id ----|\n";
+		print "		number of cells in watershed: $area_cells\n";
+		print "		cell size (m): $gridsize\n";
+		print "		total watershed area (m^2): $area_{$wshed_id}\n";
+        print "		res_vol: $res_vol_{$wshed_id}\n";
+        print "		res_coeff: $res_coeff_{$wshed_id}\n";
+        print "		base_flow: $base_flow_{$wshed_id}\n\n";
+		print "	|-------------------------------------------------|\n";
 	};
 }
 
@@ -278,37 +278,37 @@ while (<$WEATHER>) {
 	chop($_);
 	($date,$year,$month,$day,$doy,$tmax,$tmin,$tavg,$tdew,$precip,$pet,$hour_1,$hour_6,$hour_12,$hour_18,$l_turb,$cloud,$cc_water,$cc_urban,$cc_forest,$cc_shrub,$cc_grass,$cc_row_crop,$rh_water,$rh_urban,$rh_forest,$rh_shrub,$rh_grass,$rh_row_crop,$output) = split(' ',$_);
 
-	#print "\n \n";
-	#print "\n|----- DAILY WEATHER READ FOR $date -----|\n";
-	#print "\n \n";
-	#print "\n	WEATHER SUMMARY:\n";
-	#print "\n	| Date $date | Year = $year | Tair = $tavg °C | Precip = $precip cm | PET = $pet cm | Tdew = $tdew | Output = $output\n";
-	#print "\n	|-------------------------------------------------------------------------------------------------------------------------| \n";
+	print "\n \n";
+	print "\n|----- DAILY WEATHER READ FOR $date -----|\n";
+	print "\n \n";
+	print "\n	WEATHER SUMMARY:\n";
+	print "\n	| Date $date | Year = $year | Tair = $tavg °C | Precip = $precip cm | PET = $pet cm | Tdew = $tdew | Output = $output\n";
+	print "\n	|-------------------------------------------------------------------------------------------------------------------------| \n";
 
 	@hourly_tmp_array = ($hour_1,$hour_6,$hour_12,$hour_18);
 
 #   changed snowmelt so that clear cut melt is the same as partial cut melt
-#	print `r.mapcalc 'kfactor = if(landuse==3.0,0.734,if(landuse==2.0,0.734,0.719))*$time_step/24.0' --o`;
-#	print `r.mapcalc 'tbase = if(landuse==3.0,1.54,if(landuse==2.0,1.54,2.14))' --o`;
-	#print `r.mapcalc 'kfactor = if(landuse==3.0,0.71,if(landuse==2.0,0.695,0.68))*$time_step/24.0' --o`; # Degree-day
-	#print `r.mapcalc 'kfactor = if(landuse==6.0,0.0,if(landuse==5.0,0.0,if(landuse==4.0,0.0,if(landuse==3.0,0.71,if(landuse==2.0,0.695,if(landuse==1.0,0.68,0.0))))))' --o`;
+	print `r.mapcalc 'kfactor = if(landuse==3.0,0.734,if(landuse==2.0,0.734,0.719))*$time_step/24.0' --o`;
+	print `r.mapcalc 'tbase = if(landuse==3.0,1.54,if(landuse==2.0,1.54,2.14))' --o`;
+	print `r.mapcalc 'kfactor = if(landuse==3.0,0.71,if(landuse==2.0,0.695,0.68))*$time_step/24.0' --o`; # Degree-day
+	print `r.mapcalc 'kfactor = if(landuse==6.0,0.0,if(landuse==5.0,0.0,if(landuse==4.0,0.0,if(landuse==3.0,0.71,if(landuse==2.0,0.695,if(landuse==1.0,0.68,0.0))))))' --o`;
 
 	#print `r.mapcalc 'tbase = if(landuse==3.0,1.7,if(landuse==2.0,1.9,2.1))' --o`; # Degree-day
-	#print `r.mapcalc 'tbase = if(landuse==6.0,0.0,if(landuse==5.0,0.0,if(landuse==4.0,0.0,if(landuse==3.0,1.7,if(landuse==2.0,1.9,if(landuse==1.0,2.1,0.0))))))' --o`;
+	print `r.mapcalc 'tbase = if(landuse==6.0,0.0,if(landuse==5.0,0.0,if(landuse==4.0,0.0,if(landuse==3.0,1.7,if(landuse==2.0,1.9,if(landuse==1.0,2.1,0.0))))))' --o`;
 
-    ##print `r.mapcalc 'max_canopy_storage_amt = if(landuse==6.0,0.147,if(landuse==5.0,0.15,if(landuse==4.0,0.15,if(landuse==3.0,0.31,if(landuse==2.0,0.1,if(landuse==1.0,0.0,0.0))))))' --o`;
+  print `r.mapcalc 'max_canopy_storage_amt = if(landuse==6.0,0.147,if(landuse==5.0,0.15,if(landuse==4.0,0.15,if(landuse==3.0,0.31,if(landuse==2.0,0.1,if(landuse==1.0,0.0,0.0))))))' --o`;
 	
 	# this is redundant because it's the same as above but i'm not sure why it's here
-	##print `r.mapcalc 'canopy_cover = if(landuse==6.0,0.50,if(landuse==5.0,0.60,if(landuse==4.0,0.60,if(landuse==3.0,0.80,if(landuse==2.0,0,if(landuse==1.0,0,0.0))))))' --o`; ## DJ 3/14/23 --> changed the canopy_cover values to match those in email from Philip
+	print `r.mapcalc 'canopy_cover = if(landuse==6.0,0.50,if(landuse==5.0,0.60,if(landuse==4.0,0.60,if(landuse==3.0,0.80,if(landuse==2.0,0,if(landuse==1.0,0,0.0))))))' --o`; ## DJ 3/14/23 --> changed the canopy_cover values to match those in email from Philip
 
 	# this is redundant because it's the same as above but i'm not sure why it's here
-	##print `r.mapcalc 'root_zone = if(landuse==6.0,soil_depth,if(landuse==5.0,soil_depth_A,if(landuse==4.0,soil_depth,if(landuse==3.0,soil_depth,if(landuse==2.0,0.0,if(landuse==1.0,0.0,0.0))))))' --o`;
+	print `r.mapcalc 'root_zone = if(landuse==6.0,soil_depth,if(landuse==5.0,soil_depth_A,if(landuse==4.0,soil_depth,if(landuse==3.0,soil_depth,if(landuse==2.0,0.0,if(landuse==1.0,0.0,0.0))))))' --o`;
 
 	# this is redundant because it's the same as above but i'm not sure why it's here
-	##print `r.mapcalc 'wiltpt_amt = if(landuse==6.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==5.0,wiltpt_mc_A*soil_depth_A,if(landuse==4.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==3.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==2.0,0.0,if(landuse==1.0,0.0,0.0))))))' --o`;
+	print `r.mapcalc 'wiltpt_amt = if(landuse==6.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==5.0,wiltpt_mc_A*soil_depth_A,if(landuse==4.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==3.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==2.0,0.0,if(landuse==1.0,0.0,0.0))))))' --o`;
 
 	# ETreduction was done based on 80% for all classes except forest which is 70% and urban/barren/rock/water being 0
-	##print `r.mapcalc 'ETreduction_mc = if(landuse==6.0,fieldcap_amt*0.8/soil_depth,if(landuse==5.0,fieldcap_amt_A*0.8/soil_depth_A,if(landuse==4.0,fieldcap_amt*0.8/soil_depth,if(landuse==3.0,fieldcap_amt*0.7/soil_depth,if(landuse==2.0,0.0,if(landuse==1.0,0.0,0.0))))))' --o`;
+	print `r.mapcalc 'ETreduction_mc = if(landuse==6.0,fieldcap_amt*0.8/soil_depth,if(landuse==5.0,fieldcap_amt_A*0.8/soil_depth_A,if(landuse==4.0,fieldcap_amt*0.8/soil_depth,if(landuse==3.0,fieldcap_amt*0.7/soil_depth,if(landuse==2.0,0.0,if(landuse==1.0,0.0,0.0))))))' --o`;
 
 
 #  --------------------------------------------------------------------
@@ -384,14 +384,15 @@ print "\n|----- SNOW ACCUMULATION AND MELT MODEL -----|\n";
 
 #print `r.mapcalc 'rh = if(swe>0,if(landuse==1 || landuse==2,$rh_veg,$rh_snow),$rh_veg)' --o`; # modified MZ 20190205
 #print `r.mapcalc 'rh = if(swe>0,$rh_snow,$rh_veg)' --o`; # modified MZ 20190205
-# LAZY FIX RIGHT NOW WHERE RH_SNOW IS RH_URBAN BUT THIS WILL NEED TO CHANGE (THOUGH THEY WON'T BE TOO DIFFERENT) --> ADDITIONALL YJUST USING ROW CROP RIGHT NOW
-print `r.mapcalc 'rh = if(swe>0,$rh_urban/(1.0-(canopy_cover/3.0)),$rh_row_crop/(1.0-(canopy_cover/3.0)))' --o`; # add canopy cover effects on rh MZ 20200601
+# LAZY FIX RIGHT NOW WHERE RH_SNOW IS RH_URBAN BUT THIS WILL NEED TO CHANGE (THOUGH THEY WON'T BE TOO DIFFERENT) --> ADDITIONALL JUST USING ROW CROP RIGHT NOW
+#print `r.mapcalc 'rh = if(swe>0,$rh_water/(1.0-(canopy_cover/3.0)),$rh_row_crop/(1.0-(canopy_cover/3.0)))' --o`; # add canopy cover effects on rh MZ 20200601 --> # changed rh_urban to rh_water for rh_snow substitute
+print `r.mapcalc 'rh = if(landuse==6.0,$rh_row_crop,if(landuse==5.0,$rh_grass,if(landuse==4.0,$rh_shrub,if(landuse==3.0,$rh_forest,if(landuse==2.0,$rh_urban,if(landuse==1.0,$rh_water,$rh_row_crop))))))' --o`;
 print `r.mapcalc 'snow.age = if(snow>0.0 && throughfall==0.0,1.0,snow.age+1.0)' --o`; # modified MZ 20190210
 print `r.mapcalc 'albedo = if(swe.yesterday+snow>0.0,min(0.95,0.7383*snow.age^(-0.1908)),0.2)' --o`;
 
 #  Calculate the diffuse transmissivity following Bristow and Campbell (1985)
 #  The clear sky transmissivity for Troy, ID is 0.75
-print `r.mapcalc 't_diff = if($cloud==1.0,0.1,0.75*(1-$cloud)*(1-exp(-0.6*$cloud/((0.75-0.4)*(1-$cloud))))) * watershed' --o`;
+print `r.mapcalc 't_diff = if($cloud==1.0,0.1,0.75*(1-$cloud)*(1-exp(-0.6*$cloud/((0.75-0.4)*(1-$cloud)))))' --o`; #* watershed' --o`; # removed *watershed 
 
 #  Calculate the real-sky diffuse radiation coefficient
 #  The clear sky diffuse transmissivity for the Palouse is 0.10 (Bristow and Campbell, 1985)
@@ -549,8 +550,8 @@ print `r.mapcalc 'u.surface = if(u.total==0.0,0.0,if(swe>0.0,min(0.0,u.surface+(
 print `r.mapcalc 'tsnow_surf = u.surface/24.0/(2.1*1000.0*min(swe/100.0,0.02)+1000.0*2.1*max(0.0,0.02-swe/100.0))' --o`;
 
 #  -----------------------------End of SAM ----------------------------------
-#print "\n|----- END OF SNOW ACCUMULATION AND MELT MODEL -----|\n";
-#print "\n \n";
+print "\n|----- END OF SNOW ACCUMULATION AND MELT MODEL -----|\n";
+print "\n \n";
 
 # assume road width is 5 m and assume road surface storage is 1.5 cm 
 # assume once surface storage is exceeded all  reaches stream
@@ -581,9 +582,9 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 			print `r.mapcalc 'temp_sum = max(0.0,temp)+temp_sum' --o`;
 
 		};
-	#print "\n \n";
-	#print "\n|----- 6 HOUR TEMPERATURE ARRAY -----|\n";
-	#print "\n \n";
+	print "\n \n";
+	print "\n|----- 6 HOUR TEMPERATURE ARRAY -----|\n";
+	print "\n \n";
 	foreach $hrly_tmp (@hourly_tmp_array)
 		{
 #			print `r.mapcalc 'temp = $hrly_tmp' --o`; # MZ 20170210
@@ -674,7 +675,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	#	6. row crop: 0.068 - 0.147 cm
 
 
-	print `r.mapcalc 'ET_coeff = 1' --o`; #if(landuse==6.0,$cc_row_crop,if(landuse==5.0,$cc_grass,if(landuse==4.0,$cc_shrub,if(landuse==3.0,$cc_forest,if(landuse==2.0,$cc_urban,if(landuse==1.0,$cc_water,$cc_water))))))' --o`; # DJ - 3/14/23 --> taking out the -10 and removing the /100 below because our Kc values are small already # DJ 04/06/2023 -- commented out landuse effect to just use ETcoeff of 1.
+	print `r.mapcalc 'ET_coeff = if(landuse==6.0,$cc_row_crop,if(landuse==5.0,$cc_grass,if(landuse==4.0,$cc_shrub,if(landuse==3.0,$cc_forest,if(landuse==2.0,$cc_urban,if(landuse==1.0,$cc_water,$cc_water))))))' --o`; # DJ - 3/14/23 --> taking out the -10 and removing the /100 below because our Kc values are small already # DJ 04/06/2023 -- commented out landuse effect to just use ETcoeff of 1.
 
 	print `r.mapcalc 'root_storage_amt = if(landuse==6.0,storage_amt,if(landuse==5.0,storage_amt,if(landuse==4.0,storage_amt,if(landuse==3.0,storage_amt_A,if(landuse==2.0,storage_amt,if(landuse==1.0,storage_amt,storage_amt))))))' --o`;
 
@@ -726,9 +727,9 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 
 	}; # end of the 6 hours loop
 
-	#print "\n \n";
-	#print "\n|----- END OF 6 HOUR TIME LOOPING -----|\n";
-	#print "\n \n";
+	print "\n \n";
+	print "\n|----- END OF 6 HOUR TIME LOOPING -----|\n";
+	print "\n \n";
 
 	print `r.mapcalc 'runoff_daily_flow = runoff_daily_flow+road_runoff' --o`;
 	print `r.mapcalc 'input_daily_balance = input_daily - (snowmelt + throughfall)' --o`;
@@ -964,9 +965,9 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 		close(OUT); 
 
 
-		#print "\n \n";
-		#print "\n|----- END OF OUTPUTS ZONAL STATS -----|\n";
-		#print "\n \n";
+		print "\n \n";
+		print "\n|----- END OF OUTPUTS ZONAL STATS -----|\n";
+		print "\n \n";
 		
 	}
 	close ($WATERSHED);
@@ -975,7 +976,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 }
 close ($WEATHER);
 
-#print "\n \n";
-#print "\n|---------- SMR-SAM HAS FINISHED RUNNING ----------|\n";
-#print "\n \n";
+print "\n \n";
+print "\n|---------- SMR-SAM HAS FINISHED RUNNING ----------|\n";
+print "\n \n";
 
