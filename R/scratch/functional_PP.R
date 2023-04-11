@@ -56,9 +56,11 @@ Q_comparison <- function(combined_data) {
     theme(plot.title = element_text(hjust = 0.5)) +
     theme(axis.title.x=element_blank()) +
     theme(axis.text.x=element_blank()) +
-    ylab('Streamflow (m3/s)') +
-    scale_y_continuous(trans='log10') +
-    guides(color=guide_legend(title='Q Type'))
+    ylab(expression(paste(
+      "Streamflow (",m^3, "/", s,
+      ")", sep=""))) +
+    scale_y_continuous(trans='log10',labels = scales::comma) +
+    guides(color=guide_legend(title='Streamflow'))
 
   precip_plot <- ggplot(data=combined_data) +
     geom_line(aes(x=date, y=precip_cm, color='Precipitation')) +
@@ -66,8 +68,8 @@ Q_comparison <- function(combined_data) {
     geom_line(aes(x=date, y=snow_cm, color='Snow')) +
     xlab('Date') +
     ylab('Precipitation, Rain, and Snow') +
-    guides(color=guide_legend(title='Precip Type')) +
-    scale_y_continuous(trans='log10')
+    guides(color=guide_legend(title='Precip Type'))+
+    scale_y_continuous(labels = scales::comma)
   
   cowplot::plot_grid(comparison_plot, precip_plot, align = "v", ncol = 1, rel_heights = c(0.60, 0.40))
 }
