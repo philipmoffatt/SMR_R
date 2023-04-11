@@ -274,11 +274,6 @@ get_map_outputs <- function(map_dir, model_run_date) {
   }
 }
 
-get_map_outputs(
-  '/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_outputs',
-  '2023-04-06'
-)
-
 
 # visualize soil moisture in a soil horizon
 storage_amt_feb <- function(soil_storage_rast, horizon_letter) {
@@ -328,7 +323,4 @@ annual_precip_rast <- function(ann_pet) {
   
 }
 
-storage_amt_feb(`avg_A_amt_feb_2023-04-06`, 'A')
-storage_amt_feb(`avg_B_amt_feb_2023-04-06`, 'B')
-runoff_feb(`feb_avg_runoff_2023-04-06`)
 
