@@ -90,7 +90,7 @@ Q_comparison <- function(combined_data, log_transform=FALSE) {
     geom_line(aes(x=date, y=snow_cm, color='Snow')) +
     xlab('Date') +
     ylab('Precipitation, Rain, and Snow') + 
-    scale_x_date(date_breaks = "1 month") + 
+    scale_x_date(date_breaks = "1 year") + 
     guides(color=guide_legend(title='Precip Type')) +
     scale_y_continuous(trans=y_trans)
   
