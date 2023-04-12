@@ -75,7 +75,7 @@ Q_comparison <- function(combined_data, log_transform=FALSE) {
   
   comparison_plot <- ggplot(data=combined_data) +
     geom_line(aes(x=date, y=validation_Q, color='Validation')) +
-    geom_line(aes(x=date, y=Q-baseflow, color='Modeled')) +
+    geom_line(aes(x=date, y=Q, color='Modeled')) +
     ggtitle('Observed Versus Simulated Streamflow (with precip, rain, and snow)') +
     theme(plot.title = element_text(hjust = 0.5)) +
     theme(axis.title.x=element_blank()) +
@@ -121,12 +121,12 @@ SAM_check <- function(combined_data, log_transform=FALSE) {
 
 # NSE function for entire period
 nse_Q <- function(combined_data) {
-  return(NSE(combined_data$Q-combined_data$baseflow, combined_data$validation_Q))
+  return(NSE(combined_data$Q, combined_data$validation_Q))
 }
 
 # KGE function for entire period
 kge_Q <- function(combined_data) {
-  return(KGE(combined_data$Q-combined_data$baseflow, combined_data$validation_Q))
+  return(KGE(combined_data$Q, combined_data$validation_Q))
 }
 
 # flux time-series function (looped through in flux_ts_loop())
