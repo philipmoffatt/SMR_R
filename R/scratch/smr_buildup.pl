@@ -98,13 +98,13 @@ print `r.mapcalc 'canopy_cover = if(landuse==6.0,0.50,if(landuse==5.0,0.60,if(la
 #print `r.mapcalc 'tbase = if(landuse==6.0, 1.9,if(landuse==5.0, 1.7,if(landuse==4.0, 1.9,if(landuse==3.0, 2.1,if(landuse==2.0, 1.7,if(landuse==1.0, 1.7, 0.0))))))' --o`;
 
 # land use values were mapped over from the old clear cut, partial, forest, and road system --> #print `r.mapcalc 'root_zone = if(landuse==3.0,soil_depth_A,soil_depth)' --o`;
-print `r.mapcalc 'root_zone = if(landuse==6.0,soil_depth,if(landuse==5.0,soil_depth_A,if(landuse==4.0,soil_depth,if(landuse==3.0,soil_depth,if(landuse==2.0,0.0,if(landuse==1.0,0.0,0.0))))))' --o`;
+print `r.mapcalc 'root_zone = if(landuse==6.0,soil_depth,if(landuse==5.0,soil_depth_A,if(landuse==4.0,soil_depth,if(landuse==3.0,soil_depth,if(landuse==2.0,1.0,if(landuse==1.0,1.0,1.0))))))' --o`; #changed an root_zone == 0 values to 1.0 to avoid 0 divisions
 
 #print `r.mapcalc 'wiltpt_amt = if(landuse==3.0,wiltpt_mc_A*soil_depth_A,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B)' --o`;
-print `r.mapcalc 'wiltpt_amt = if(landuse==6.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==5.0,wiltpt_mc_A*soil_depth_A,if(landuse==4.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==3.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==2.0,0.0,if(landuse==1.0,0.0,0.0))))))' --o`;
+print `r.mapcalc 'wiltpt_amt = if(landuse==6.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==5.0,wiltpt_mc_A*soil_depth_A,if(landuse==4.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==3.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==2.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==1.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B))))))' --o`;
 
 # ETreduction was done based on 80% for all classes except forest which is 70% and urban/barren/rock/water being 0 --> 	#print `r.mapcalc 'ETreduction_mc = if(landuse==3.0,fieldcap_amt_A*0.8/soil_depth_A,fieldcap_amt*0.8/soil_depth)' --o`;
-print `r.mapcalc 'ETreduction_mc = if(landuse==6.0,fieldcap_amt*0.8/soil_depth,if(landuse==5.0,fieldcap_amt_A*0.8/soil_depth_A,if(landuse==4.0,fieldcap_amt*0.8/soil_depth,if(landuse==3.0,fieldcap_amt*0.7/soil_depth,if(landuse==2.0,0.0,if(landuse==1.0,0.0,0.0))))))' --o`;
+print `r.mapcalc 'ETreduction_mc = if(landuse==6.0,fieldcap_amt*0.8/soil_depth,if(landuse==5.0,fieldcap_amt_A*0.8/soil_depth_A,if(landuse==4.0,fieldcap_amt*0.8/soil_depth,if(landuse==3.0,fieldcap_amt*0.7/soil_depth,if(landuse==2.0,fieldcap_amt*0.8/soil_depth,if(landuse==1.0,fieldcap_amt*0.8/soil_depth,fieldcap_amt*0.8/soil_depth))))))' --o`; # DJ 04/12/23 -- changed ETreduction values for urban and water to normal 0.80*... instead of 0
 
 # these values are just walked over from initial forest, partial, clear, road system assuming water,urban/barren are both clear cut (not perfect by any means) --> #print `r.mapcalc 'tmax_rain = if(landuse==3.0,3.1,if(landuse==2.0,1.8,-0.5))' --o`;
 print `r.mapcalc 'tmax_rain = if(landuse==6.0,1.8,if(landuse==5.0,-0.5,if(landuse==4.0,1.8,if(landuse==3.0,3.1,if(landuse==2.0,-0.5,if(landuse==1.0,-0.5,0))))))' --o`;
@@ -121,6 +121,10 @@ print `r.mapcalc 'storage_amt_A = (wiltpt_mc_A+(fieldcap_mc_A-wiltpt_mc_A)*0.2)*
 #  storage_amt in stream cells is assumed at saturation
 #  soil depth in stream cells is assumed at 1 cm A horizon, 19 cm B horizon
 #  stream cells are defined as those cells having an upslope contributing area of 50 cells (using a 30m DEM)
+print `r.mapcalc 'soil_depth_A = if(landuse==2,1.0,soil_depth_A)' --o`; # DJ 04/12/23 -- made soil_depth equal to 1 if landuse is urban (2) 
+print `r.mapcalc 'soil_depth_A = if(strms_30m>0,1.0,soil_depth_A)' --o`; # DJ 04/12/23 -- made soil_depth_A 1 cm for stream cells --> based on Flume model 
+print `r.mapcalc 'soil_depth_B = if(strms_30m>0,19.0,soil_depth_B)' --o`; # DJ 04/12/23 -- made soil_depth_B 19cm for stream cells --> based on Flume model 
+
 print `r.mapcalc 'canopy_storage_amt = 0.0' --o`;
 print `r.mapcalc 'swe = 0.0' --o`;
 
@@ -302,13 +306,13 @@ while (<$WEATHER>) {
 	print `r.mapcalc 'canopy_cover = if(landuse==6.0,0.50,if(landuse==5.0,0.60,if(landuse==4.0,0.60,if(landuse==3.0,0.80,if(landuse==2.0,0,if(landuse==1.0,0,0.0))))))' --o`; ## DJ 3/14/23 --> changed the canopy_cover values to match those in email from Philip
 
 	# this is redundant because it's the same as above but i'm not sure why it's here
-	print `r.mapcalc 'root_zone = if(landuse==6.0,soil_depth,if(landuse==5.0,soil_depth_A,if(landuse==4.0,soil_depth,if(landuse==3.0,soil_depth,if(landuse==2.0,0.0,if(landuse==1.0,0.0,0.0))))))' --o`;
+	print `r.mapcalc 'root_zone = if(landuse==6.0,soil_depth,if(landuse==5.0,soil_depth_A,if(landuse==4.0,soil_depth,if(landuse==3.0,soil_depth,if(landuse==2.0,1.0,if(landuse==1.0,1.0,1.0))))))' --o`; # DJ 04/12/23 --> changed root_zone == 0 to root_zone == 1
 
 	# this is redundant because it's the same as above but i'm not sure why it's here
-	print `r.mapcalc 'wiltpt_amt = if(landuse==6.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==5.0,wiltpt_mc_A*soil_depth_A,if(landuse==4.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==3.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==2.0,0.0,if(landuse==1.0,0.0,0.0))))))' --o`;
+  print `r.mapcalc 'wiltpt_amt = if(landuse==6.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==5.0,wiltpt_mc_A*soil_depth_A,if(landuse==4.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==3.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==2.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==1.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B))))))' --o`;
 
 	# ETreduction was done based on 80% for all classes except forest which is 70% and urban/barren/rock/water being 0
-	print `r.mapcalc 'ETreduction_mc = if(landuse==6.0,fieldcap_amt*0.8/soil_depth,if(landuse==5.0,fieldcap_amt_A*0.8/soil_depth_A,if(landuse==4.0,fieldcap_amt*0.8/soil_depth,if(landuse==3.0,fieldcap_amt*0.7/soil_depth,if(landuse==2.0,0.0,if(landuse==1.0,0.0,0.0))))))' --o`;
+	print `r.mapcalc 'ETreduction_mc = if(landuse==6.0,fieldcap_amt*0.8/soil_depth,if(landuse==5.0,fieldcap_amt_A*0.8/soil_depth_A,if(landuse==4.0,fieldcap_amt*0.8/soil_depth,if(landuse==3.0,fieldcap_amt*0.7/soil_depth,if(landuse==2.0,fieldcap_amt*0.8/soil_depth,if(landuse==1.0,fieldcap_amt*0.8/soil_depth,fieldcap_amt*0.8/soil_depth))))))' --o`; # DJ 04/12/23 -- changed ETreduction values for urban and water to normal 0.80*... instead of 0
 
 
 #  --------------------------------------------------------------------
@@ -723,7 +727,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	print `r.mapcalc 'storage_amt = storage_amt-runoff_flow' --o`;
 	print `r.mapcalc 'runoff_daily_flow = runoff_daily_flow+runoff_flow' --o`;
 
-	print `r.mapcalc 'saturation = storage_amt/sat_amt*100.0' --o`;
+	print `r.mapcalc 'saturation = if(strms_30m>0,100,if(landuse==1.0,100,storage_amt/sat_amt*100.0))' --o`; # DJ 04/12/23-- made it so saturation is always 100$ at stream cells
 
 	}; # end of the 6 hours loop
 
