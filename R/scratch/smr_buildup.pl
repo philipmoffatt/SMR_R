@@ -856,7 +856,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 			print `r.stats.zonal base=watershed cover=perc_daily_flow out=temp11 method=sum --o --quiet`;
 			print $perc_cm_{$wshed_id} = `r.stats -A input=temp11 nv= `;
 			$perc_cm_{$wshed_id} = $perc_cm_{$wshed_id}*1;
-			$perc_cms_{$wshed_id} = $perc_cm_{$wshed_id}/100.0/($time_step*3600.0); # Calculate the percolation in m3/s for sum of all cells # Duncan Jurayj - 3/21/23: removed this: "*$gridsize*$gridsize"
+			$perc_cms_{$wshed_id} = $perc_cm_{$wshed_id}/100.0*($gridsize*$gridsize)/($time_step*3600.0);
 			$perc_mm_{$wshed_id} = $perc_cm_{$wshed_id}*10/$area_cells; # Convert percolation into area average depth (mm)
 
 		# **********************************  12  ***************************************
