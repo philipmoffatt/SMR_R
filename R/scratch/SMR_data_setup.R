@@ -292,7 +292,6 @@ for(i in unique(hoz_data$cokey)){
   
   layer_A_temp_2 = depth_weight(data =layer_A_temp, cols = hoz_comp,
                                 layer = "A")
-  rm(layer_A_temp)
   
   if(max_depth>30){
     layer_B_temp = temp_hoz %>% 
@@ -304,8 +303,11 @@ for(i in unique(hoz_data$cokey)){
     layer_B_temp$hzdepb.r[nrow(layer_B_temp)] <- max_depth
     
     layer_B_temp_2 = depth_weight(layer_B_temp, cols = hoz_comp, layer = "B")
+  }else if(max_depth <= 30){
+    layer_B_temp_2 = layer_A_temp_2 %>% mutate(depth = 0.1)
+    
   }
-  
+  rm(layer_A_temp)
   rm(layer_B_temp)
     
     layer = rbind(layer, layer_A_temp_2, layer_B_temp_2)
