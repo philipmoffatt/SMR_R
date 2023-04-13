@@ -305,9 +305,11 @@ for(i in unique(hoz_data$cokey)){
     layer_B_temp$hzdept.r[1] <- depth_a
     layer_B_temp$hzdepb.r[nrow(layer_B_temp)] <- max_depth
     
+    layer_B_temp= layer_B_temp %>% filter(!is.na(ksat.r))
+    
     layer_B_temp_2 = depth_weight(layer_B_temp, cols = hoz_comp, layer = "B")
   }else if(max_depth <= 30){
-    layer_B_temp_2 = layer_A_temp_2 %>% mutate(depth = 0.1)
+    layer_B_temp_2 = layer_A_temp_2 %>% mutate(depth = 0.1, layer ="B")
     
   }
   rm(layer_A_temp)
