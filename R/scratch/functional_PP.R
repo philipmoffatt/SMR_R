@@ -20,20 +20,24 @@ sample_tracking_function<-function( ## rename this function something better
   
   SMR_log_file = file.path(outputDir, "SMR_run_log.txt")
   
-  simulation_note = readline(prompt="Simulation description: ")
+  simulation_note = readline(prompt="Simulation description: ") ## check this works in function
   
-  ## with row numbers on there is no need for runID numbers, 
-  #but it would be good to include a file name with the complete parameter set 
-  #or some other meaning reffernce.  
-  log_entry = list(Sys.Date(), simulation_note)
+  if(!file.exists(SMR_log_file)){
+    runID ="1"
+  }else{
+    table_temp = (read.table(file= SMR_log_file) %>% row.names())
+    runID = table_temp[length(table_temp)]%>% as.integer()+1
+  }  
+  runID = paste0("MFC_", rep(0,(3-nchar(runID))) %>% paste0(., collapse = ""),runID)
+  
+  
+  log_entry = list(runID, Sys.Date(), simulation_note %>% as.character())
   
   write.table(x = log_entry, ### we will need to delete a few log files as we are testing this setup but should get it set before going much further. 
               file = SMR_log_file, append = T, 
-              quote = F, col.names = F)
+              quote = T, col.names = F, row.names = F)
   
-  table_temp = (read.table(file= SMR_log_file) %>% row.names())
-  runID = table_temp[length(table_temp)]  
-  runID = paste0("MFC_", rep(0,(3-nchar(runID))) %>% paste0(., collapse = ""),runID)
+  
   out_path = file.path(outputDir, paste0(runID, "_", Sys.Date()))
   if(!dir.exists(out_path)){dir.create(out_path)}
   
