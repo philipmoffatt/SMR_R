@@ -3,6 +3,7 @@
 print `g.remove -f type=raster name=MASK`;
 print `g.region rast=watershed`;
 print `r.mapcalc 'watershed = if(watershed==1.0,1,1)' --o`;
+
 #print `rm Q_* `;
 #print `rm M_* `;
 #print `rm R_* `;
