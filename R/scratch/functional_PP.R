@@ -12,13 +12,43 @@ library(raster)
 library(mapview)
 
 # data pre-processing and alignment function
+
+sample_tracking_function<-function( ## rename this function something better 
+  modeled_path){
+  outputDir = dirname(modeled_path) %>% gsub(.,pattern =  "raw_data", replacement = "processed_data")
+  if(!dir.exists(outputDir)){dir.create(outputDir)}
+  
+  SMR_log_file = file.path(outputDir, "SMR_run_log.txt")
+  
+  simulation_note = readline(prompt="Simulation description: ")
+  
+  ## with row numbers on there is no need for runID numbers, 
+  #but it would be good to include a file name with the complete parameter set 
+  #or some other meaning reffernce.  
+  log_entry = list(Sys.Date(), simulation_note)
+  
+  write.table(x = log_entry, ### we will need to delete a few log files as we are testing this setup but should get it set before going much further. 
+              file = SMR_log_file, append = T, 
+              quote = F, col.names = F)
+  
+  table_temp = (read.table(file= SMR_log_file) %>% row.names())
+  runID = table_temp[length(table_temp)]  
+  runID = paste0("MFC_", rep(0,(3-nchar(runID))) %>% paste0(., collapse = ""),runID)
+  out_path = file.path(outputDir, paste0(runID, "_", Sys.Date()))
+  if(!dir.exists(out_path)){dir.create(out_path)}
+  
+  map_path = file.path(out_path, "maps") 
+  if(!dir.exists(map_path)){dir.create(map_path)}
+  return(out_path)
+}
+
 preprocessing <- function(
     validation_path, 
     modeled_path, 
     start_date, 
     end_date,
-    rename=FALSE,
-    date_of_run,
+    rename=FALSE,# can cut this if we resave data in processed_data in a new folder. 
+    date_of_run,# can cut this and us sys.date of post process particulary if we source perl from R so it all run directly.  
     modeled_headers
     ) 
   {
@@ -44,20 +74,24 @@ preprocessing <- function(
   
   modeled_data <- merge(modeled_data, validation_data)
   
-  if (rename) {
-    if (grepl('MFC_mass_balance_79.csv', modeled_path)) {
-    file.rename(
-      modeled_path,
-      paste0(
-        './raw_data/smr_output/',
-        paste0(
-          paste0('mfc_mb_', date_of_run),
-          '.csv'
-          )
-        )
-      )
-    }
-  }
+  
+  out_path = sample_tracking_function(modeled_path = modeled_path) #we could call this internaly here or externally and pass the out_path to the function and have it as a varable 
+  write_csv(x = modeled_data, file = file.path(out_path, 'mfc_mb.csv'))
+  
+  # if (rename) {
+  #   if (grepl('MFC_mass_balance_79.csv', modeled_path)) {
+  #   file.rename(
+  #     modeled_path,
+  #     paste0(
+  #       './raw_data/smr_output/',
+  #       paste0(
+  #         paste0('mfc_mb_', date_of_run),
+  #         '.csv'
+  #         )
+  #       )
+  #     )
+  #   }
+  # }
   
   return(modeled_data)
   
