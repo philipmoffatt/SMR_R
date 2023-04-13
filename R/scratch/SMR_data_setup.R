@@ -258,12 +258,12 @@ hoz_comp <- c("om.r","dbovendry.r","dbthirdbar.r","ksat.r",
 depth_weight <- function(data, cols, layer){
   data = data %>% mutate(
     hzthk.r = hzdepb.r - hzdept.r, 
-    weights = hzthk.r/sum(hzthk.r)
+    weights = hzthk.r/sum(hzthk.r, na.rm = T)
   )
   
   data_sum <- (data %>% 
                  dplyr::select(all_of(cols))*data$weights) %>% 
-    summarise_all( sum) %>% 
+    summarise_all(function(H){mean(H, na.rm = TRUE)}) %>% 
     mutate(depth = max(data$hzdepb.r), 
            layer = layer, 
            cokey = data$cokey %>% unique())
@@ -289,6 +289,9 @@ for(i in unique(hoz_data$cokey)){
   layer_A_temp = temp_hoz %>% filter(hzdept.r < depth_a) %>% 
     arrange(hzdept.r)
   layer_A_temp$hzdepb.r[nrow(layer_A_temp)] <- depth_a
+  
+  layer_A_temp[grepl(layer_A_temp$hzname, pattern = "O"),]$wsatiated.r = layer_A_temp[grepl(layer_A_temp$hzname, pattern = "O"),]$wthirdbar.r*1.1
+  # need a better scalar for this...
   
   layer_A_temp_2 = depth_weight(data =layer_A_temp, cols = hoz_comp,
                                 layer = "A")
