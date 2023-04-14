@@ -122,9 +122,9 @@ print `r.mapcalc 'storage_amt_A = (wiltpt_mc_A+(fieldcap_mc_A-wiltpt_mc_A)*0.2)*
 #  storage_amt in stream cells is assumed at saturation
 #  soil depth in stream cells is assumed at 1 cm A horizon, 19 cm B horizon
 #  stream cells are defined as those cells having an upslope contributing area of 50 cells (using a 30m DEM)
-print `r.mapcalc 'soil_depth_A = if(landuse==2,1.0,soil_depth_A)' --o`; # DJ 04/12/23 -- made soil_depth equal to 1 if landuse is urban (2) 
-print `r.mapcalc 'soil_depth_A = if(strms_30m>0,1.0,soil_depth_A)' --o`; # DJ 04/12/23 -- made soil_depth_A 1 cm for stream cells --> based on Flume model 
-print `r.mapcalc 'soil_depth_B = if(strms_30m>0,19.0,soil_depth_B)' --o`; # DJ 04/12/23 -- made soil_depth_B 19cm for stream cells --> based on Flume model 
+# print `r.mapcalc 'soil_depth_A = if(landuse==2,1.0,soil_depth_A)' --o`; # DJ 04/12/23 -- made soil_depth equal to 1 if landuse is urban (2) 
+# print `r.mapcalc 'soil_depth_A = if(strms_30m>0,1.0,soil_depth_A)' --o`; # DJ 04/12/23 -- made soil_depth_A 1 cm for stream cells --> based on Flume model 
+# print `r.mapcalc 'soil_depth_B = if(strms_30m>0,19.0,soil_depth_B)' --o`; # DJ 04/12/23 -- made soil_depth_B 19cm for stream cells --> based on Flume model 
 
 print `r.mapcalc 'canopy_storage_amt = 0.0' --o`;
 print `r.mapcalc 'swe = 0.0' --o`;
@@ -274,10 +274,10 @@ print `r.mapcalc 'pet_1988 = 0.0' --o`;
 #
 # START READING WEATHER DATA
 #____________________________________________________________________________________
-
+print "\n|----- READING Weather -----|\n";
 #  This set of commands splits a tab delimited array using a while loop
-open ($WEATHER, '/Users/duncanjurayj/GrassWorkSpace/pullman_historical.csv') || die "Can't open file\n";
-
+open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || die "Can't open weather file\n";
+#print "\n|----- line 280 -----|\n";
 
 while (<$WEATHER>) {
 	chop($_);
@@ -766,13 +766,13 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	# february --> this may need to be changed.
 	if ($doy == 62) {
 		print `r.mapcalc 'avg_feb_runoff_$year = runoff_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_feb_runoff_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_outputs/feb_avg_runoff_$year.tif`;
+		print `r.out.gdal input=avg_feb_runoff_$year output=/raw_data/smr_output/map_outputs/feb_outputs/feb_avg_runoff_$year.tif`;
 		
 		print `r.mapcalc 'avg_A_amt_feb_$year = A_amt_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_A_amt_feb_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_outputs/avg_A_amt_feb_$year.tif`;
+		print `r.out.gdal input=avg_A_amt_feb_$year output=/raw_data/smr_output/map_outputs/feb_outputs/avg_A_amt_feb_$year.tif`;
 
 		print `r.mapcalc 'avg_B_amt_feb_$year = B_amt_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_B_amt_feb_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_outputs/avg_B_amt_feb_$year.tif`;
+		print `r.out.gdal input=avg_B_amt_feb_$year output=/raw_data/smr_output/map_outputs/feb_outputs/avg_B_amt_feb_$year.tif`;
 		}
 
   # maps of annual precipitation and pet to confirm distribution is correct
@@ -781,11 +781,11 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
   `r.mapcalc 'pet_$year = pet_$year + pet' --o`;
 
   if ($doy >= 365) {
-    print `r.out.gdal input=precip_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/annual_precip/precip_$year.tif`;
-    print `r.out.gdal input=pet_$year output=/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/annual_pet/pet_$year.tif`;
+    print `r.out.gdal input=precip_$year output=/raw_data/smr_output/map_outputs/annual_precip/precip_$year.tif`;
+    print `r.out.gdal input=pet_$year output=/raw_data/smr_output/map_outputs/annual_pet/pet_$year.tif`;
   }
 
-	open($WATERSHED, '<', 'wshed_res_properties.ini') || "Can't open file\n";
+	open($WATERSHED, '<', 'wshed_res_properties.ini') || "Can't open watershed properties file\n";
 	while (<$WATERSHED>) {
 		chop($_);
 		($wshed_id,$area_cells,$res_vol,$res_coeff) = split;
@@ -965,10 +965,9 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 			$u_surface_{$wshed_id} = $u_surface_{$wshed_id}*1;
 
 		#  Create mass balance output file
-		open(OUT, ">>/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || die("Cannot Open File");
+    open(OUT, ">>", "/Users/duncanjurayj/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || open(OUT, ">>", "/Users/philipmoffatt/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || die("Cannot Open File");
 		print OUT "$wshed_id $date $year $runoff_cm_{$wshed_id} $precip_cm_{$wshed_id} $rain_cm_{$wshed_id} $actualET_flow_cm_{$wshed_id} $canopy_evap_cm_{$wshed_id} $snowmelt_cm_{$wshed_id} $storage_amt_cm_{$wshed_id} $throughfall_cm_{$wshed_id} $canopy_storage_amt_cm_{$wshed_id} $perc_cm_{$wshed_id} $Q_{$wshed_id} $swe_cm_{$wshed_id} $condens_cm_{$wshed_id} $snow_cm_{$wshed_id} $base_flow_{$wshed_id} $srad_{$wshed_id} $latent_{$wshed_id} $sensible_{$wshed_id} $lw_{$wshed_id} $q_rain_ground_cm_{$wshed_id} $q_total_{$wshed_id} $ice_content_{$wshed_id} $liquid_water_{$wshed_id} $refreeze_{$wshed_id} $vap_d_air_{$wshed_id} $vap_d_snow_{$wshed_id} $u_surface_{$wshed_id} \n";
 		close(OUT); 
-
 
 		print "\n \n";
 		print "\n|----- END OF OUTPUTS ZONAL STATS -----|\n";
