@@ -13,7 +13,7 @@ library(mapview)
 
 # data pre-processing and alignment function
 
-sample_tracking_function<-function( ## rename this function something better 
+version_tracker <- function( ## rename this function something better 
   modeled_path){
   outputDir = dirname(modeled_path) %>% gsub(.,pattern =  "raw_data", replacement = "processed_data")
   if(!dir.exists(outputDir)){dir.create(outputDir)}
