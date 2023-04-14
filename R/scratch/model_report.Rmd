@@ -1,0 +1,126 @@
+---
+title: "SMR-SAM Run Report"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+``` {r, echo=FALSE}
+source("source_SMR.R") # right now this only works when run as a code --> i need to functionalize source_SMR and turn this into a parameterized report
+# where location and mapset are specified at the top of the document --> right now they are readlin() inputs in the source_SMR script and that gets skipped during 
+# the knit
+```
+
+```{r, echo=FALSE, include=FALSE}
+source("functional_PP.R", local = knitr::knit_global())
+```
+
+```{r, include=FALSE}
+
+user <- Sys.info()["user"]
+validation_data_path <- paste0("/Users/", user,"/Dropbox/SMR_R/raw_data/discharge_historical/USGSdischarge.csv")
+modeled_data_path <- paste0("/Users/", user,"/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_79.csv")
+
+column_headers <- c('wshed_id', 'date', 'year', 'runoff_cm', 'precip_cm', 'rain_cm', 'actualET_flow_cm', 'canopy_evap_cm', 'snowmelt_cm', 'storage_amt_cm', 'throughfall_cm', 'canopy_storage_amt_cm', 'perc_cm', 'Q', 'swe_cm', 'condens_cm', 'snow_cm', 'baseflow', 'srad', 'latent', 'sensible', 'lw', 'q_rain_ground', 'q_total', 'ice_content', 'liquid_water', 'refreeze', 'vap_d_air', 'vap_d_snow', 'u_surface', 'empty') # this should be based on the line in the perl script writing them out so we don't have to worry about changing it
+
+start_date <- "1965-10-01" # this can be dynamic based on weather inputs
+end_date <- "1970-10-01" # this an be dynamics based on weather inputs
+```
+
+## Run Identification:
+
+      Run Date: `r Sys.Date()`
+      Modeled Period: `r start_date` to `r end_date`
+
+```{r version_track, echo=FALSE, include=FALSE}
+#modeled_path <- "./raw_data/smr_output" # this needs to be a generic name eventually
+version_tracker(modeled_path = modeled_data_path)
+```
+
+```{r, echo=FALSE, include=FALSE}
+VaM_data <- preprocessing(
+  validation_data_path,
+  modeled_data_path,
+  start_date,
+  end_date,
+  column_headers
+)
+```
+
+```{r, echo=FALSE}
+
+NSE_Q <- nse_Q(VaM_data)
+KGE_Q <- kge_Q(VaM_data)
+
+```
+
+## Model Performance by Metric
+
+      NSE: `r NSE_Q`
+      KGE: `r KGE_Q`
+
+## Report Outline:
+
+|   1: Main Visualizations:
+|       1.1 Modeled vs. Validation Stream Discharge
+|       1.2 Annual Mass Balance
+|       1.3 Annual Accumulated Flux
+|       1.4 Snow Melt and Accumulation Model Components
+|       1.5 Radiation Fluxes
+
+|   2: Map Outputs:
+|       2.1 Average Soil Moisture (A Horizon) in February
+|       2.2 Average Soil Moisture (B Horizon) in February
+|       2.3 Average Runoff in February
+
+|   3: Additional Graphs:
+|       3.1 Snow Water Equivalent and its Components
+|       3.2 Vapor Density of Air and Snow
+|       3.3 Individual Flux Time Series
+
+\newpage
+
+```{r Q_comparison, echo=FALSE, include=FALSE}
+Q_comp <- Q_comparison(VaM_data, log_transform = T)
+```
+
+```{r Q_comp, echo=FALSE}
+Q_comp
+```
+
+```{r annual_fluxes, echo=FALSE}
+flux_vector <- c('runoff_cm', 'precip_cm', 'rain_cm', 
+                 'actualET_flow_cm', 'canopy_evap_cm', 
+                 'snowmelt_cm', 'storage_amt_cm', 
+                 'throughfall_cm', 'canopy_storage_amt_cm', 
+                 'perc_cm', 'swe_cm', 'condens_cm', 
+                 'snow_cm', 'baseflow')
+annual_fluxes(VaM_data, flux_vector, log_transform = F)
+```
+
+```{r radiation_ts, echo=FALSE}
+radiation_ts(VaM_data, log_transform = F)
+```
+
+```{r SAM_check, echo=FALSE}
+SAM_check(VaM_data, log_transform = F)
+```
+
+```{r swe_debug, echo=FALSE}
+swe_debug(VaM_data, log_transform = F)
+```
+
+```{r q.latent_debug, echo=FALSE}
+q.latent_debug(VaM_data, log_transform = F)
+```
+
+```{r get_map_outputs, echo=FALSE, include=FALSE}
+get_map_outputs(
+  "/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_outputs"
+)
+```
+
+```{r storage_amt_feb, echo=FALSE}
+storage_amt_feb(`avg_A_amt_feb_1969_2023-04-12`, 'A')
+```
