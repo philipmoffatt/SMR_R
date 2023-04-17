@@ -2,27 +2,32 @@
 title: "SMR-SAM Run Report"
 output:
   pdf_document: default
-  html_document:
+  html_document: 
     df_print: paged
 params:
   date: !r Sys.Date()
   location: "MFC_with_projection"
   mapset: "duncanjurayj"
-  
+  run_start: "1965-10-01"
+  run_end: "1970-10-01"
+  simulation_note: 'testing R markdown workflow and directory system'
 ---
 
 ``` {r, echo=FALSE, include=FALSE}
 # path/variable setup block
+
+# setting up directories
 user <- Sys.info()["user"]
 post_processing_script_path <- paste0("/Users/", user, "/Dropbox/SMR_R/R/scratch/functional_PP.R")
-source_smr_function_path <- paste0("/Users/", user, "/Dropbox/SMR_R/R/scratch/source_SMR_function.R")
-
-validation_data_path <- paste0("/Users/", user,"/Dropbox/SMR_R/raw_data/discharge_historical/USGSdischarge.csv")
-modeled_data_path <- paste0("/Users/", user,"/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_79.csv")
+source_smr_function_path <- paste0("/Users/", user,"/Dropbox/SMR_R/R/scratch/source_SMR_function.R")
 perl_script_path <- paste0("/Users/", user, "/Dropbox/SMR_R/R/scratch/smr_buildup.pl")
 
-model_start_date <- "1965-10-01"
-model_end_date <- "1970-10-01"
+# pulling raw data paths in
+validation_data_path <- paste0("/Users/", user,"/Dropbox/SMR_R/raw_data/validation_data/USGSdischarge.csv")
+modeled_data_path <- paste0("/Users/", user,"/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_79.csv")
+map_output_path <- paste0("/Users/", user,"/Dropbox/SMR_R/raw_data/smr_output/maps")
+
+
 ```
 
 ```{r, echo=FALSE, include=FALSE}
@@ -37,7 +42,7 @@ source(post_processing_script_path, local = knitr::knit_global())
 
 ``` {r, echo=FALSE, include=FALSE} 
 # this block calls the call_SMR() function and takes the params$location and params$mapset as the location and mapset
-run_SM(params$location, params$mapset)
+run_SMR(params$location, params$mapset)
 ```
 
 ```{r, include=FALSE}
@@ -45,7 +50,7 @@ run_SM(params$location, params$mapset)
 #column_headers <- c('wshed_id', 'date', 'year', 'runoff_cm', 'precip_cm', 'rain_cm', 'actualET_flow_cm', 'canopy_evap_cm', 'snowmelt_cm', 'storage_amt_cm', 'throughfall_cm', 'canopy_storage_amt_cm', 'perc_cm', 'Q', 'swe_cm', 'condens_cm', 'snow_cm', 'baseflow', 'srad', 'latent', 'sensible', 'lw', 'q_rain_ground', 'q_total', 'ice_content', 'liquid_water', 'refreeze', 'vap_d_air', 'vap_d_snow', 'u_surface', 'empty') # this should be based on the line in the perl script writing them out so we don't have to worry about changing it
 
 column_headers <- get_print_out_line(perl_script_path) 
-# hopefully this will prevent potential erros when adding or removing variables because
+# hopefully this will prevent potential errors when adding or removing variables because
 # as long as it can access the perl script it should read the names of the outgoing variables
 
 ```
@@ -53,21 +58,18 @@ column_headers <- get_print_out_line(perl_script_path)
 ## Run Identification:
 
       Date of Model Run: `r params$date` 
-      Modeled Period: `r model_start_date` to `r model_end_date`
+      Modeled Period: `r params$run_start to params$run_end`
 
 ```{r version_track, echo=FALSE, include=FALSE}
-
-# NOTE: # removed Sys.date and trying params$date --> this is about 5 lines above
-
-#modeled_path <- "./raw_data/smr_output" # this needs to be a generic name eventually
-version_tracker(modeled_path = modeled_data_path)
+version_tracked_outpath <- version_tracker(modeled_data_path, simulation_note = params$simulation_note)
 ```
 
 ```{r, echo=FALSE, include=FALSE}
 VaM_data <- preprocessing(
   validation_data_path,
   modeled_data_path,
-  column_headers
+  column_headers,
+  version_tracked_outpath
 )
 ```
 
@@ -118,7 +120,7 @@ flux_vector <- c('runoff_cm', 'precip_cm', 'rain_cm',
                  'snowmelt_cm', 'storage_amt_cm', 
                  'throughfall_cm', 'canopy_storage_amt_cm', 
                  'perc_cm', 'swe_cm', 'condens_cm', 
-                 'snow_cm', 'baseflow')
+                 'snow_cm', 'base_flow')
 annual_fluxes(VaM_data, flux_vector, log_transform = F)
 ```
 
@@ -139,11 +141,34 @@ q.latent_debug(VaM_data, log_transform = F)
 ```
 
 ```{r get_map_outputs, echo=FALSE, include=FALSE}
-get_map_outputs(
-  "/Users/duncanjurayj/Documents/SMR_R/raw_data/smr_output/map_outputs/feb_outputs"
-)
+version_tracked_map_dir <- paste0(version_tracked_outpath, "/maps")
+get_map_outputs(map_output_path, version_tracked_map_dir)
 ```
 
 ```{r storage_amt_feb, echo=FALSE}
-storage_amt_feb(`avg_A_amt_feb_1969_2023-04-12`, 'A')
+# hard coding for now but plan to add in regex to loop through plots based on output name (ie "amt", "runoff", "precip")
+#storage_amt_feb(avg_A_amt_feb_1966)
+#storage_amt_feb(avg_A_amt_feb_1967)
+#storage_amt_feb(avg_A_amt_feb_1968)
+#storage_amt_feb(avg_A_amt_feb_1969)
+#storage_amt_feb(avg_A_amt_feb_1970)
+
+#storage_amt_feb(avg_B_amt_feb_1966)
+#storage_amt_feb(avg_B_amt_feb_1967)
+#storage_amt_feb(avg_B_amt_feb_1968)
+#storage_amt_feb(avg_B_amt_feb_1969)
+#storage_amt_feb(avg_B_amt_feb_1970)
+
+#annual_precip_rast(precip_1966)
+#annual_precip_rast(precip_1967)
+#annual_precip_rast(precip_1968)
+#annual_precip_rast(precip_1969)
+#annual_precip_rast(precip_1970)
+
+#annual_pet_rast(pet_1966)
+#annual_precip_rast(pet_1967)
+#annual_precip_rast(pet_1968)
+#annual_precip_rast(pet_1969)
+#annual_precip_rast(pet_1970)
+
 ```
