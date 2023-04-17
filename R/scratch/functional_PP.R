@@ -12,37 +12,47 @@ library(raster)
 library(mapview)
 
 # data pre-processing and alignment function
-version_tracker <- function( ## rename this function something better 
-  modeled_path){
-  outputDir = dirname(modeled_path) %>% gsub(.,pattern =  "raw_data", replacement = "processed_data")
-  if(!dir.exists(outputDir)){dir.create(outputDir)}
+version_tracker <- function(modeled_path, simulation_note = "") {
+  outputDir <- dirname(modeled_path) %>% gsub(., pattern = "raw_data", replacement = "processed_data")
   
-  SMR_log_file = file.path(outputDir, "SMR_run_log.txt")
+  if(!dir.exists(outputDir)) {
+    dir.create(outputDir)
+  }
   
-  simulation_note = readline(prompt="Simulation description: ") ## check this works in function
+  SMR_log_file <- file.path(outputDir, "SMR_run_log.txt")
+  
+  if(simulation_note == "") {
+    simulation_note <- readline(prompt="Simulation description: ")
+  }
   
   if(!file.exists(SMR_log_file)){
-    runID ="1"
-  }else{
-    table_temp = (read.table(file= SMR_log_file) %>% row.names())
-    runID = table_temp[length(table_temp)]%>% as.integer()+1
+    runID <- "1"
+  } else {
+    table_temp <- (read.table(file= SMR_log_file) %>% row.names())
+    runID <- table_temp[length(table_temp)] %>% as.integer() + 1
   }  
   
-  runID = paste0("MFC_", rep(0,(3-nchar(runID))) %>% paste0(., collapse = ""),runID)
+  runID <- paste0("MFC_", rep(0,(3-nchar(runID))) %>% paste0(., collapse = ""), runID)
   
-  log_entry = list(runID, Sys.Date(), simulation_note %>% as.character())
+  log_entry <- list(runID, Sys.Date(), simulation_note %>% as.character())
   
-  write.table(x = log_entry, ### we will need to delete a few log files as we are testing this setup but should get it set before going much further. 
-              file = SMR_log_file, append = T, 
-              quote = T, col.names = F, row.names = F)
+  write.table(x = log_entry, file = SMR_log_file, append = TRUE, quote = TRUE, col.names = FALSE,
+              row.names = FALSE)
   
   
-  out_path = file.path(outputDir, paste0(runID, "_", Sys.Date()))
-  if(!dir.exists(out_path)){dir.create(out_path)}
+  out_path <- file.path(outputDir, paste0(runID, "_", Sys.Date()))
   
-  map_path = file.path(out_path, "maps") 
-  if(!dir.exists(map_path)){dir.create(map_path)}
-  return(out_path)
+  if(!dir.exists(out_path)) {
+    dir.create(out_path)
+    
+    map_path <- file.path(out_path, "maps") 
+    
+    if(!dir.exists(map_path)) {
+      dir.create(map_path)
+    }
+    
+    return(out_path)
+  }
 }
 
 # allows for dynamic text based on model outputs in the markdown
@@ -71,11 +81,12 @@ get_print_out_line <- function(perl_script_path) {
     cleaned_line_1 <- gsub('\\s*\\\\n\";$', '', partial_line)
     
     # Remove "\\" before "$wshed_id" and remove "_{$wshed_id}" from each word in the line
-    cleaned_line_2 <- gsub('\\\\\\$', '\\$', cleaned_line_1)
+    cleaned_line_2 <- gsub('\\\\\\$', '', cleaned_line_1)
     final_cleaned_string <- gsub('_\\{\\$wshed_id\\}', '', cleaned_line_2)
     
-    # Split final_cleaned_string on space to obtain a list of variables
-    variable_list <- strsplit(final_cleaned_string, ' ')[[1]]
+    # Split final_cleaned_string on space to obtain a list of variables, removing the "$" before each variable name
+    variable_list <- strsplit(final_cleaned_string, ' ')[[1]] %>% 
+      gsub('\\$', '', .)
     
     return(variable_list)
     
@@ -87,9 +98,8 @@ get_print_out_line <- function(perl_script_path) {
 preprocessing <- function(
     validation_path, 
     modeled_path, 
-    rename=FALSE,# can cut this if we resave data in processed_data in a new folder. 
-    date_of_run=Sys.Date(),# can cut this and us sys.date of post process particulary if we source perl from R so it all run directly.  
-    modeled_headers
+    modeled_headers,
+    version_tracked_outpath
     ) 
   {
   
@@ -100,7 +110,7 @@ preprocessing <- function(
       )
 
   modeled_data <- read.csv(modeled_path, sep=' ', header = FALSE, col.names = modeled_headers) %>% 
-    mutate(date = as.Date(date))
+  mutate(date = as.Date(date))
   
   common_start <- max(min(validation_data$date), min(modeled_data$date))
   common_end <- min(max(validation_data$date), max(modeled_data$date))
@@ -115,23 +125,10 @@ preprocessing <- function(
   modeled_data <- merge(modeled_data, validation_data)
   
   
-  out_path = sample_tracking_function(modeled_path = modeled_path) #we could call this internaly here or externally and pass the out_path to the function and have it as a varable 
+  out_path = version_tracked_outpath #version_tracker(modeled_path = modeled_path, simulation_note = simulation_note) #we could call this internaly here or externally and pass the out_path to the function and have it as a varable 
   write_csv(x = modeled_data, file = file.path(out_path, 'mfc_mb.csv'))
   
-  # if (rename) {
-  #   if (grepl('MFC_mass_balance_79.csv', modeled_path)) {
-  #   file.rename(
-  #     modeled_path,
-  #     paste0(
-  #       './raw_data/smr_output/',
-  #       paste0(
-  #         paste0('mfc_mb_', date_of_run),
-  #         '.csv'
-  #         )
-  #       )
-  #     )
-  #   }
-  # }
+  file.remove(modeled_path)
   
   return(modeled_data)
   
@@ -139,6 +136,7 @@ preprocessing <- function(
 
 
 # stream flow comparison function --> baseflow is subtracted out right now 
+# stream flow comparison function 
 Q_comparison <- function(combined_data, log_transform=FALSE) {
   
   if (log_transform) {
@@ -154,10 +152,12 @@ Q_comparison <- function(combined_data, log_transform=FALSE) {
     theme(plot.title = element_text(hjust = 0.5)) +
     theme(axis.title.x=element_blank()) +
     theme(axis.text.x=element_blank()) +
-    ylab('Streamflow (m3/s)') +
-    guides(color=guide_legend(title='Q Type')) +
-    scale_y_continuous(trans=y_trans)
-    
+    ylab(expression(paste(
+      "Streamflow (",m^3, "/", s,
+      ")", sep=""))) +
+    scale_y_continuous(trans=y_trans,labels = scales::comma) +
+    guides(color=guide_legend(title='Streamflow'))
+  
   precip_plot <- ggplot(data=combined_data) +
     geom_line(aes(x=date, y=precip_cm, color='Precipitation')) +
     geom_line(aes(x=date, y=rain_cm, color='Rain')) +
@@ -165,11 +165,13 @@ Q_comparison <- function(combined_data, log_transform=FALSE) {
     xlab('Date') +
     ylab('Precipitation, Rain, and Snow') + 
     scale_x_date(date_breaks = "1 year") + 
-    guides(color=guide_legend(title='Precip Type')) +
-    scale_y_continuous(trans=y_trans)
+    guides(color=guide_legend(title='Precip Type'))+
+    scale_y_continuous(labels = scales::comma)
   
   cowplot::plot_grid(comparison_plot, precip_plot, align = "v", ncol = 1, rel_heights = c(0.60, 0.40))
 }
+
+
 
 
 # function for plotting important components of SAM
@@ -284,7 +286,7 @@ radiation_ts <- function(combined_data, log_transform = FALSE) {
       latent = latent/79384,
       sensible = sensible/79384,
       lw = lw/79384,
-      q_rain_ground
+      q_rain_ground_cm
     )
   
   ggplot(data=combined_data) +
@@ -292,7 +294,7 @@ radiation_ts <- function(combined_data, log_transform = FALSE) {
     geom_line(aes(x=date, y=latent, color='Latent')) +
     geom_line(aes(x=date, y=sensible, color='Sensible')) + 
     geom_line(aes(x=date, y=lw, color='Longwave')) +
-    geom_line(aes(x=date, y=q_rain_ground, color='Rain Ground')) +
+    geom_line(aes(x=date, y=q_rain_ground_cm, color='Rain Ground')) +
     scale_y_continuous(trans=y_trans) + 
     ggtitle('Components of Radiation Budget') +
     theme(plot.title = element_text(hjust = 0.5)) +
@@ -380,30 +382,44 @@ q.latent_debug <- function(combined_data, log_transform = FALSE) {
 # this should take in map outputs a date of the model run and 
 # output those 
 # TO ADD: needs a feature that only adds a date if a date already exists
-get_map_outputs <- function(map_dir, model_run_date) {
+#get_map_outputs <- function(map_dir, model_run_date) {
   
-  tif_files <- list.files(map_dir, pattern = ".tif$")
+ # tif_files <- list.files(map_dir, pattern = ".tif$")
   
-  for (file in tif_files) {
+#  for (file in tif_files) {
     
-    var_name <- gsub(".tif$", "", file)
-    print(var_name)
+ #   var_name <- gsub(".tif$", "", file)
+  #  print(var_name)
     
-    if (exists(var_name)) {
-      next
-    }
+  #  if (exists(var_name)) {
+  #    next
+  #  }
     
-    if (grepl(model_run_date, file)) {
-      new_file_name <- file
-    } else {
-      new_file_name <- paste0(var_name, "_", model_run_date, ".tif")
-      file.rename(paste0(map_dir, "/", file), paste0(map_dir, "/", new_file_name))
-    }
+  #  if (grepl(model_run_date, file)) {
+  #    new_file_name <- file
+  #  } else {
+  #    new_file_name <- paste0(var_name, "_", model_run_date, ".tif")
+  #    file.rename(paste0(map_dir, "/", file), paste0(map_dir, "/", new_file_name))
+  #  }
+  #  
+  #  if (grepl(model_run_date, new_file_name)) {
+  #    assign(var_name, raster(paste0(map_dir, "/", new_file_name)), envir=globalenv())
+  #  }
     
-    if (grepl(model_run_date, new_file_name)) {
-      assign(var_name, raster(paste0(map_dir, "/", new_file_name)), envir=globalenv())
-    }
-    
+#  }
+#}
+
+get_map_outputs <- function(raw_map_dir, version_tracked_map_dir){
+  
+  file.copy(from = raw_map_dir, to = version_tracked_map_dir)
+  
+  file.remove(list.files(path = raw_map_dir, pattern = ".tif", full.names = TRUE))
+  
+  list_of_files <- list.files(version_tracked_map_dir, pattern=".tif", full.names=TRUE)
+  
+  for (file in list_of_files) {
+    var_name <- sub("\\.tif$", "", basename(file))
+    assign(var_name, raster::raster(file))
   }
 }
 
@@ -444,7 +460,7 @@ annual_precip_rast <- function(ann_precip) {
 }
 
 # visualize annual potential evapotranspiration
-annual_precip_rast <- function(ann_pet) {
+annual_pet_rast <- function(ann_pet) {
   
   par(mar=c(1.8, 1.8, 1.8, 1.8))
   plot(
