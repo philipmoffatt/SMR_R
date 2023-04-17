@@ -262,8 +262,8 @@ gridMET_name_vector <- c(
 )
 
 # sub-setting and reording gridMET files
-gridMET_joined_p <- select(gridMET_joined_p, all_of(gridMET_name_vector))
-gridMET_joined_m <- select(gridMET_joined_m, all_of(gridMET_name_vector))
+gridMET_joined_p <- gridMET_joined_p[, all_of(gridMET_name_vector)]
+gridMET_joined_m <- gridMET_joined_m[, all_of(gridMET_name_vector)]
 
 ### ----- CALCULATING EVAPOTRANSPIRATION LAPSE RATES ----- ###
 # calculate elevation difference in meters
@@ -427,7 +427,7 @@ k_value <- 0.41
 # making a vector of the land covers heights (meters)
 # order of covers: water, urban, forest, shrub, grass, row crop
 land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
-land_cover_heights <- c(0.001, 2, 2, 0.3, 0.9, 0.9)
+land_cover_heights <- c(0.001, 4, 11, 0.3, 0.9, 0.9)
 
 heat_transfer_resistance <- function(zu, zt, k, d, zm, zh, u) {
   
@@ -561,7 +561,7 @@ daily_avg_temps <- left_join(all_month_year, avg_temp_by_month_year, by = c("yea
   filter(date >= as.Date("1960-01-01"))
 
 # read in sunshine data
-sunshine <- read.csv("./raw_data/weather/sunshine_min_wallaWalla.csv") %>%
+sunshine <- read.csv("../../raw_data/weather/sunshine_min_wallaWalla.csv") %>%
   mutate(date = as.Date(Date),
          doy = yday(date),
          year = lubridate::year(date),
@@ -657,7 +657,7 @@ historical_name_vector <- c(
 )
 
 # sub-setting and reording historical file
-historical_joined <- select(historical_joined, all_of(historical_name_vector))
+historical_joined <- historical_joined[, all_of(historical_name_vector)]
 
 # dew point historical calculation
 # threshold based calculation: historical_joined
@@ -665,7 +665,7 @@ historical_joined$tdew <- case_when(historical_joined$tmin <= 0 ~ historical_joi
                                     historical_joined$tmin > 0 ~ historical_joined$tmin * 0.97 - 0.53)
 
 # reading in the predicted wind file an adding date information
-historical_predictd_wind <- read.csv("./raw_data/weather/Estimated Pullman Historic Wind Speed.csv")
+historical_predictd_wind <- read.csv("../../raw_data/weather/Estimated Pullman Historic Wind Speed.csv")
 historical_predictd_wind$date <- as.Date(historical_predictd_wind$DATE, "%m/%d/%Y")
 #historical_predictd_wind$avgWspd_kmph[historical_predictd_wind$avgWspd_kmph == 0] <- mean(historical_predictd_wind$avgWspd_kmph, na.rm=TRUE)
 
@@ -697,7 +697,7 @@ historical_predictd_wind <- historical_predictd_wind %>%
          day = day(date),
          doy = yday(date)
   ) %>%
-  select(-DATE) %>%
+  dplyr::select(-DATE) %>%
   filter(year >= min(historical_joined[, "year"]) & year <= max(historical_joined[, "year"]))
 
 historical_joined <- historical_joined %>%
@@ -712,6 +712,10 @@ historical_joined <- merge(historical_joined, historical_predictd_wind) %>%
     prcp = prcp/10
   )
 
+land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
+land_cover_heights <- c(0.001, 4, 11, 0.3, 0.9, 0.9)
+zm_value <- 0.13 * land_cover_heights
+
 # looping through each land cover and calculating the heat transfer resistance
 # based on historical wind file
 for (landcover in 1:length(land_cover_heights)) {
@@ -721,20 +725,44 @@ for (landcover in 1:length(land_cover_heights)) {
   # zero plane displacement height
   d_value <- 0.65 * height
   
-  # use zm_value instead of zm in the function call
-  rh <- heat_transfer_resistance(
-    zu = zu_value,
-    zt = zt_value,
-    k = k_value,
-    d = d_value,
-    zm = zm_value[landcover],
-    zh = 0.2 * zm_value[landcover],
-    u = historical_joined$avgWspd_kmph
-  )
+  if (height >= zu_value) {
+    zu_value <- height
+    zt_value <- height
+    wind_vel <- historical_joined$avgWspd_kmph * log((height-d_value)/zm_value[landcover]) / log((2-d_value)/zm_value[landcover])
+    plot(wind_vel)
+    rh <- heat_transfer_resistance(
+      zu = zu_value,
+      zt = zt_value,
+      k = k_value,
+      d = d_value,
+      zm = zm_value[landcover],
+      zh = 0.2 * zm_value[landcover],
+      u = wind_vel
+    )
+    
+    historical_joined[, paste0("rh_", land_cover_names[landcover])] <- rh
+  }
+
+  else {
+    wind_vel <- historical_joined$avgWspd_kmph
+    lines(wind_vel)
+    zu_value <- 2
+    zt_value <- 2
+    rh <- heat_transfer_resistance(
+      zu = zu_value,
+      zt = zt_value,
+      k = k_value,
+      d = d_value,
+      zm = zm_value[landcover],
+      zh = 0.2 * zm_value[landcover],
+      u = wind_vel
+    )
   
-  historical_joined[, paste0("rh_", land_cover_names[landcover])] <- rh
+    historical_joined[, paste0("rh_", land_cover_names[landcover])] <- rh
+  }
   
 }
+
 
 # final renaming and formatting
 historical_name_vector <- c(
@@ -755,16 +783,18 @@ end_date <- as.Date("1970-10-01")
 
 historical_joined <- historical_joined[historical_joined$date >= start_date & historical_joined$date <= end_date, ]
 
+historical_path_root <- "../../raw_data/weather"
+
 # write out the Pullman gridMET file
 write.table(gridMET_joined_p[1:365,], 
-            file="./raw_data/weather/pullman_gridMET.csv", 
+            file="../../raw_data/weather/pullman_gridMET.csv", 
             col.names=FALSE, 
             row.names=FALSE
 )
 
 # write out the historical Pullman file
 write.table(historical_joined, 
-            file="./raw_data/weather/pullman_historical.csv", 
+            file=file.path(historical_path_root, "pullman_historical.csv"), 
             col.names=FALSE, 
             row.names=FALSE,
             append = FALSE,
@@ -773,7 +803,7 @@ write.table(historical_joined,
 
 # write out the mini historical Pullman file
 write.table(historical_joined[387,], 
-            file="./raw_data/weather/pullman_historical_mini.csv", 
+            file=file.path(historical_path_root, "pullman_historical_mini.csv"), 
             col.names=FALSE, 
             row.names=FALSE
 )
