@@ -760,19 +760,20 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 		
 		#print `g.rename raster=B_amt_feb_$year,B_amt_feb_$year_new --o`;
 		`r.mapcalc 'B_amt_feb_$year = B_amt_feb_$year + storage_amt_B' --o`;
+		
 		}
 
 	# this outputs accumulated and average february runoff but doesn't account for shortened 
 	# february --> this may need to be changed.
 	if ($doy == 62) {
 		print `r.mapcalc 'avg_feb_runoff_$year = runoff_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_feb_runoff_$year output=/raw_data/smr_output/map_outputs/feb_outputs/feb_avg_runoff_$year.tif`;
+		print `r.out.gdal input=avg_feb_runoff_$year output=/raw_data/smr_output/maps/feb_avg_runoff_$year.tif`;
 		
 		print `r.mapcalc 'avg_A_amt_feb_$year = A_amt_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_A_amt_feb_$year output=/raw_data/smr_output/map_outputs/feb_outputs/avg_A_amt_feb_$year.tif`;
+		print `r.out.gdal input=avg_A_amt_feb_$year output=/raw_data/smr_output/maps/avg_A_amt_feb_$year.tif`;
 
 		print `r.mapcalc 'avg_B_amt_feb_$year = B_amt_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_B_amt_feb_$year output=/raw_data/smr_output/map_outputs/feb_outputs/avg_B_amt_feb_$year.tif`;
+		print `r.out.gdal input=avg_B_amt_feb_$year output=/raw_data/smr_output/maps/avg_B_amt_feb_$year.tif`;
 		}
 
   # maps of annual precipitation and pet to confirm distribution is correct
@@ -780,9 +781,9 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
   `r.mapcalc 'precip_$year = precip_$year + precip' --o`;
   `r.mapcalc 'pet_$year = pet_$year + pet' --o`;
 
-  if ($doy >= 365) {
-    print `r.out.gdal input=precip_$year output=/raw_data/smr_output/map_outputs/annual_precip/precip_$year.tif`;
-    print `r.out.gdal input=pet_$year output=/raw_data/smr_output/map_outputs/annual_pet/pet_$year.tif`;
+  if ($doy == 365) {
+    print `r.out.gdal input=precip_$year output=/raw_data/smr_output/maps/precip_$year.tif`;
+    print `r.out.gdal input=pet_$year output=/raw_data/smr_output/maps/pet_$year.tif`;
   }
 
 	open($WATERSHED, '<', 'wshed_res_properties.ini') || "Can't open watershed properties file\n";
@@ -966,7 +967,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 
 		#  Create mass balance output file
     open(OUT, ">>", "/Users/duncanjurayj/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || open(OUT, ">>", "/Users/philipmoffatt/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || die("Cannot Open File");
-		print OUT "$wshed_id $date $year $runoff_cm_{$wshed_id} $precip_cm_{$wshed_id} $rain_cm_{$wshed_id} $actualET_flow_cm_{$wshed_id} $canopy_evap_cm_{$wshed_id} $snowmelt_cm_{$wshed_id} $storage_amt_cm_{$wshed_id} $throughfall_cm_{$wshed_id} $canopy_storage_amt_cm_{$wshed_id} $perc_cm_{$wshed_id} $Q_{$wshed_id} $swe_cm_{$wshed_id} $condens_cm_{$wshed_id} $snow_cm_{$wshed_id} $base_flow_{$wshed_id} $srad_{$wshed_id} $latent_{$wshed_id} $sensible_{$wshed_id} $lw_{$wshed_id} $q_rain_ground_cm_{$wshed_id} $q_total_{$wshed_id} $ice_content_{$wshed_id} $liquid_water_{$wshed_id} $refreeze_{$wshed_id} $vap_d_air_{$wshed_id} $vap_d_snow_{$wshed_id} $u_surface_{$wshed_id} \n";
+		print OUT "$wshed_id $date $year $runoff_cm_{$wshed_id} $precip_cm_{$wshed_id} $rain_cm_{$wshed_id} $actualET_flow_cm_{$wshed_id} $canopy_evap_cm_{$wshed_id} $snowmelt_cm_{$wshed_id} $storage_amt_cm_{$wshed_id} $throughfall_cm_{$wshed_id} $canopy_storage_amt_cm_{$wshed_id} $perc_cm_{$wshed_id} $Q_{$wshed_id} $swe_cm_{$wshed_id} $condens_cm_{$wshed_id} $snow_cm_{$wshed_id} $base_flow_{$wshed_id} $srad_{$wshed_id} $latent_{$wshed_id} $sensible_{$wshed_id} $lw_{$wshed_id} $q_rain_ground_cm_{$wshed_id} $q_total_{$wshed_id} $ice_content_{$wshed_id} $liquid_water_{$wshed_id} $refreeze_{$wshed_id} $vap_d_air_{$wshed_id} $vap_d_snow_{$wshed_id} $u_surface_{$wshed_id}\n";
 		close(OUT); 
 
 		print "\n \n";
