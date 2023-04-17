@@ -4,36 +4,61 @@ output:
   pdf_document: default
   html_document:
     df_print: paged
+params:
+  date: !r Sys.Date()
+  location: "MFC_with_projection"
+  mapset: "duncanjurayj"
+  
 ---
 
-``` {r, echo=FALSE}
-source("source_SMR.R") # right now this only works when run as a code --> i need to functionalize source_SMR and turn this into a parameterized report
-# where location and mapset are specified at the top of the document --> right now they are readlin() inputs in the source_SMR script and that gets skipped during 
-# the knit
+``` {r, echo=FALSE, include=FALSE}
+# path/variable setup block
+user <- Sys.info()["user"]
+post_processing_script_path <- paste0("/Users/", user, "/Dropbox/SMR_R/R/scratch/functional_PP.R")
+source_smr_function_path <- paste0("/Users/", user, "/Dropbox/SMR_R/R/scratch/source_SMR_function.R")
+
+validation_data_path <- paste0("/Users/", user,"/Dropbox/SMR_R/raw_data/discharge_historical/USGSdischarge.csv")
+modeled_data_path <- paste0("/Users/", user,"/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_79.csv")
+perl_script_path <- paste0("/Users/", user, "/Dropbox/SMR_R/R/scratch/smr_buildup.pl")
+
+model_start_date <- "1965-10-01"
+model_end_date <- "1970-10-01"
 ```
 
 ```{r, echo=FALSE, include=FALSE}
-source("functional_PP.R", local = knitr::knit_global())
+source(source_smr_function_path, local = knitr::knit_global())
+source(post_processing_script_path, local = knitr::knit_global())
+
+# right now this only works when run as a code --> i need to functionalize source_SMR and turn this into a parameterized report
+# where location and mapset are specified at the top of the document --> right now they are readlin() inputs in the source_SMR script and that gets skipped during 
+# the knit
+
+```
+
+``` {r, echo=FALSE, include=FALSE} 
+# this block calls the call_SMR() function and takes the params$location and params$mapset as the location and mapset
+run_SM(params$location, params$mapset)
 ```
 
 ```{r, include=FALSE}
 
-user <- Sys.info()["user"]
-validation_data_path <- paste0("/Users/", user,"/Dropbox/SMR_R/raw_data/discharge_historical/USGSdischarge.csv")
-modeled_data_path <- paste0("/Users/", user,"/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_79.csv")
+#column_headers <- c('wshed_id', 'date', 'year', 'runoff_cm', 'precip_cm', 'rain_cm', 'actualET_flow_cm', 'canopy_evap_cm', 'snowmelt_cm', 'storage_amt_cm', 'throughfall_cm', 'canopy_storage_amt_cm', 'perc_cm', 'Q', 'swe_cm', 'condens_cm', 'snow_cm', 'baseflow', 'srad', 'latent', 'sensible', 'lw', 'q_rain_ground', 'q_total', 'ice_content', 'liquid_water', 'refreeze', 'vap_d_air', 'vap_d_snow', 'u_surface', 'empty') # this should be based on the line in the perl script writing them out so we don't have to worry about changing it
 
-column_headers <- c('wshed_id', 'date', 'year', 'runoff_cm', 'precip_cm', 'rain_cm', 'actualET_flow_cm', 'canopy_evap_cm', 'snowmelt_cm', 'storage_amt_cm', 'throughfall_cm', 'canopy_storage_amt_cm', 'perc_cm', 'Q', 'swe_cm', 'condens_cm', 'snow_cm', 'baseflow', 'srad', 'latent', 'sensible', 'lw', 'q_rain_ground', 'q_total', 'ice_content', 'liquid_water', 'refreeze', 'vap_d_air', 'vap_d_snow', 'u_surface', 'empty') # this should be based on the line in the perl script writing them out so we don't have to worry about changing it
+column_headers <- get_print_out_line(perl_script_path) 
+# hopefully this will prevent potential erros when adding or removing variables because
+# as long as it can access the perl script it should read the names of the outgoing variables
 
-start_date <- "1965-10-01" # this can be dynamic based on weather inputs
-end_date <- "1970-10-01" # this an be dynamics based on weather inputs
 ```
 
 ## Run Identification:
 
-      Run Date: `r Sys.Date()`
-      Modeled Period: `r start_date` to `r end_date`
+      Date of Model Run: `r params$date` 
+      Modeled Period: `r model_start_date` to `r model_end_date`
 
 ```{r version_track, echo=FALSE, include=FALSE}
+
+# NOTE: # removed Sys.date and trying params$date --> this is about 5 lines above
+
 #modeled_path <- "./raw_data/smr_output" # this needs to be a generic name eventually
 version_tracker(modeled_path = modeled_data_path)
 ```
@@ -42,8 +67,6 @@ version_tracker(modeled_path = modeled_data_path)
 VaM_data <- preprocessing(
   validation_data_path,
   modeled_data_path,
-  start_date,
-  end_date,
   column_headers
 )
 ```
