@@ -12,7 +12,6 @@ library(raster)
 library(mapview)
 
 # data pre-processing and alignment function
-
 version_tracker <- function( ## rename this function something better 
   modeled_path){
   outputDir = dirname(modeled_path) %>% gsub(.,pattern =  "raw_data", replacement = "processed_data")
@@ -28,8 +27,8 @@ version_tracker <- function( ## rename this function something better
     table_temp = (read.table(file= SMR_log_file) %>% row.names())
     runID = table_temp[length(table_temp)]%>% as.integer()+1
   }  
-  runID = paste0("MFC_", rep(0,(3-nchar(runID))) %>% paste0(., collapse = ""),runID)
   
+  runID = paste0("MFC_", rep(0,(3-nchar(runID))) %>% paste0(., collapse = ""),runID)
   
   log_entry = list(runID, Sys.Date(), simulation_note %>% as.character())
   
@@ -46,13 +45,50 @@ version_tracker <- function( ## rename this function something better
   return(out_path)
 }
 
+# allows for dynamic text based on model outputs in the markdown
+get_run_dates <- function(weather_data_path) {
+  
+  weather_data <- read.csv(data_path)
+  min_date <- min(weather_data$date)
+  max_date <- max(weather_data$date)
+  date_range <- c(as.character(min_date), as.character(max_date))
+    
+}
+
+get_print_out_line <- function(perl_script_path) {
+  # Read entire Perl script into a character vector of lines
+  perl_script_lines <- readLines(perl_script_path)
+  
+  # Find index of line containing print OUT statement
+  print_out_line_index <- grep('print\\s+OUT', perl_script_lines)
+  
+  if (length(print_out_line_index) > 0) {
+    # Get full line containing print OUT statement
+    full_line <- perl_script_lines[print_out_line_index]
+    
+    # Extract part of line starting after "print OUT" and remove ' \n";'
+    partial_line <- gsub('^.*?print\\s+OUT\\s+"', '', full_line)
+    cleaned_line_1 <- gsub('\\s*\\\\n\";$', '', partial_line)
+    
+    # Remove "\\" before "$wshed_id" and remove "_{$wshed_id}" from each word in the line
+    cleaned_line_2 <- gsub('\\\\\\$', '\\$', cleaned_line_1)
+    final_cleaned_string <- gsub('_\\{\\$wshed_id\\}', '', cleaned_line_2)
+    
+    # Split final_cleaned_string on space to obtain a list of variables
+    variable_list <- strsplit(final_cleaned_string, ' ')[[1]]
+    
+    return(variable_list)
+    
+  } else {
+    stop("No matching print OUT line was found.")
+  }
+}
+
 preprocessing <- function(
     validation_path, 
     modeled_path, 
-    start_date, 
-    end_date,
     rename=FALSE,# can cut this if we resave data in processed_data in a new folder. 
-    date_of_run,# can cut this and us sys.date of post process particulary if we source perl from R so it all run directly.  
+    date_of_run=Sys.Date(),# can cut this and us sys.date of post process particulary if we source perl from R so it all run directly.  
     modeled_headers
     ) 
   {
