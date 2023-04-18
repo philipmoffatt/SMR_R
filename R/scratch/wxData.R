@@ -90,7 +90,9 @@ gridMET_p <- gridMET_p %>%
          tmax = tmax - 273.15,
          tavg = (tmax+tmin)/2,
          output = ifelse(month == 2, 1, 0),
-         l_turb = 2.5)
+         l_turb = 2.5,
+         prcp = prcp/10,
+         pet_grass = pet_grass/10)
 
 gridMET_m <- gridMET_m %>%
   mutate(doy = yday(date),
@@ -101,7 +103,9 @@ gridMET_m <- gridMET_m %>%
          tmax = tmax - 273.15,
          tavg = (tmax+tmin)/2,
          output = ifelse(month == 2, 1, 0),
-         l_turb = 2.5)
+         l_turb = 2.5,
+         prcp = prcp/10,
+         pet_grass = pet_grass/10)
 
 ### --------------------------------------- ###
 
@@ -826,4 +830,13 @@ d %>%
 ggplot(historical_joined) +
   geom_point(aes(date, tdew)) +
   geom_point(aes(date, tavg, color="tavg"))
+
+g <- gridMET_joined_p
+g %>%
+  group_by(year) %>%
+  summarise(sum_pet = sum(pet), tot_p = sum(prcp)) %>%
+  ggplot()+
+  geom_point(aes(year,sum_pet))+
+  geom_line(aes(year,tot_p))
+
   
