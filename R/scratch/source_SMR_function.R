@@ -26,3 +26,38 @@ run_SMR <- function(location, mapset) {
   system("perl smr_buildup.pl")
 }
 
+
+import_files_into_GRASS <- function(import_dir, location_name, mapset_name) {
+  
+  grass_dir <- Sys.glob("/Applications/*GRASS*/Contents/Resources") 
+  grass_data_dir <- Sys.glob("/Users/*/grassdata") 
+  
+  initGRASS(gisBase = grass_dir,
+            gisDbase = grass_data_dir,
+            location = location_name,
+            mapset = mapset_name,
+            override = T)
+  
+  # Get list of files in directory
+  files_in_dir <- list.files(import_dir)
+  
+  # Remove csv and ini files from list
+  csv_ini_files <- grep("\\.(csv|ini)$", files_in_dir)
+  files_in_dir <- files_in_dir[-csv_ini_files]
+  
+  # Import each file into GRASS
+  for (file in files_in_dir) {
+    
+    file_dir <- file.path(import_dir, file)
+    
+    execGRASS("r.import", 
+              input = file_dir, 
+              output = gsub("\\.[^.]+$", "", file), 
+              flags="o")
+    
+    print(paste0(file, " was imported"))
+    
+  }
+}
+
+
