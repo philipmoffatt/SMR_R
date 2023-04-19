@@ -432,6 +432,10 @@ if(!dir.exists(imitate_smr_setup)) {
   dir.create(imitate_smr_setup)
 }
 
+# builds out the tif to set mapset CRS using the watershed mask
+file.copy(from = "./processed_data/dem/MFC/dem_mfc_mask.tif",
+          to = "./processed_data/imitate_smr_setup/watershed.tif")
+
 # set values for watershed properties
 wshed_id = 79
 area_cells = freq(mfc_mask, value = 1)
@@ -444,6 +448,9 @@ wshed_frame = data.frame(wshed_id, area_cells, res_vol, res_coeff)
 # write out .ini file to imitation folder
 write.table(wshed_frame, sep = " ", row.names = F, col.names = F, file = paste0(imitate_smr_setup, "/wshed_res_properties.ini"))
 
+# rename and write out the temp_mfc raster as 'landuse'
+writeRaster(temp_mfc, './processed_data/imitate_smr_setup/landuse.asc', datatype = "INT4S", overwrite = TRUE)
+
 # copying over and renaming rasters so they fit into SMR perl
 copy_from = c("/dem_breached.asc", "/dem_streams.asc", "/dem_mfc_mask.asc")
 copy_to = c("/el.asc", "/strms_30m.asc", "/watershed.asc")
@@ -455,7 +462,6 @@ for (x in 1:length(copy_from)) {
     file.copy(paste0(copy_from_path, copy_from[x]), paste0(imitate_smr_setup, copy_to[x]))
   }
 }
-
 
 # converting from % to moisture content (/100)
 percentages = c("/wfifteenbar.r_A.asc", "/wfifteenbar.r_B.asc",
@@ -658,6 +664,16 @@ flowunits <- sum(slope_delta)
 #    lateral flow out of the cell to the north that will flow to the cell.
 
 percent_flow = slope_delta/flowunits
-names(percent_flow) <- c("n", "ne", "e", "se", "s", "sw", "w", "nw")
+names(percent_flow) <- c("north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest")
 
 plot(percent_flow)
+
+raster::writeRaster(flowunits, paste0(imitate_smr_setup, "/flowunits.asc"), overwrite=T)
+
+for (direction in names(percent_flow)) {
+  file_name <- paste0(imitate_smr_setup, "/", direction, ".asc")
+  
+  raster::writeRaster(percent_flow[[direction]], file_name, overwrite = TRUE)
+}
+
+
