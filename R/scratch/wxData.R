@@ -279,8 +279,8 @@ elevation_diff <- 1433 - 784
 pullman_mean_pet <- mean(gridMET_joined_p$pet_grass, na.rm = TRUE)
 moscow_mean_pet <- mean(gridMET_joined_m$pet_grass, na.rm = TRUE)
 
-# pet / km
-pet_grass_lapse_rate <- ((pullman_mean_pet - moscow_mean_pet) / elevation_diff) * 1000
+# cm / m
+pet_grass_lapse_rate <- ((moscow_mean_pet - pullman_mean_pet) / elevation_diff)
 
 # produce a linear model for PET based on site elevations and PET
 
@@ -295,7 +295,21 @@ pullman_pet <- mean(gridMET_joined_p[, "pet_grass"], na.rm=TRUE)
 pet_lm_data <- data.frame(x = c(pullman_pet,pullman_el), y = c(moscow_mountain_pet,moscow_mountain_el))
 
 # fit linear model
-model_values <- summary(lm(y ~ x, data = pet_lm_data))
+model_values <- summary(lm(moscow_mountain_pet ~ pullman_pet))
+
+### precip lapse rate
+pullman_mean_precip <- mean(gridMET_joined_p$prcp, na.rm = TRUE)
+moscow_mean_precip <- mean(gridMET_joined_m$prcp, na.rm = TRUE)
+
+# centimeters per meter
+precip_lapse_rate <- ((moscow_mean_precip - pullman_mean_precip) / elevation_diff)
+
+### temperature lapse rate
+pullman_mean_temperature <- mean(gridMET_joined_p$tavg, na.rm = TRUE)
+moscow_mean_temperature <- mean(gridMET_joined_m$tavg, na.rm = TRUE)
+
+# centimeters per meter
+temperature_lapse_rate <- ((moscow_mean_temperature - pullman_mean_temperature) / elevation_diff)
 
 ### ------------------------------------------------------- ###
 
