@@ -10,7 +10,6 @@ run_SMR <- function(location, mapset) {
             mapset = mapset,
             override = T)
   
-  # Remove all maps from the current mapset and location
   execGRASS(cmd = "g.remove", flags = "f", type = "rast", pattern="*")
   
   smr_subdir <- "R/scratch"
@@ -22,7 +21,6 @@ run_SMR <- function(location, mapset) {
   
   setwd(current_dir)
   
-  # Execute script
   system("perl smr_buildup.pl")
 }
 
@@ -38,14 +36,12 @@ import_files_into_GRASS <- function(import_dir, location_name, mapset_name) {
             mapset = mapset_name,
             override = T)
   
-  # Get list of files in directory
   files_in_dir <- list.files(import_dir)
   
-  # Remove csv and ini files from list
   csv_ini_files <- grep("\\.(csv|ini)$", files_in_dir)
   files_in_dir <- files_in_dir[-csv_ini_files]
   
-  # Import each file into GRASS
+  # import each file into GRASS
   for (file in files_in_dir) {
     
     file_dir <- file.path(import_dir, file)

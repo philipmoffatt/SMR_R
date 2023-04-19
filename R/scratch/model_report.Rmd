@@ -15,7 +15,6 @@ params:
 
 ``` {r, echo=FALSE, include=FALSE}
 # path/variable setup block
-
 # setting up directories
 user <- Sys.info()["user"]
 post_processing_script_path <- paste0("/Users/", user, "/Dropbox/SMR_R/R/scratch/functional_PP.R")

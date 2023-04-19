@@ -456,6 +456,7 @@ for (x in 1:length(copy_from)) {
   }
 }
 
+
 # converting from % to moisture content (/100)
 percentages = c("/wfifteenbar.r_A.asc", "/wfifteenbar.r_B.asc",
                 "/wthirdbar.r_A.asc", "/wthirdbar.r_B.asc",
