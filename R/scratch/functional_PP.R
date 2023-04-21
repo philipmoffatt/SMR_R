@@ -44,13 +44,12 @@ version_tracker <- function(modeled_path, simulation_note = "") {
   
   if(!dir.exists(out_path)) {
     dir.create(out_path)
-    
-    map_path <- file.path(out_path, "maps") 
-    
-    if(!dir.exists(map_path)) {
-      dir.create(map_path)
-    }
-    
+  }
+  
+  map_path <- file.path(out_path, "maps") 
+  
+  if(!dir.exists(map_path)) {
+    dir.create(map_path)
   }
   
   return(out_path)
@@ -171,8 +170,6 @@ Q_comparison <- function(combined_data, log_transform=FALSE) {
   
   cowplot::plot_grid(comparison_plot, precip_plot, align = "v", ncol = 1, rel_heights = c(0.60, 0.40))
 }
-
-
 
 
 # function for plotting important components of SAM
