@@ -92,7 +92,7 @@ gridMET_p <- gridMET_p %>%
          output = ifelse(month == 2, 1, 0),
          l_turb = 2.5,
          prcp = prcp/10,
-         pet_grass = pet_grass/10)
+         pet_grass = pet_grass)
 
 gridMET_m <- gridMET_m %>%
   mutate(doy = yday(date),
@@ -105,7 +105,7 @@ gridMET_m <- gridMET_m %>%
          output = ifelse(month == 2, 1, 0),
          l_turb = 2.5,
          prcp = prcp/10,
-         pet_grass = pet_grass/10)
+         pet_grass = pet_grass)
 
 ### --------------------------------------- ###
 
@@ -653,7 +653,7 @@ gridMET_calibration_curve <- gridMET_joined_p %>%
   group_by(month, day) %>%
   summarise(pet = mean(pet)/10)
 
-calibration_coefficient <- model <- coef(lm(gridMET_calibration_curve$pet ~ 0 + historical_calibration_curve$pet_hamon))
+calibration_coefficient <- coef(lm(gridMET_calibration_curve$pet ~ 0 + historical_calibration_curve$pet_hamon))
 
 # apply the calibration coefficient to historical_joined
 historical_joined$pet_hamon <- historical_joined$pet_hamon * calibration_coefficient
@@ -731,7 +731,7 @@ historical_joined <- merge(historical_joined, historical_predictd_wind) %>%
   )
 
 land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
-land_cover_heights <- c(0.001, 4, 11, 0.3, 0.9, 0.9)
+land_cover_heights <- c(0.01, 2, 3, 0.3, 0.9, 0.9)
 zm_value <- 0.13 * land_cover_heights
 
 # looping through each land cover and calculating the heat transfer resistance
@@ -785,10 +785,13 @@ historical_joined <- historical_joined[, historical_name_vector] %>%
 ### ----- WRITING WEATHER FILES BACK OUT TO THE 'weather' FOLDER ----- ###
 
 start_date <- as.Date("1965-10-01")
-end_date <- as.Date("1970-10-01")
-
-
+end_date <- as.Date("1968-10-01")
 historical_joined <- historical_joined[historical_joined$date >= start_date & historical_joined$date <= end_date, ]
+
+mini_start_date <- as.Date("1965-10-01")
+mini_end_date <- as.Date("1965-10-10")
+
+historical_joined_mini <- historical_joined[historical_joined$date >= mini_start_date & historical_joined$date <= mini_end_date, ]
 
 historical_path_root <- "./raw_data/weather"
 
@@ -809,7 +812,7 @@ write.table(historical_joined,
 
 
 # write out the mini historical Pullman file
-write.table(historical_joined[387,], 
+write.table(historical_joined_mini, 
             file=file.path(historical_path_root, "pullman_historical_mini.csv"), 
             col.names=FALSE, 
             row.names=FALSE
