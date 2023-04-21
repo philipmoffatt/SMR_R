@@ -51,8 +51,10 @@ version_tracker <- function(modeled_path, simulation_note = "") {
       dir.create(map_path)
     }
     
-    return(out_path)
   }
+  
+  return(out_path)
+  
 }
 
 # allows for dynamic text based on model outputs in the markdown
@@ -69,22 +71,22 @@ get_print_out_line <- function(perl_script_path) {
   # Read entire Perl script into a character vector of lines
   perl_script_lines <- readLines(perl_script_path)
   
-  # Find index of line containing print OUT statement
+  # find index of line containing print OUT statement
   print_out_line_index <- grep('print\\s+OUT', perl_script_lines)
   
   if (length(print_out_line_index) > 0) {
-    # Get full line containing print OUT statement
+    # get full line containing print OUT statement
     full_line <- perl_script_lines[print_out_line_index]
     
-    # Extract part of line starting after "print OUT" and remove ' \n";'
+    # extract part of line starting after "print OUT" and remove ' \n";'
     partial_line <- gsub('^.*?print\\s+OUT\\s+"', '', full_line)
     cleaned_line_1 <- gsub('\\s*\\\\n\";$', '', partial_line)
     
-    # Remove "\\" before "$wshed_id" and remove "_{$wshed_id}" from each word in the line
+    # remove "\\" before "$wshed_id" and remove "_{$wshed_id}" from each word in the line
     cleaned_line_2 <- gsub('\\\\\\$', '', cleaned_line_1)
     final_cleaned_string <- gsub('_\\{\\$wshed_id\\}', '', cleaned_line_2)
     
-    # Split final_cleaned_string on space to obtain a list of variables, removing the "$" before each variable name
+    # split final_cleaned_string on space to obtain a list of variables, removing the "$" before each variable name
     variable_list <- strsplit(final_cleaned_string, ' ')[[1]] %>% 
       gsub('\\$', '', .)
     
@@ -124,10 +126,9 @@ preprocessing <- function(
   
   modeled_data <- merge(modeled_data, validation_data)
   
-  
-  out_path = version_tracked_outpath #version_tracker(modeled_path = modeled_path, simulation_note = simulation_note) #we could call this internaly here or externally and pass the out_path to the function and have it as a varable 
-  write_csv(x = modeled_data, file = file.path(out_path, 'mfc_mb.csv'))
-  
+  out_path = file.path(version_tracked_outpath, 'mfc_mb.csv')
+  write.csv(x = modeled_data, file = out_path)
+
   file.remove(modeled_path)
   
   return(modeled_data)
@@ -421,8 +422,8 @@ get_map_outputs <- function(raw_map_dir, version_tracked_map_dir){
     var_name <- sub("\\.tif$", "", basename(file))
     assign(var_name, raster::raster(file))
   }
+  
 }
-
 # visualize soil moisture in a soil horizon
 storage_amt_feb <- function(soil_storage_rast, horizon_letter) {
   
