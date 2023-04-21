@@ -1,8 +1,31 @@
 library(rgrass)
 
-run_SMR <- function(location, mapset) {
+run_SMR <- 
+  function(location = NULL, mapset = NULL) {
+    
   grass_dir <- Sys.glob("/Applications/*GRASS*/Contents/Resources") 
   grass_data_dir <- Sys.glob("/Users/*/grassdata") 
+  
+  if (is.null(location) || is.null(mapset)) {
+    locations <- dir(grass_data_dir)
+    location_list <- paste0(seq_along(locations), ". ", locations)
+    
+    full_string <- paste0("Locations in ", grass_data_dir, ":\n", paste(location_list, collapse = "\n"))
+    cat(full_string)
+    
+    # prompt user for location and mapsets
+    location <- readline(prompt = "Choose a location from the list of locations above: ")
+    
+    # make a list of the mapsets excluding PERMANENT in the location
+    mapsets <- setdiff(dir(paste0(grass_data_dir, "/", location)), "PERMANENT")
+    
+    # print out the mapsets in that locations
+    cat(paste0(cat("Mapsets in", location, ":\n "), seq_along(mapsets), ". ", mapsets, "\n"))
+    
+    # prompt user for a mapset name
+    mapset <- readline(prompt = "Choose a mapset from the list of mapsets above: ")
+    
+  }
   
   initGRASS(gisBase = grass_dir,
             gisDbase = grass_data_dir,
@@ -25,15 +48,37 @@ run_SMR <- function(location, mapset) {
 }
 
 
-import_files_into_GRASS <- function(import_dir, location_name, mapset_name) {
+import_files_into_GRASS <- 
+  function(import_dir, location = NULL, mapset = NULL) {
   
   grass_dir <- Sys.glob("/Applications/*GRASS*/Contents/Resources") 
   grass_data_dir <- Sys.glob("/Users/*/grassdata") 
   
+  if (is.null(location) || is.null(mapset)) {
+    locations <- dir(grass_data_dir)
+    location_list <- paste0(seq_along(locations), ". ", locations)
+    
+    full_string <- paste0("Locations in ", grass_data_dir, ":\n", paste(location_list, collapse = "\n"))
+    cat(full_string)
+    
+    # prompt user for location and mapsets
+    location <- readline(prompt = "Choose a location from the list of locations above: ")
+    
+    # make a list of the mapsets excluding PERMANENT in the location
+    mapsets <- setdiff(dir(paste0(grass_data_dir, "/", location)), "PERMANENT")
+    
+    # print out the mapsets in that locations
+    cat(paste0(cat("Mapsets in", location, ":\n "), seq_along(mapsets), ". ", mapsets, "\n"))
+    
+    # prompt user for a mapset name
+    mapset <- readline(prompt = "Choose a mapset from the list of mapsets above: ")
+    
+  }
+  
   initGRASS(gisBase = grass_dir,
             gisDbase = grass_data_dir,
-            location = location_name,
-            mapset = mapset_name,
+            location = location,
+            mapset = mapset,
             override = T)
   
   files_in_dir <- list.files(import_dir)
