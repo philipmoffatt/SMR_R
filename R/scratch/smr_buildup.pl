@@ -276,7 +276,7 @@ print `r.mapcalc 'pet_1988 = 0.0' --o`;
 #____________________________________________________________________________________
 print "\n|----- READING Weather -----|\n";
 #  This set of commands splits a tab delimited array using a while loop
-open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_min.csv') || die "Can't open weather file\n";
+open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || die "Can't open weather file\n";
 #print "\n|----- line 280 -----|\n";
 
 while (<$WEATHER>) {
