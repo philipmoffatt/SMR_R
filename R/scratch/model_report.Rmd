@@ -1,37 +1,26 @@
 ---
 title: "SMR-SAM Run Report"
-output:
-  pdf_document: default
-  html_document: 
-    df_print: paged
-params:
-  date: !r Sys.Date()
-  location: "MFC_with_projection"
-  mapset: "duncanjurayj"
-  run_start: "1965-10-01"
-  run_end: "1970-10-01"
-  simulation_note: 'testing R markdown workflow and directory system'
 ---
 
-``` {r, echo=FALSE, include=FALSE}
+``` {r, path_setup, echo = FALSE}
 # path/variable setup block
 # setting up directories
 user <- Sys.info()["user"]
-post_processing_script_path <- paste0("/Users/", user, "/Dropbox/SMR_R/R/scratch/functional_PP.R")
-source_smr_function_path <- paste0("/Users/", user,"/Dropbox/SMR_R/R/scratch/source_SMR_function.R")
-perl_script_path <- paste0("/Users/", user, "/Dropbox/SMR_R/R/scratch/smr_buildup.pl")
+post_processing_script_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/R/scratch/functional_PP.R")
+source_smr_function_path <<- paste0("/Users/", user,"/Dropbox/SMR_R/R/scratch/source_SMR_function.R")
+perl_script_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/R/scratch/smr_buildup.pl")
 
 # pulling raw data paths in
-validation_data_path <- paste0("/Users/", user,"/Dropbox/SMR_R/raw_data/validation_data/USGSdischarge.csv")
-modeled_data_path <- paste0("/Users/", user,"/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_79.csv")
-map_output_path <- paste0("/Users/", user,"/Dropbox/SMR_R/raw_data/smr_output/maps")
+validation_data_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/raw_data/validation_data/USGSdischarge.csv")
+modeled_data_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_79.csv")
+map_output_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/raw_data/smr_output/maps")
 
 
 ```
 
-```{r, echo=FALSE, include=FALSE}
-source(source_smr_function_path, local = knitr::knit_global())
-source(post_processing_script_path, local = knitr::knit_global())
+```{r, function_soucing, echo = FALSE}
+source(source_smr_function_path)
+source(post_processing_script_path)
 
 # right now this only works when run as a code --> i need to functionalize source_SMR and turn this into a parameterized report
 # where location and mapset are specified at the top of the document --> right now they are readlin() inputs in the source_SMR script and that gets skipped during 
@@ -39,43 +28,46 @@ source(post_processing_script_path, local = knitr::knit_global())
 
 ```
 
-``` {r, echo=FALSE, include=FALSE} 
+``` {r, running_SMR, echo = FALSE, include = FALSE, eval = TRUE} 
 # this block calls the call_SMR() function and takes the params$location and params$mapset as the location and mapset
 run_SMR(params$location, params$mapset)
 ```
 
-```{r, include=FALSE}
+```{r, read_in_column_names, echo = FALSE}
 
 #column_headers <- c('wshed_id', 'date', 'year', 'runoff_cm', 'precip_cm', 'rain_cm', 'actualET_flow_cm', 'canopy_evap_cm', 'snowmelt_cm', 'storage_amt_cm', 'throughfall_cm', 'canopy_storage_amt_cm', 'perc_cm', 'Q', 'swe_cm', 'condens_cm', 'snow_cm', 'baseflow', 'srad', 'latent', 'sensible', 'lw', 'q_rain_ground', 'q_total', 'ice_content', 'liquid_water', 'refreeze', 'vap_d_air', 'vap_d_snow', 'u_surface', 'empty') # this should be based on the line in the perl script writing them out so we don't have to worry about changing it
 
-column_headers <- get_print_out_line(perl_script_path) 
+column_headers <<- get_print_out_line(perl_script_path) 
 # hopefully this will prevent potential errors when adding or removing variables because
 # as long as it can access the perl script it should read the names of the outgoing variables
 
 ```
 
 ## Run Identification:
-
-      Date of Model Run: `r params$date` 
-      Modeled Period: `r params$run_start to params$run_end`
-
-```{r version_track, echo=FALSE, include=FALSE}
-version_tracked_outpath <- version_tracker(modeled_data_path, simulation_note = params$simulation_note)
+```{r, echo = FALSE, include = TRUE}
+      paste0("Date of Model Run: ", params$date)
+      paste0("Modeled Period: ", params$run_start_date," to ", params$run_end_date)
 ```
 
-```{r, echo=FALSE, include=FALSE}
-VaM_data <- preprocessing(
+```{r, version_tracking}
+sim_note <<- params$simulation_note
+version_tracked_outpath <<- version_tracker(modeled_data_path, simulation_note = sim_note)
+print(paste0("this is the outpath: ", version_tracked_outpath))
+```
+
+```{r, processing_model_data, echo = FALSE}
+VaM_data <<- preprocessing(
   validation_data_path,
   modeled_data_path,
   column_headers,
-  version_tracked_outpath
+  version_tracked_outpath = version_tracked_outpath
 )
 ```
 
-```{r, echo=FALSE}
+```{r, performance_metrics, echo = FALSE}
 
-NSE_Q <- nse_Q(VaM_data)
-KGE_Q <- kge_Q(VaM_data)
+NSE_Q <<- nse_Q(VaM_data)
+KGE_Q <<- kge_Q(VaM_data)
 
 ```
 
@@ -105,16 +97,16 @@ KGE_Q <- kge_Q(VaM_data)
 
 \newpage
 
-```{r Q_comparison, echo=FALSE, include=FALSE}
-Q_comp <- Q_comparison(VaM_data, log_transform = T)
+```{r, Q_comparison_call, echo = FALSE, include = FALSE, eval = TRUE}
+Q_comp <<- Q_comparison(VaM_data, log_transform = T)
 ```
 
-```{r Q_comp, echo=FALSE}
+```{r, Q_comparison_result, echo = FALSE}
 Q_comp
 ```
 
-```{r annual_fluxes, echo=FALSE}
-flux_vector <- c('runoff_cm', 'precip_cm', 'rain_cm', 
+```{r, echo = FALSE, include = FALSE, eval = TRUE}
+flux_vector <<- c('runoff_cm', 'precip_cm', 'rain_cm', 
                  'actualET_flow_cm', 'canopy_evap_cm', 
                  'snowmelt_cm', 'storage_amt_cm', 
                  'throughfall_cm', 'canopy_storage_amt_cm', 
@@ -123,28 +115,28 @@ flux_vector <- c('runoff_cm', 'precip_cm', 'rain_cm',
 annual_fluxes(VaM_data, flux_vector, log_transform = F)
 ```
 
-```{r radiation_ts, echo=FALSE}
+```{r, radiation_time_series, echo = FALSE}
 radiation_ts(VaM_data, log_transform = F)
 ```
 
-```{r SAM_check, echo=FALSE}
+```{r, SAM_check_call, echo = FALSE}
 SAM_check(VaM_data, log_transform = F)
 ```
 
-```{r swe_debug, echo=FALSE}
+```{r, SWE_debugging_components, echo = FALSE}
 swe_debug(VaM_data, log_transform = F)
 ```
 
-```{r q.latent_debug, echo=FALSE}
+```{r, q_latent_debugging, echo = FALSE}
 q.latent_debug(VaM_data, log_transform = F)
 ```
 
-```{r get_map_outputs, echo=FALSE, include=FALSE}
-version_tracked_map_dir <- paste0(version_tracked_outpath, "/maps")
+```{r, getting_map_outputs, echo = TRUE}
+version_tracked_map_dir <<- paste0(version_tracked_outpath, "/maps")
 get_map_outputs(map_output_path, version_tracked_map_dir)
 ```
 
-```{r storage_amt_feb, echo=FALSE}
+```{r, plotting map_outputs, echo = FALSE}
 # hard coding for now but plan to add in regex to loop through plots based on output name (ie "amt", "runoff", "precip")
 #storage_amt_feb(avg_A_amt_feb_1966)
 #storage_amt_feb(avg_A_amt_feb_1967)
