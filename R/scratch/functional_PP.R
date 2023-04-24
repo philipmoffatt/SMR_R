@@ -145,6 +145,9 @@ Q_comparison <- function(combined_data, log_transform=FALSE) {
     y_trans <- 'identity'
   }
   
+  combined_data <- combined_data %>%
+    mutate(date = as.Date(date))
+  
   comparison_plot <- ggplot(data=combined_data) +
     geom_line(aes(x=date, y=validation_Q, color='Validation')) +
     geom_line(aes(x=date, y=Q, color='Modeled')) +
@@ -468,6 +471,4 @@ annual_pet_rast <- function(ann_pet) {
   )
   
 }
-
-
 

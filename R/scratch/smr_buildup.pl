@@ -276,7 +276,7 @@ print `r.mapcalc 'pet_1988 = 0.0' --o`;
 #____________________________________________________________________________________
 print "\n|----- READING Weather -----|\n";
 #  This set of commands splits a tab delimited array using a while loop
-open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || die "Can't open weather file\n";
+open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical.csv') || die "Can't open weather file\n";
 #print "\n|----- line 280 -----|\n";
 
 while (<$WEATHER>) {
@@ -391,8 +391,9 @@ print "\n|----- SNOW ACCUMULATION AND MELT MODEL -----|\n";
 #print `r.mapcalc 'rh = if(swe>0,$rh_snow,$rh_veg)' --o`; # modified MZ 20190205
 # LAZY FIX RIGHT NOW WHERE RH_SNOW IS RH_URBAN BUT THIS WILL NEED TO CHANGE (THOUGH THEY WON'T BE TOO DIFFERENT) --> ADDITIONALL JUST USING ROW CROP RIGHT NOW
 #print `r.mapcalc 'rh = if(swe>0,$rh_water/(1.0-(canopy_cover/3.0)),$rh_row_crop/(1.0-(canopy_cover/3.0)))' --o`; # add canopy cover effects on rh MZ 20200601 --> # changed rh_urban to rh_water for rh_snow substitute
-print `r.mapcalc 'rh = $rh_row_crop/(1.0-(canopy_cover/3.0))' --o`; # add canopy cover effects on rh MZ 20200601 --> # changed rh_urban to rh_water for rh_snow substitute
+#print `r.mapcalc 'rh = $rh_row_crop/(1.0-(canopy_cover/3.0))' --o`; # add canopy cover effects on rh MZ 20200601 --> # changed rh_urban to rh_water for rh_snow substitute
 #print `r.mapcalc 'rh = if(landuse==6.0,$rh_row_crop,if(landuse==5.0,$rh_grass,if(landuse==4.0,$rh_shrub,if(landuse==3.0,$rh_forest,if(landuse==2.0,$rh_urban,if(landuse==1.0,$rh_water,$rh_row_crop))))))' --o`;
+print `r.mapcalc 'rh = if(landuse==6.0, $rh_row_crop/(1.0-(canopy_cover/3.0)), if(landuse==5.0, $rh_grass/(1.0-(canopy_cover/3.0)), if(landuse==4.0, $rh_shrub/(1.0-(canopy_cover/3.0)), if(landuse==3.0, $rh_forest/(1.0-(canopy_cover/3.0)), if(landuse==2.0, $rh_urban/(1.0-(canopy_cover/3.0)), if(landuse==1.0, rh_water/(1.0-(canopy_cover/3.0)), $rh_row_crop/(1.0-canopy_cover/3)))))))' --o`; # DJ 04/22/23, canopy cover effect added in with all landuse types
 print `r.mapcalc 'snow.age = if(snow>0.0 && throughfall==0.0,1.0,snow.age+1.0)' --o`; # modified MZ 20190210
 print `r.mapcalc 'albedo = if(swe.yesterday+snow>0.0,min(0.95,0.7383*snow.age^(-0.1908)),0.2)' --o`;
 

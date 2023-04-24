@@ -11,6 +11,7 @@ library(bigleaf)
 library(mapview)
 library(sf)
 library(FAO56)
+library(elevatr)
 
 # list of useful functions:
 # 1. function that takes in a single location --> gets the weather data for that location
@@ -33,8 +34,42 @@ library(FAO56)
 # 11. outputs a summary markdown to give an intuitive sense for the data
 # 12. a function which takes in a few parameters and calls all of these
 
-# FUNCTIONS TO ADD LATER:
-# 1. some builtin functions that lets you visualize your own variables
+## constant setup:
+# initialize variables
+lat <- 46.7312700
+lon <- -117.1861
+high_el <- 1433
+low_el <- 784
+
+# setting up dictionaries for crop curves
+water_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
+water_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.6525, 'Kc_mid'=0.6525, 'Kc_end'=0.6525, 'Kc_post_harv'=0.30)
+
+urban_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
+urban_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.30, 'Kc_end'=0.30, 'Kc_post_harv'=0.30)
+
+# using FAO conifer values for now meaning it's static but that can change
+forest_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
+forest_Kc <- list('Kc_preplant'=1, 'Kc_init'=1, 'Kc_mid'=1, 'Kc_end'=1, 'Kc_post_harv'=1)
+
+# using deciduous orchard
+shrub_time <- list('preplant_len'=60, 'init_len'=20, 'dev_len'=70, 'mid_len'=90, 'late_len'=30, 'post_len'=95)
+shrub_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.45, 'Kc_mid'=0.95, 'Kc_end'=0.70, 'Kc_post_harv'=0.30)
+
+#relied on frost dates from AgWeatherNet: Pullman station: frost on --> May 1st, frost off --> September 19th --> splitting resiudal (125) in half for now
+grass_time <- list('preplant_len'=113, 'init_len'=10, 'dev_len'=20, 'mid_len'=64, 'late_len'=62, 'post_len'=96)
+grass_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.75, 'Kc_end'=0.75, 'Kc_post_harv'=0.30)
+
+# using spring wheat values for now
+#row_crop_time <- list('preplant_len'=75, 'init_len'=20, 'dev_len'=25, 'mid_len'=60, 'late_len'=30, 'post_len'=155)
+row_crop_time <- list('preplant_len'=0, 'init_len'=160, 'dev_len'=75, 'mid_len'=75, 'late_len'=25, 'post_len'=30)
+row_crop_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.7, 'Kc_mid'=1.15, 'Kc_end'=0.35, 'Kc_post_harv'=0.30)
+
+land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
+land_cover_heights <- c(0.01, 4, 11, 0.3, 0.9, 0.9)
+
+
+## functions for building weather data
 
 pull_gridMET <- function(site_name) {
   
@@ -51,7 +86,7 @@ pull_gridMET <- function(site_name) {
   
   # pull precipitation (mm), temp (C), pet (mm) from GRIDMET
   AOI_p = AOI::geocode(site_name, pt = TRUE)
-  gridMET_data  = as.data.frame(getGridMET(AOI_p, param = c('prcp', 'tmax', 'tmin', 'pet_grass', 'srad', 'wind_vel'), 
+  gridMET_data  = as.data.frame(getGridMET(AOI_p, param = c('prcp', 'tmax', 'tmin', 'pet_grass', 'srad', 'wind_vel', 'vpd'), 
                                            startDate = "2000-01-01", 
                                            endDate = "2022-12-31"))
   
@@ -71,6 +106,7 @@ pull_gridMET <- function(site_name) {
   return(gridMET_data)
   
 }
+
 
 get_hourly_temps <- function(gridMET, latitude) {
   
@@ -153,7 +189,7 @@ lapse_rates <- function(low_site, high_site, low_site_el, high_site_el) {
                     pet_lm_slope = model_values$coefficients[2]))
 }
 
-# calculate the dewpoint temperature
+# calculate the dew point temperature
 dewpoint_temperature <- function(gridMET) {
   
   # create a new column for dew point temperature
@@ -162,8 +198,6 @@ dewpoint_temperature <- function(gridMET) {
   
   return(gridMET)
 }
-
-library(bigleaf)
 
 # calculate the cloud fraction
 calculate_cloud_fraction <- function(gridMET_df, latitude, longitude, timezone) {
@@ -224,53 +258,181 @@ calculate_cloud_fraction <- function(gridMET_df, latitude, longitude, timezone) 
   return(gridMET_joined)
 }
 
-# heat transfer to resistance function
-heat_transfer_resistance <- function(zu, zt, k, d, zm, zh, u) {
-  rh <- (log((zu - d + zm) / zm) * log((zt - d + zh) / zh)) / (k^2 * u)
-  return(rh)
-}
-
-rh <- function(gridMET) {
+## pressure_from_el() function:
+pressure_from_el <- function(gridMET, site_latitude, site_longitude) {
   
-  # setup constants that won't change between land covers (assume standard height for wx sensor)
-  zu_value <- 2
-  zt_value <- 2
-  k_value <- 0.41
+  # formatting latitude and longitude inputs to match parameter requirements
+  # for R package 'elevatr'
+  latitude_longitude_frame <- data.frame(x = site_longitude, y = site_latitude)
   
-  # making a vector of the land covers heights (meters)
-  # order of covers: water, urban, forest, shrub, grass, row crop
-  land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
-  land_cover_heights <- c(0.01, 0.01, 2.3, 2.3, 0.5, 1.2)
-
-  
-  # define zm based on land cover height
-  zm_value <- 0.1 * land_cover_heights
-  
-  for (landcover in seq_along(land_cover_heights)) {
-    
-    height <- land_cover_heights[landcover]
-    
-    # zero plane displacement height
-    d_value <- 0.65 * height
-    
-    rh_val <- heat_transfer_resistance(
-      zu = zu_value,
-      zt = zt_value,
-      k = k_value,
-      d = d_value,
-      zm = zm_value[landcover],
-      zh = 0.2 * zm_value[landcover],
-      u = gridMET[, "wind_vel"]
+  site_elevation_spatial <- 
+    get_elev_point(
+      locations = latitude_longitude_frame,
+      prj = "EPSG:4326", # this could be made more flexible in the future
+      src = 'aws', # not passing 'aws' or using 'epqs' produces 'lexical error'
     )
-    
-    gridMET[, paste0("rh_", land_cover_names[landcover])] <- rh_val
-    
-  }
   
-  return(gridMET)
+  site_elevation_value <- site_elevation_spatial$elevation # in meters
+  
+  # using R package 'bigleaf' function pressure.from.elevation()
+  # Apply pressure.from.elevation() for each row in gridMET dataframe
+  gridMET_updated <- gridMET %>%
+    mutate(
+      atmospheric_pressure = pressure.from.elevation(
+        elev = site_elevation_value,
+        Tair = tavg,
+        VPD = vpd,
+        constants = bigleaf.constants() # built in constants
+      )
+    )
+  
+  return(gridMET_updated)
 }
 
+## estimated_wind_speed() function: 
+estimated_wind_speed <- function(
+    actual_measurement_height = 2,
+    measured_wind_speed,
+    measured_land_cover_height = 1.3,
+    predicted_land_cover_height # possibly a confusing parameter name (the wind 
+    #measurement height not the land cover heght is predicted though 
+    # measurement height is defined by this land cover height)
+    ) {
+  
+  measured_zero_plane_displacement <- 0.65 * measured_land_cover_height
+  measured_momentum_roughness <- 0.1 * measured_land_cover_height
+  
+  predicted_wind_speed <- 
+    measured_wind_speed * 
+    log( (predicted_land_cover_height - measured_zero_plane_displacement) / measured_momentum_roughness) / 
+    log( (measured_land_cover_height - measured_zero_plane_displacement) / measured_momentum_roughness)
+  
+  return(predicted_wind_speed)
+}
 
+## heat transfer to resistance function
+#  params: 
+#   wind_measurement_height: height of wind speed measurements (m)
+#   temp_measurement_height: height of the air temperature measurements (m)
+#   zero_plane_displacement_height: height of zero-plane displacement (m)
+#   momentum_roughness: the momentum roughness parameter
+#   heat_vapor_roughness: the heat and vapor roughness parameter
+#   von_karman: von Karman's constant (0.41)
+#   wind_speed: measured wind speed (m/s)
+heat_transfer_resistance <- 
+  function(
+    wind_measurement_height, 
+    temp_measurement_height, 
+    von_karman = 0.41, 
+    zero_plane_displacement_height, 
+    momentum_roughness, 
+    heat_vapor_roughness, 
+    wind_speed
+    ) {
+  
+  rh <- (
+    log((wind_measurement_height - zero_plane_displacement_height + momentum_roughness) / momentum_roughness) * 
+    log((temp_measurement_height - zero_plane_displacement_height + heat_vapor_roughness) / heat_vapor_roughness)) / 
+    (von_karman^2 * wind_speed) * (1/86400)
+  
+  return(rh)
+  }
+
+
+land_cover_rh <- 
+  function(
+    land_cover_height, 
+    wind_measurement_height, 
+    temp_measurement_height,
+    von_karman = 0.41,
+    wind_speed
+  ) {
+    
+    
+    # the resistance to heat transfer function only works when:
+    # the height of the wind speed measurement is greater than 75% of the land
+    # cover height. 
+    if ((land_cover_height*0.75) >= wind_measurement_height) {
+      
+      displacement_height <- 0.65 * land_cover_height
+      momentum_roughness <- 0.1 * land_cover_height
+      heat_vapor_roughness <- 0.2 * momentum_roughness
+      print(momentum_roughness)
+      
+      estimated_wind_speed_val <- estimated_wind_speed(
+        measured_wind_speed = wind_speed,
+        predicted_land_cover_height = land_cover_height)
+      
+      new_wind_measurement_height <- land_cover_height
+      new_temp_measurement_height <- land_cover_height
+      
+      rh_value <- heat_transfer_resistance(
+        wind_measurement_height = new_wind_measurement_height,
+        temp_measurement_height = new_temp_measurement_height,
+        von_karman = von_karman,
+        zero_plane_displacement_height = displacement_height,
+        momentum_roughness = momentum_roughness,
+        heat_vapor_roughness = heat_vapor_roughness,
+        wind_speed = estimated_wind_speed_val
+      )
+      
+    } else {
+      
+      displacement_height <- 0.65 * land_cover_height
+      momentum_roughness <- 0.1 * land_cover_height
+      heat_vapor_roughness <- 0.2 * momentum_roughness
+      
+      rh_value <- heat_transfer_resistance(
+        wind_measurement_height = wind_measurement_height,
+        temp_measurement_height = temp_measurement_height,
+        von_karman = von_karman,
+        zero_plane_displacement_height = displacement_height,
+        momentum_roughness = momentum_roughness,
+        heat_vapor_roughness = heat_vapor_roughness,
+        wind_speed = wind_speed
+      )
+    }
+    
+    return(rh_value)
+  }
+
+
+land_cover_rh_wrapper <- 
+  function(
+    gridMET,
+    land_cover_names,
+    land_cover_heights,
+    wind_measurement_height = 2,
+    temp_measurement_height = 2,
+    von_karman = 0.41
+  ) {
+    
+    for (i in 1:length(land_cover_names)) {
+      land_cover_name <- land_cover_names[i]
+      land_cover_height <- land_cover_heights[i]
+      
+      # Use sapply instead of lapply, and fix the anonymous function syntax
+      rh_values <- sapply(gridMET$wind_vel, function(wind_vel) {
+        rh_val <- land_cover_rh(
+          land_cover_height = land_coverage_height,
+          wind_measurement_HEIGHT = wind_measurement_HEIGHT,
+          temp_measurement_HEIGHT = temp_measurement_HEIGHT,
+          von_karman = von_karman,
+          wind_speed = wind_vel
+        )
+        return(rh_val)
+      })
+      
+      # Add a new column to gridMET with name 'rh_[land_coverage_name]'
+      gridMET[paste0("rh_", land_cover_name)] <<- rh_values
+      
+    }
+    
+    return(gridMET)
+  }
+
+
+# write weather data out to correct location -- probably needs some work
 write_weather_data <- function(gridMET_joined, start_date, end_date, location) {
   
   # Create the directory if it doesn't exist
@@ -292,43 +454,18 @@ write_weather_data <- function(gridMET_joined, start_date, end_date, location) {
   
 }
 
-# test building gridMET files with functions
-
-# initialize variables
-lat <- 46.7312700
-lon <- -117.1861
-high_el <- 1433
-low_el <- 784
-
-# setting up dictionaries for crop curves
-water_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
-water_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.6525, 'Kc_mid'=0.6525, 'Kc_end'=0.6525, 'Kc_post_harv'=0.30)
-
-urban_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
-urban_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.30, 'Kc_end'=0.30, 'Kc_post_harv'=0.30)
-
-# using FAO conifer values for now meaning it's static but that can change
-forest_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
-forest_Kc <- list('Kc_preplant'=1, 'Kc_init'=1, 'Kc_mid'=1, 'Kc_end'=1, 'Kc_post_harv'=1)
-
-# using deciduous orchard
-shrub_time <- list('preplant_len'=60, 'init_len'=20, 'dev_len'=70, 'mid_len'=90, 'late_len'=30, 'post_len'=95)
-shrub_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.45, 'Kc_mid'=0.95, 'Kc_end'=0.70, 'Kc_post_harv'=0.30)
-
-#relied on frost dates from AgWeatherNet: Pullman station: frost on --> May 1st, frost off --> September 19th --> splitting resiudal (125) in half for now
-grass_time <- list('preplant_len'=113, 'init_len'=10, 'dev_len'=20, 'mid_len'=64, 'late_len'=62, 'post_len'=96)
-grass_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.75, 'Kc_end'=0.75, 'Kc_post_harv'=0.30)
-
-# using spring wheat values for now
-#row_crop_time <- list('preplant_len'=75, 'init_len'=20, 'dev_len'=25, 'mid_len'=60, 'late_len'=30, 'post_len'=155)
-row_crop_time <- list('preplant_len'=0, 'init_len'=160, 'dev_len'=75, 'mid_len'=75, 'late_len'=25, 'post_len'=30)
-row_crop_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.7, 'Kc_mid'=1.15, 'Kc_end'=0.35, 'Kc_post_harv'=0.30)
-
 # calling functions
 gm_p <- pull_gridMET('Pullman, WA')
 gm_m <- pull_gridMET('Moscow, ID')
+gm_p <- pressure_from_el(gm_p, lat, lon)
 
-get_hourly_temps(gm_p, lat)
+gm_p <- land_cover_rh_wrapper(
+  gridMET = gm_p,
+  land_cover_names = land_cover_names,
+  land_cover_heights = land_cover_heights
+)
+
+gm_p_hourly <- get_hourly_temps(gm_p, lat)
 
 gm_p <- ann_Kc_curve(water_time, water_Kc, 0, gm_p, 'water')
 gm_p <- ann_Kc_curve(urban_time, urban_Kc, 0, gm_p, 'urban')
@@ -346,4 +483,3 @@ gm_p <- calculate_cloud_fraction(gm_p, lat, lon, -8)
 gm_p <- rh(gm_p)
 
 
-  

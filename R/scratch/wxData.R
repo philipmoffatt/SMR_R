@@ -848,12 +848,12 @@ ggplot(historical_joined) +
   geom_point(aes(date, tdew)) +
   geom_point(aes(date, tavg, color="tavg"))
 
-g <- gridMET_joined_p
+g <- gridMET_joined_p # this is in mm
 g %>%
   group_by(year) %>%
   summarise(sum_pet = sum(pet), tot_p = sum(prcp)) %>%
   ggplot()+
   geom_point(aes(year,sum_pet))+
-  geom_line(aes(year,tot_p))
+  geom_line(aes(year,tot_p)) # this is in cm 
 
   

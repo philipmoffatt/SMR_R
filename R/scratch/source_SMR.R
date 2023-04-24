@@ -5,6 +5,7 @@ library(rgrass)
 # it should still grab it
 grass_dir <- Sys.glob("/Applications/*GRASS*/Contents/Resources") 
 
+
 # this should replace 'duncanjurayj' with 'philipmoffatt'
 grass_data_dir <- Sys.glob("/Users/*/grassdata") 
 locations <- dir(grass_data_dir)
