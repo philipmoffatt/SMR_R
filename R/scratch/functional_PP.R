@@ -134,7 +134,6 @@ preprocessing <- function(
   
   }
 
-
 # stream flow comparison function --> baseflow is subtracted out right now 
 # stream flow comparison function 
 Q_comparison <- function(combined_data, log_transform=FALSE) {
@@ -151,7 +150,7 @@ Q_comparison <- function(combined_data, log_transform=FALSE) {
   comparison_plot <- ggplot(data=combined_data) +
     geom_line(aes(x=date, y=validation_Q, color='Validation')) +
     geom_line(aes(x=date, y=Q, color='Modeled')) +
-    ggtitle('Observed Versus Simulated Streamflow (with precip, rain, and snow)') +
+    ggtitle('Observed Versus Simulated Streamflow') +
     theme(plot.title = element_text(hjust = 0.5)) +
     theme(axis.title.x=element_blank()) +
     theme(axis.text.x=element_blank()) +
@@ -318,12 +317,11 @@ annual_mass_balance <- function(combined_data, log_transform = FALSE) {
     summarize_all(.funs=sum)
 
   annual_combined$mass_balance <-
-    annual_combined$baseflow +
-    annual_combined$precip_cm - 
-    annual_combined$storage_amt_cm - 
-    annual_combined$canopy_storage_amt_cm - 
-    annual_combined$swe_cm - 
-    annual_combined$canopy_evap_cm
+    annual_combined$rain_cm +
+    annual_combined$snowmelt_cm -
+    annual_combined$canopy_evap_cm -
+    annual_combined$runoff_cm -
+    annual_combined$perc_cm
   
   ggplot(data=annual_combined) +
     scale_y_continuous(trans=y_trans) +
@@ -333,7 +331,7 @@ annual_mass_balance <- function(combined_data, log_transform = FALSE) {
 }
 
 # function just for determing if ice.content or liquid.water is contributing to
-# swe inflation
+# SWE inflation
 swe_debug <- function(combined_data, log_transform = FALSE) {
   
   # Set log transform for y-axis scale
@@ -357,8 +355,7 @@ swe_debug <- function(combined_data, log_transform = FALSE) {
   
 }
 
-
-# function to confirm that value inflation comes from tiny rh rather than large
+# function to confirm that value inflation comes from tiny RH rather than large
 # vap.d.air which is in the numerator
 q.latent_debug <- function(combined_data, log_transform = FALSE) {
   
@@ -380,50 +377,49 @@ q.latent_debug <- function(combined_data, log_transform = FALSE) {
   
 }
 
-# this should take in map outputs a date of the model run and 
-# output those 
-# TO ADD: needs a feature that only adds a date if a date already exists
-#get_map_outputs <- function(map_dir, model_run_date) {
+visualize_map_outputs <- function(map, title) {
   
- # tif_files <- list.files(map_dir, pattern = ".tif$")
+  par(mar=c(1.8, 1.8, 1.8, 1.8))
+  plot(
+    map, 
+    main=paste0(title),
+    axes=FALSE
+  )
   
-#  for (file in tif_files) {
-    
- #   var_name <- gsub(".tif$", "", file)
-  #  print(var_name)
-    
-  #  if (exists(var_name)) {
-  #    next
-  #  }
-    
-  #  if (grepl(model_run_date, file)) {
-  #    new_file_name <- file
-  #  } else {
-  #    new_file_name <- paste0(var_name, "_", model_run_date, ".tif")
-  #    file.rename(paste0(map_dir, "/", file), paste0(map_dir, "/", new_file_name))
-  #  }
-  #  
-  #  if (grepl(model_run_date, new_file_name)) {
-  #    assign(var_name, raster(paste0(map_dir, "/", new_file_name)), envir=globalenv())
-  #  }
-    
-#  }
-#}
+}
 
-get_map_outputs <- function(raw_map_dir, version_tracked_map_dir){
+get_map_outputs <- function(raw_map_dir, version_tracked_map_dir) {
   
-  file.copy(from = raw_map_dir, to = version_tracked_map_dir)
+  print(paste0("version tracked map path: ", version_tracked_map_dir))
   
-  file.remove(list.files(path = raw_map_dir, pattern = ".tif", full.names = TRUE))
+  tif_files <- list.files(path = raw_map_dir, pattern = "\\.tif$", full.names = TRUE)
   
-  list_of_files <- list.files(version_tracked_map_dir, pattern=".tif", full.names=TRUE)
+  if (length(tif_files) == 0) {
+    cat("No .tif files found in raw_map_dir.\n")
+    return()
+  }
+  
+  for (tif_file in tif_files) {
+    success <- file.copy(from = tif_file, to = file.path(version_tracked_map_dir, basename(tif_file)))
+    if (!success) {
+      cat("Failed to copy", tif_file, "to", version_tracked_map_dir, "\n")
+    }
+  }
+  
+  file.remove(tif_files)
+  
+  list_of_files <- list.files(version_tracked_map_dir, pattern=".*\\.tif$", full.names=TRUE)
   
   for (file in list_of_files) {
     var_name <- sub("\\.tif$", "", basename(file))
+    title <- paste0(var_name, " (cm)")
     assign(var_name, raster::raster(file))
+    map <- get(var_name)
+    visualize_map_outputs(map, title)
   }
-  
 }
+
+
 # visualize soil moisture in a soil horizon
 storage_amt_feb <- function(soil_storage_rast, horizon_letter) {
   
@@ -460,7 +456,7 @@ annual_precip_rast <- function(ann_precip) {
   
 }
 
-# visualize annual potential evapotranspiration
+# visualize annual potential evapo transpiration
 annual_pet_rast <- function(ann_pet) {
   
   par(mar=c(1.8, 1.8, 1.8, 1.8))
@@ -471,4 +467,7 @@ annual_pet_rast <- function(ann_pet) {
   )
   
 }
+
+# visualize percent of year at saturation data
+
 
