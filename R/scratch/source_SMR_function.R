@@ -4,7 +4,7 @@ run_SMR <-
   function(location = NULL, mapset = NULL) {
     
   grass_dir <- Sys.glob("/Applications/*GRASS*/Contents/Resources") 
-  grass_data_dir <- Sys.glob("/Users/*/grassdata") 
+  grass_data_dir <- Sys.glob("/Users/*/grassdata")
   
   if (is.null(location) || is.null(mapset)) {
     locations <- dir(grass_data_dir)
@@ -34,7 +34,7 @@ run_SMR <-
             override = T)
   
   execGRASS(cmd = "g.remove", flags = "f", type = "rast", pattern="*")
-  
+  print("grass maps removed")
   smr_subdir <- "R/scratch"
   current_dir <- file.path(getwd())
   
@@ -46,7 +46,6 @@ run_SMR <-
   
   system("perl smr_buildup.pl")
 }
-
 
 import_files_into_GRASS <- 
   function(import_dir, location = NULL, mapset = NULL) {
