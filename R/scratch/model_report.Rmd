@@ -18,7 +18,7 @@ map_output_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/raw_data/smr_output/
 
 ```
 
-```{r, function_soucing, echo = FALSE}
+```{r, function sourcing, echo = FALSE}
 source(source_smr_function_path)
 source(post_processing_script_path)
 
@@ -28,32 +28,33 @@ source(post_processing_script_path)
 
 ```
 
-``` {r, running_SMR, echo = FALSE, include = FALSE, eval = TRUE} 
+``` {r, running SMR, echo = FALSE, include = FALSE, eval = TRUE} 
 # this block calls the call_SMR() function and takes the params$location and params$mapset as the location and mapset
 run_SMR(params$location, params$mapset)
 ```
 
 ```{r, read_in_column_names, echo = FALSE}
 
-#column_headers <- c('wshed_id', 'date', 'year', 'runoff_cm', 'precip_cm', 'rain_cm', 'actualET_flow_cm', 'canopy_evap_cm', 'snowmelt_cm', 'storage_amt_cm', 'throughfall_cm', 'canopy_storage_amt_cm', 'perc_cm', 'Q', 'swe_cm', 'condens_cm', 'snow_cm', 'baseflow', 'srad', 'latent', 'sensible', 'lw', 'q_rain_ground', 'q_total', 'ice_content', 'liquid_water', 'refreeze', 'vap_d_air', 'vap_d_snow', 'u_surface', 'empty') # this should be based on the line in the perl script writing them out so we don't have to worry about changing it
-
 column_headers <<- get_print_out_line(perl_script_path) 
-# hopefully this will prevent potential errors when adding or removing variables because
-# as long as it can access the perl script it should read the names of the outgoing variables
 
 ```
 
 ## Run Identification:
 ```{r, echo = FALSE, include = TRUE}
-      paste0("Date of Model Run: ", params$date)
-      paste0("Modeled Period: ", params$run_start_date," to ", params$run_end_date)
+      #paste0("Date of Model Run: ", params$date)
+      #paste0("Modeled Period: ", params$run_start_date," to ", params$run_end_date)
 ```
 
-```{r, version_tracking}
+```{r, version_tracking, echo = FALSE}
 sim_note <<- params$simulation_note
 version_tracked_outpath <<- version_tracker(modeled_data_path, simulation_note = sim_note)
-print(paste0("this is the outpath: ", version_tracked_outpath))
 ```
+
+|   **Date of Model Run:** `r params$date`
+|   **Modeled Period:** `r params$run_start_date` to `r params$run_end_date`
+|   **Simulation Note:** 
+|       `r sim_note`
+|       
 
 ```{r, processing_model_data, echo = FALSE}
 VaM_data <<- preprocessing(
@@ -71,41 +72,50 @@ KGE_Q <<- kge_Q(VaM_data)
 
 ```
 
-## Model Performance by Metric
+## Model Performance Metrics:
 
-      NSE: `r NSE_Q`
-      KGE: `r KGE_Q`
+|   **NSE:** `r NSE_Q`
+|   **KGE:** `r KGE_Q`
 
 ## Report Outline:
 
-|   1: Main Visualizations:
+|   **1.0 Primary Graphed Results:**
 |       1.1 Modeled vs. Validation Stream Discharge
 |       1.2 Annual Mass Balance
 |       1.3 Annual Accumulated Flux
 |       1.4 Snow Melt and Accumulation Model Components
 |       1.5 Radiation Fluxes
 
-|   2: Map Outputs:
-|       2.1 Average Soil Moisture (A Horizon) in February
-|       2.2 Average Soil Moisture (B Horizon) in February
-|       2.3 Average Runoff in February
+|   **2.0 Map Outputs:**
+|       2.n Plots of any TIF files in the 'maps' folder from this run
 
-|   3: Additional Graphs:
+|   **3.0 Additional Graphs:**
 |       3.1 Snow Water Equivalent and its Components
 |       3.2 Vapor Density of Air and Snow
 |       3.3 Individual Flux Time Series
 
+
 \newpage
+**1.1 Primary Graphed Results**
 
-```{r, Q_comparison_call, echo = FALSE, include = FALSE, eval = TRUE}
-Q_comp <<- Q_comparison(VaM_data, log_transform = T)
+```{r, Q comparison call, warning=FALSE, include=FALSE, echo=FALSE}
+Q_comparison(VaM_data, log_transform = T)
 ```
 
-```{r, Q_comparison_result, echo = FALSE}
-Q_comp
+
+\newpage
+**1.2 Annual Mass Balance**
+
+```{r, mass balance, echo = FALSE}
+#annual_mass_balance(VaM_data, log_transform = F)
+# causing error right now but mass balance is: precip + snow melt - percolation
+# - runoff - evaporation + transpiration
 ```
 
-```{r, echo = FALSE, include = FALSE, eval = TRUE}
+\newpage
+**1.3 Annual Accumulated Fluxes**
+
+```{r, annual fluxes,echo = FALSE, include = FALSE, eval = TRUE}
 flux_vector <<- c('runoff_cm', 'precip_cm', 'rain_cm', 
                  'actualET_flow_cm', 'canopy_evap_cm', 
                  'snowmelt_cm', 'storage_amt_cm', 
@@ -115,51 +125,56 @@ flux_vector <<- c('runoff_cm', 'precip_cm', 'rain_cm',
 annual_fluxes(VaM_data, flux_vector, log_transform = F)
 ```
 
-```{r, radiation_time_series, echo = FALSE}
-radiation_ts(VaM_data, log_transform = F)
-```
 
-```{r, SAM_check_call, echo = FALSE}
+\newpage
+**1.4 Snow Melt and Accumulation Model Components**
+
+```{r, SAM check call, echo = FALSE}
 SAM_check(VaM_data, log_transform = F)
 ```
 
-```{r, SWE_debugging_components, echo = FALSE}
+
+\newpage
+**1.5 Radiation Fluxes**
+
+```{r, radiation time series, echo = FALSE}
+radiation_ts(VaM_data, log_transform = F)
+```
+
+
+\newpage
+**2.n Maps**
+
+```{r, getting map outputs, echo = TRUE}
+version_tracked_map_dir <<- paste0(version_tracked_outpath, "/maps")
+get_map_outputs(map_output_path, version_tracked_map_dir = version_tracked_map_dir)
+```
+
+
+\newpage
+**3.1 Components of the Snow Water Equivalent (SWE) Calculation**
+
+```{r, SWE components, echo = FALSE}
 swe_debug(VaM_data, log_transform = F)
 ```
 
-```{r, q_latent_debugging, echo = FALSE}
+
+\newpage
+**3.2 Vapor Density Components of Q.Latent Calculation**
+
+```{r, q latent debugging, echo = FALSE}
 q.latent_debug(VaM_data, log_transform = F)
 ```
 
-```{r, getting_map_outputs, echo = TRUE}
-version_tracked_map_dir <<- paste0(version_tracked_outpath, "/maps")
-get_map_outputs(map_output_path, version_tracked_map_dir)
+
+\newpage
+**3.3 Individual Flux Time Series**
+
+```{r, individual flux timer series, echo = FALSE, warning = FALSE}
+flux_ts_loop(
+  combined_data = VaM_data, 
+  fluxes = flux_vector, 
+  log_transform = FALSE
+  )
 ```
 
-```{r, plotting map_outputs, echo = FALSE}
-# hard coding for now but plan to add in regex to loop through plots based on output name (ie "amt", "runoff", "precip")
-#storage_amt_feb(avg_A_amt_feb_1966)
-#storage_amt_feb(avg_A_amt_feb_1967)
-#storage_amt_feb(avg_A_amt_feb_1968)
-#storage_amt_feb(avg_A_amt_feb_1969)
-#storage_amt_feb(avg_A_amt_feb_1970)
-
-#storage_amt_feb(avg_B_amt_feb_1966)
-#storage_amt_feb(avg_B_amt_feb_1967)
-#storage_amt_feb(avg_B_amt_feb_1968)
-#storage_amt_feb(avg_B_amt_feb_1969)
-#storage_amt_feb(avg_B_amt_feb_1970)
-
-#annual_precip_rast(precip_1966)
-#annual_precip_rast(precip_1967)
-#annual_precip_rast(precip_1968)
-#annual_precip_rast(precip_1969)
-#annual_precip_rast(precip_1970)
-
-#annual_pet_rast(pet_1966)
-#annual_precip_rast(pet_1967)
-#annual_precip_rast(pet_1968)
-#annual_precip_rast(pet_1969)
-#annual_precip_rast(pet_1970)
-
-```
