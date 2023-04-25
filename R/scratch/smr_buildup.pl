@@ -4,6 +4,9 @@ print `g.remove -f type=raster name=MASK`;
 print `g.region rast=watershed`;
 print `r.mapcalc 'watershed = if(watershed==1.0,1,1)' --o`;
 
+# setting user specific variable
+my $user = $ENV{'USER'};
+print "The current user is: $user\n";
 #print `rm Q_* `;
 #print `rm M_* `;
 #print `rm R_* `;
@@ -270,13 +273,38 @@ print `r.mapcalc 'pet_1986 = 0.0' --o`;
 print `r.mapcalc 'pet_1987 = 0.0' --o`;
 print `r.mapcalc 'pet_1988 = 0.0' --o`;
 
+print `r.mapcalc 'psat_1965 = 0.0' --o`;
+print `r.mapcalc 'psat_1966 = 0.0' --o`;
+print `r.mapcalc 'psat_1967 = 0.0' --o`;
+print `r.mapcalc 'psat_1968 = 0.0' --o`;
+print `r.mapcalc 'psat_1969 = 0.0' --o`;
+print `r.mapcalc 'psat_1970 = 0.0' --o`;
+print `r.mapcalc 'psat_1971 = 0.0' --o`;
+print `r.mapcalc 'psat_1972 = 0.0' --o`;
+print `r.mapcalc 'psat_1973 = 0.0' --o`;
+print `r.mapcalc 'psat_1974 = 0.0' --o`;
+print `r.mapcalc 'psat_1975 = 0.0' --o`;
+print `r.mapcalc 'psat_1976 = 0.0' --o`;
+print `r.mapcalc 'psat_1977 = 0.0' --o`;
+print `r.mapcalc 'psat_1978 = 0.0' --o`;
+print `r.mapcalc 'psat_1979 = 0.0' --o`;
+print `r.mapcalc 'psat_1980 = 0.0' --o`;
+print `r.mapcalc 'psat_1981 = 0.0' --o`;
+print `r.mapcalc 'psat_1982 = 0.0' --o`;
+print `r.mapcalc 'psat_1983 = 0.0' --o`;
+print `r.mapcalc 'psat_1984 = 0.0' --o`;
+print `r.mapcalc 'psat_1985 = 0.0' --o`;
+print `r.mapcalc 'psat_1986 = 0.0' --o`;
+print `r.mapcalc 'psat_1987 = 0.0' --o`;
+print `r.mapcalc 'psat_1988 = 0.0' --o`;
+
 #____________________________________________________________________________________
 #
 # START READING WEATHER DATA
 #____________________________________________________________________________________
 print "\n|----- READING Weather -----|\n";
 #  This set of commands splits a tab delimited array using a while loop
-open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical.csv') || die "Can't open weather file\n";
+open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || die "Can't open weather file\n";
 #print "\n|----- line 280 -----|\n";
 
 while (<$WEATHER>) {
@@ -287,7 +315,7 @@ while (<$WEATHER>) {
 	print "\n|----- DAILY WEATHER READ FOR $date -----|\n";
 	print "\n \n";
 	print "\n	WEATHER SUMMARY:\n";
-	print "\n	| Date $date | Year = $year | Tair = $tavg °C | Precip = $precip cm | PET = $pet cm | Tdew = $tdew | Output = $output\n";
+	print "\n	| Date $date | Year = $year | Julian Day = $doy | Tair = $tavg °C | Precip = $precip cm | PET = $pet cm | Tdew = $tdew | Output = $output\n";
 	print "\n	|-------------------------------------------------------------------------------------------------------------------------| \n";
 
 	@hourly_tmp_array = ($hour_1,$hour_6,$hour_12,$hour_18);
@@ -350,7 +378,7 @@ print `r.mapcalc 'snow = precip-rain' --o`;
 
 # THESE ARE STILL FROM MICA!!! NEED TO UPDATE -- Duncan 3/12/23 --> these have been updated to get MM from Pullman: Duncan 3/13/23
 print `r.mapcalc 'pet_data = (1.8281 * $pet - 0.2486)' --o`;
-print `r.mapcalc "pet = (pet_data - $pet) * (el - $low_site_el)/($high_site_el - $low_site_el)+pet_data" --o`;
+print `r.mapcalc "pet = (pet_data - $pet) * ($low_site_el - el)/($high_site_el - $low_site_el)+pet_data" --o`;
 #print `r.mapcalc "pet = (pet_data-$pet)*($low_site_el-el)/($high_site_el-$low_site_el)+pet_data" --o`;
 # interception is calculated for Spruce trees based on work by Lankreijer et al. 1999, Agricultural and Forest
 # Meteorology 98-99:595.  Max Storage of Canopy was taken as 2.0 mm.  During rain, evaporation is 0.04 mm/hr.
@@ -393,7 +421,7 @@ print "\n|----- SNOW ACCUMULATION AND MELT MODEL -----|\n";
 #print `r.mapcalc 'rh = if(swe>0,$rh_water/(1.0-(canopy_cover/3.0)),$rh_row_crop/(1.0-(canopy_cover/3.0)))' --o`; # add canopy cover effects on rh MZ 20200601 --> # changed rh_urban to rh_water for rh_snow substitute
 #print `r.mapcalc 'rh = $rh_row_crop/(1.0-(canopy_cover/3.0))' --o`; # add canopy cover effects on rh MZ 20200601 --> # changed rh_urban to rh_water for rh_snow substitute
 #print `r.mapcalc 'rh = if(landuse==6.0,$rh_row_crop,if(landuse==5.0,$rh_grass,if(landuse==4.0,$rh_shrub,if(landuse==3.0,$rh_forest,if(landuse==2.0,$rh_urban,if(landuse==1.0,$rh_water,$rh_row_crop))))))' --o`;
-print `r.mapcalc 'rh = if(landuse==6.0, $rh_row_crop/(1.0-(canopy_cover/3.0)), if(landuse==5.0, $rh_grass/(1.0-(canopy_cover/3.0)), if(landuse==4.0, $rh_shrub/(1.0-(canopy_cover/3.0)), if(landuse==3.0, $rh_forest/(1.0-(canopy_cover/3.0)), if(landuse==2.0, $rh_urban/(1.0-(canopy_cover/3.0)), if(landuse==1.0, rh_water/(1.0-(canopy_cover/3.0)), $rh_row_crop/(1.0-canopy_cover/3)))))))' --o`; # DJ 04/22/23, canopy cover effect added in with all landuse types
+print `r.mapcalc 'rh = if(landuse==6.0, $rh_row_crop/(1.0-(canopy_cover/3.0)), if(landuse==5.0, $rh_grass/(1.0-(canopy_cover/3.0)), if(landuse==4.0, $rh_shrub/(1.0-(canopy_cover/3.0)), if(landuse==3.0, $rh_forest/(1.0-(canopy_cover/3.0)), if(landuse==2.0, $rh_urban/(1.0-(canopy_cover/3.0)), if(landuse==1.0, $rh_water/(1.0-(canopy_cover/3.0)), $rh_row_crop/(1.0-canopy_cover/3)))))))' --o`; # DJ 04/22/23, canopy cover effect added in with all landuse types
 print `r.mapcalc 'snow.age = if(snow>0.0 && throughfall==0.0,1.0,snow.age+1.0)' --o`; # modified MZ 20190210
 print `r.mapcalc 'albedo = if(swe.yesterday+snow>0.0,min(0.95,0.7383*snow.age^(-0.1908)),0.2)' --o`;
 
@@ -769,23 +797,36 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	# february --> this may need to be changed.
 	if ($doy == 62) {
 		print `r.mapcalc 'avg_feb_runoff_$year = runoff_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_feb_runoff_$year output=/raw_data/smr_output/maps/feb_avg_runoff_$year.tif`;
+		print `r.out.gdal input=avg_feb_runoff_$year output=/raw_data/smr_output/maps/feb_avg_runoff_$year.tif --o`;
 		
 		print `r.mapcalc 'avg_A_amt_feb_$year = A_amt_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_A_amt_feb_$year output=/raw_data/smr_output/maps/avg_A_amt_feb_$year.tif`;
+		print `r.out.gdal input=avg_A_amt_feb_$year output=/raw_data/smr_output/maps/avg_A_amt_feb_$year.tif --o`;
 
 		print `r.mapcalc 'avg_B_amt_feb_$year = B_amt_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_B_amt_feb_$year output=/raw_data/smr_output/maps/avg_B_amt_feb_$year.tif`;
+		print `r.out.gdal input=avg_B_amt_feb_$year output=/raw_data/smr_output/maps/avg_B_amt_feb_$year.tif --o`;
 		}
 
   # maps of annual precipitation and pet to confirm distribution is correct
   # with respect to elevation
-  `r.mapcalc 'precip_$year = precip_$year + precip' --o`;
-  `r.mapcalc 'pet_$year = pet_$year + pet' --o`;
-
-  if ($doy == 365) {
-    print `r.out.gdal input=precip_$year output=/raw_data/smr_output/maps/precip_$year.tif`;
-    print `r.out.gdal input=pet_$year output=/raw_data/smr_output/maps/pet_$year.tif`;
+  if ($doy <= 365) {
+    `r.mapcalc 'precip_$year = precip_$year + precip' --o`;
+    `r.mapcalc 'pet_$year = pet_$year + pet' --o`;
+  }
+  
+  if ($doy == 283) { # will need to change to 365
+    print `r.out.gdal input=precip_$year output=/Users/$user/Dropbox/SMR_R/raw_data/smr_output/maps/precip_$year.tif --o`;#/raw_data/smr_output/maps/precip_$year.tif`;
+    print `r.out.gdal input=pet_$year output=/Users/$user/Dropbox/SMR_R/raw_data/smr_output/maps/pet_$year.tif --o`;  #/raw_data/smr_output/maps/pet_$year.tif`;
+  }
+  
+  # count up number of days in a year each cell is at saturation
+  if ($doy <= 365) { # need to make 365 eventually once markdown is set up
+    `r.mapcalc 'psat_$year = psat_$year + if(saturation >= 100, 1, 0)' --o`; # make this 100 but want it to be showing up in ten days for now
+  }
+  
+  # at the end of the year divide by number of days in the year and multiply by 100 to get the percentage of the year each cell spends at saturation
+  if ($doy == 283) { # need to make 365 eventually once markdown is set up
+    `r.mapcalc 'psat_$year = (psat_$year / 365) * 100' --o`; 
+    print `r.out.gdal input=psat_$year output=/Users/$user/Dropbox/SMR_R/raw_data/smr_output/maps/psat_$year.tif --o`;
   }
 
 	open($WATERSHED, '<', 'wshed_res_properties.ini') || "Can't open watershed properties file\n";
