@@ -304,7 +304,7 @@ print `r.mapcalc 'psat_1988 = 0.0' --o`;
 #____________________________________________________________________________________
 print "\n|----- READING Weather -----|\n";
 #  This set of commands splits a tab delimited array using a while loop
-open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || die "Can't open weather file\n";
+open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || open ($WEATHER, '<', 'home/petbuser/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || die "Can't open weather file\n";
 #print "\n|----- line 280 -----|\n";
 
 while (<$WEATHER>) {
@@ -755,7 +755,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 
 	print `r.mapcalc 'runoff_flow = if(storage_amt>sat_amt,storage_amt-sat_amt,0.0)' --o`;
 
-	print `r.mapcalc 'storage_amt = storage_amt-runoff_flow' --o`;
+	print `r.mapcalc 'storage_amt = if(strms_30m > 0, sat_amt, storage_amt-runoff_flow)' --o`;
 	print `r.mapcalc 'runoff_daily_flow = runoff_daily_flow+runoff_flow' --o`;
 
 	print `r.mapcalc 'saturation = storage_amt/sat_amt*100' --o`; # DJ 04/12/23-- made it so saturation is always 100$ at stream cells 
