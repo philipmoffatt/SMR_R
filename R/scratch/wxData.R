@@ -731,7 +731,9 @@ historical_joined <- merge(historical_joined, historical_predictd_wind) %>%
   )
 
 land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
-land_cover_heights <- c(0.01, 2, 3, 0.3, 0.9, 0.9)
+#land_cover_heights <- c(0.01, 2, 3, 0.3, 0.9, 0.9)
+#land_cover_heights <- c(0.01, 4, 11, 0.3, 0.9, 0.9)
+land_cover_heights <- c(0.001, 1, 0.74, 0.74, 0.74, 0.74) # trying to imitate Mengqi's values
 zm_value <- 0.13 * land_cover_heights
 
 # looping through each land cover and calculating the heat transfer resistance
@@ -815,7 +817,8 @@ write.table(historical_joined,
 write.table(historical_joined_mini, 
             file=file.path(historical_path_root, "pullman_historical_mini.csv"), 
             col.names=FALSE, 
-            row.names=FALSE
+            row.names=FALSE,
+            overwrite=TRUE
 )
 
 ### ------------------------------------------------------- ###
