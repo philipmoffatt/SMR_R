@@ -302,7 +302,7 @@ radiation_ts <- function(combined_data, log_transform = FALSE) {
   
 }
 # annual mass balance function
-annual_mass_balance <- function(combined_data, log_transform = FALSE) {
+mass_balance <- function(combined_data, log_transform = FALSE) {
   
   # Set log transform for y-axis scale
   if (log_transform) {
@@ -311,22 +311,23 @@ annual_mass_balance <- function(combined_data, log_transform = FALSE) {
     y_trans <- 'identity'
   }
   
-  annual_combined <- combined_data %>%
-    group_by(year) %>%
-    select(-c(date, wshed_id)) %>%
-    summarize_all(.funs=sum)
-
+  annual_combined <- combined_data #%>%
+    #group_by(year) #%>%
+    #select(-c(date, wshed_id)) %>% # seeing if I need this
+    #summarize_all(.funs=sum)
+  
+  view(annual_combined)
   annual_combined$mass_balance <-
     annual_combined$rain_cm +
     annual_combined$snowmelt_cm -
-    annual_combined$canopy_evap_cm -
+    annual_combined$actual_ET_daily -
     annual_combined$runoff_cm -
     annual_combined$perc_cm
   
   ggplot(data=annual_combined) +
     scale_y_continuous(trans=y_trans) +
-    geom_line(aes(x=year, y=mass_balance)) +
-    ggtitle('Annual Mass Balance') +
+    geom_line(aes(x=date, y=mass_balance)) +
+    ggtitle('Mass Balance') +
     theme(plot.title = element_text(hjust = 0.5))
 }
 
@@ -378,7 +379,7 @@ q.latent_debug <- function(combined_data, log_transform = FALSE) {
 }
 
 visualize_map_outputs <- function(map, title) {
-  
+
   par(mar=c(1.8, 1.8, 1.8, 1.8))
   plot(
     map, 
@@ -395,79 +396,65 @@ get_map_outputs <- function(raw_map_dir, version_tracked_map_dir) {
   tif_files <- list.files(path = raw_map_dir, pattern = "\\.tif$", full.names = TRUE)
   
   if (length(tif_files) == 0) {
-    cat("No .tif files found in raw_map_dir.\n")
+    cat("no .tif files found in raw_map_dir.\n")
     return()
   }
   
   for (tif_file in tif_files) {
     success <- file.copy(from = tif_file, to = file.path(version_tracked_map_dir, basename(tif_file)))
     if (!success) {
-      cat("Failed to copy", tif_file, "to", version_tracked_map_dir, "\n")
+      cat("failed to copy", tif_file, "to", version_tracked_map_dir, "\n")
     }
   }
   
   file.remove(tif_files)
   
   list_of_files <- list.files(version_tracked_map_dir, pattern=".*\\.tif$", full.names=TRUE)
+  print(list_of_files)
   
   for (file in list_of_files) {
     var_name <- sub("\\.tif$", "", basename(file))
+    
     title <- paste0(var_name, " (cm)")
-    assign(var_name, raster::raster(file))
-    map <- get(var_name)
-    visualize_map_outputs(map, title)
+    
+    #assign(var_name, raster::raster(file))
+    #map <- get(var_name)
+    visualize_map_outputs(raster::raster(file), title)
+    
+  }
+}
+
+get_map_outputs <- function(raw_map_dir, version_tracked_map_dir) {
+  
+  print(paste0("version tracked map path: ", version_tracked_map_dir))
+  
+  tif_files <- list.files(path = raw_map_dir, pattern = "\\.tif$", full.names = TRUE)
+  
+  if (length(tif_files) == 0) {
+    cat("no .tif files found in raw_map_dir.\n")
+    return()
+  }
+  
+  for (tif_file in tif_files) {
+    success <- file.copy(from = tif_file, to = file.path(version_tracked_map_dir, basename(tif_file)))
+    if (!success) {
+      cat("failed to copy", tif_file, "to", version_tracked_map_dir, "\n")
+    } else {
+      var_name <- sub("\\.tif$", "", basename(tif_file))
+      assign(var_name, raster::raster(file.path(version_tracked_map_dir, basename(tif_file))))
+    }
+  }
+  
+  for (var_name in ls()) {
+    if (class(get(var_name)) == "RasterLayer") {
+      title <- paste0(var_name, " (cm)")
+      visualize_map_outputs(get(var_name), title)
+    }
   }
 }
 
 
-# visualize soil moisture in a soil horizon
-storage_amt_feb <- function(soil_storage_rast, horizon_letter) {
-  
-  par(mar=c(1.8, 1.8, 1.8, 1.8))
-  plot(
-    soil_storage_rast, 
-    main=paste0('Average Soil Moisture in the ', horizon_letter, ' Horizon for February (cm)'),
-    axes=FALSE
-    )
-  
-}
 
-# visualize average February runoff
-runoff_feb <- function(avg_runoff_rast) {
-  
-  par(mar=c(1.8, 1.8, 1.8, 1.8))
-  plot(
-    avg_runoff_rast, 
-    main=paste0('Average Daily Runoff in February (cm)'),
-    axes=FALSE
-    )
-  
-}
 
-# visualize annual precipitation
-annual_precip_rast <- function(ann_precip) {
-  
-  par(mar=c(1.8, 1.8, 1.8, 1.8))
-  plot(
-    ann_precip, 
-    main=paste0('Annual Precipitation (cm)'),
-    axes=FALSE
-  )
-  
-}
-
-# visualize annual potential evapo transpiration
-annual_pet_rast <- function(ann_pet) {
-  
-  par(mar=c(1.8, 1.8, 1.8, 1.8))
-  plot(
-    ann_precip, 
-    main=paste0('Annual PET (cm)'),
-    axes=FALSE
-  )
-  
-}
-
-# visualize percent of year at saturation data
 
 
