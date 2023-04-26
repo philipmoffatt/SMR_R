@@ -21,38 +21,26 @@ map_output_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/raw_data/smr_output/
 ```{r, function sourcing, echo = FALSE}
 source(source_smr_function_path)
 source(post_processing_script_path)
-
-# right now this only works when run as a code --> i need to functionalize source_SMR and turn this into a parameterized report
-# where location and mapset are specified at the top of the document --> right now they are readlin() inputs in the source_SMR script and that gets skipped during 
-# the knit
-
 ```
 
 ``` {r, running SMR, echo = FALSE, include = FALSE, eval = TRUE} 
-# this block calls the call_SMR() function and takes the params$location and params$mapset as the location and mapset
 run_SMR(params$location, params$mapset)
 ```
 
 ```{r, read_in_column_names, echo = FALSE}
-
 column_headers <<- get_print_out_line(perl_script_path) 
-
 ```
 
 ## Run Identification:
-```{r, echo = FALSE, include = TRUE}
-      #paste0("Date of Model Run: ", params$date)
-      #paste0("Modeled Period: ", params$run_start_date," to ", params$run_end_date)
-```
 
 ```{r, version_tracking, echo = FALSE}
 sim_note <<- params$simulation_note
 version_tracked_outpath <<- version_tracker(modeled_data_path, simulation_note = sim_note)
 ```
 
-|   **Date of Model Run:** `r params$date`
-|   **Modeled Period:** `r params$run_start_date` to `r params$run_end_date`
-|   **Simulation Note:** 
+|   Date of Model Run: `r params$date`
+|   Modeled Period: `r params$run_start_date` to `r params$run_end_date`
+|   Simulation Note: 
 |       `r sim_note`
 |       
 
@@ -65,57 +53,50 @@ VaM_data <<- preprocessing(
 )
 ```
 
-```{r, performance_metrics, echo = FALSE}
-
-NSE_Q <<- nse_Q(VaM_data)
-KGE_Q <<- kge_Q(VaM_data)
-
-```
-
 ## Model Performance Metrics:
 
-|   **NSE:** `r NSE_Q`
-|   **KGE:** `r KGE_Q`
+|       This needs to be filled in. It doesn't matter too much right now 
+|       given the current performance. Should the 'windup year' be excluded
+|       from the evaluation?
 
 ## Report Outline:
 
-|   **1.0 Primary Graphed Results:**
+|   1.0 Primary Graphed Results:
 |       1.1 Modeled vs. Validation Stream Discharge
-|       1.2 Annual Mass Balance
+|       1.2 Mass Balance
 |       1.3 Annual Accumulated Flux
 |       1.4 Snow Melt and Accumulation Model Components
 |       1.5 Radiation Fluxes
 
-|   **2.0 Map Outputs:**
+|   2.0 Map Outputs:
 |       2.n Plots of any TIF files in the 'maps' folder from this run
 
-|   **3.0 Additional Graphs:**
+|   3.0 Additional Graphs:
 |       3.1 Snow Water Equivalent and its Components
 |       3.2 Vapor Density of Air and Snow
 |       3.3 Individual Flux Time Series
 
 
 \newpage
-**1.1 Primary Graphed Results**
+1.1 Primary Graphed Results
 
-```{r, Q comparison call, warning=FALSE, include=FALSE, echo=FALSE}
+```{r, Q comparison call, warning=FALSE, include=TRUE, echo=FALSE}
 Q_comparison(VaM_data, log_transform = T)
 ```
 
 
 \newpage
-**1.2 Annual Mass Balance**
+1.2 Mass Balance
 
 ```{r, mass balance, echo = FALSE}
-#annual_mass_balance(VaM_data, log_transform = F)
-# causing error right now but mass balance is: precip + snow melt - percolation
-# - runoff - evaporation + transpiration
+mass_balance(VaM_data, log_transform = F)
 ```
 
-\newpage
-**1.3 Annual Accumulated Fluxes**
 
-```{r, annual fluxes,echo = FALSE, include = FALSE, eval = TRUE}
+\newpage
+1.3 Annual Accumulated Fluxes
+
+```{r, annual fluxes,echo = FALSE, include = TRUE, eval = TRUE}
 flux_vector <<- c('runoff_cm', 'precip_cm', 'rain_cm', 
                  'actualET_flow_cm', 'canopy_evap_cm', 
                  'snowmelt_cm', 'storage_amt_cm', 
@@ -127,7 +108,7 @@ annual_fluxes(VaM_data, flux_vector, log_transform = F)
 
 
 \newpage
-**1.4 Snow Melt and Accumulation Model Components**
+1.4 Snow Melt and Accumulation Model Components
 
 ```{r, SAM check call, echo = FALSE}
 SAM_check(VaM_data, log_transform = F)
@@ -135,7 +116,7 @@ SAM_check(VaM_data, log_transform = F)
 
 
 \newpage
-**1.5 Radiation Fluxes**
+1.5 Radiation Fluxes
 
 ```{r, radiation time series, echo = FALSE}
 radiation_ts(VaM_data, log_transform = F)
@@ -143,16 +124,16 @@ radiation_ts(VaM_data, log_transform = F)
 
 
 \newpage
-**2.n Maps**
+2.n Maps
 
-```{r, getting map outputs, echo = TRUE}
+```{r, getting map outputs, echo = T, eval = TRUE }
 version_tracked_map_dir <<- paste0(version_tracked_outpath, "/maps")
 get_map_outputs(map_output_path, version_tracked_map_dir = version_tracked_map_dir)
 ```
 
 
 \newpage
-**3.1 Components of the Snow Water Equivalent (SWE) Calculation**
+3.1 Components of the Snow Water Equivalent (SWE) Calculation
 
 ```{r, SWE components, echo = FALSE}
 swe_debug(VaM_data, log_transform = F)
@@ -160,7 +141,7 @@ swe_debug(VaM_data, log_transform = F)
 
 
 \newpage
-**3.2 Vapor Density Components of Q.Latent Calculation**
+3.2 Vapor Density Components of Q.Latent Calculation
 
 ```{r, q latent debugging, echo = FALSE}
 q.latent_debug(VaM_data, log_transform = F)
@@ -168,7 +149,7 @@ q.latent_debug(VaM_data, log_transform = F)
 
 
 \newpage
-**3.3 Individual Flux Time Series**
+3.3 Individual Flux Time Series
 
 ```{r, individual flux timer series, echo = FALSE, warning = FALSE}
 flux_ts_loop(
