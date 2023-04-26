@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 
+
 print `g.remove -f type=raster name=MASK`;
 print `g.region rast=watershed`;
 print `r.mapcalc 'watershed = if(watershed==1.0,1,1)' --o`;
@@ -481,7 +482,7 @@ print `r.mapcalc 'vap.d.air = exp((16.78*tdew-116.9)/(tdew+237.3))/(tdew+273.15)
 #  NOTE:  THIS NEEDS TO BE CONVERTED TO DAY/M OR HR/M ACORDING TO THE DESIRED TIMESTEP
 # q.latent (KJ/m^2)
 
-print `r.mapcalc 'q.latent = (2500.0+335.0)*(vap.d.air-vap.d.snow)/(rh/(3600.0*24.0))' --o`; # Duncan Jurayj - divided by 1000 --> q.latent maps went up to 50,000 (maybe in J rather than KJ?) - removed this to test something
+print `r.mapcalc 'q.latent = (2500.0+335.0)*(vap.d.air-vap.d.snow)/(rh)' --o`; # Duncan Jurayj - divided by 1000 --> q.latent maps went up to 50,000 (maybe in J rather than KJ?) - removed this to test something
 print `r.mapcalc 'condens = if((swe.yesterday+snow)>0.0,q.latent/((2500.0+335.0)*1000.0)*100.0,0.0)' --o`; # in cm MZ 20170128; get daily average value by dividing 24 MZ 20190410
 #print `r.mapcalc 'condens = if((swe.yesterday+snow)>0.0,if(q.latent/((2500.0+335.0)*1000.0)*100.0>0,q.latent/((2500.0+335.0)*1000.0)*100.0, max(q.latent/((2500.0+335.0)*1000.0)*100.0,-(swe.yesterday+snow))),0.0)' --o`; # in cm MZ 20170128; get daily average value by dividing 24 MZ 20190410
 
