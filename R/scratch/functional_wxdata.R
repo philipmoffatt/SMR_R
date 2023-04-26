@@ -68,6 +68,29 @@ row_crop_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.7, 'Kc_mid'=1.15, 'Kc_end'=0
 land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
 land_cover_heights <- c(0.01, 4, 11, 0.3, 0.9, 0.9)
 
+# column names
+desired_columns <- c("tmin", "tmax", "year", "month", "day", "source", "lat", "lon", "date", 
+   "prcp", "srad", "wind_vel", "pet_grass", "vpd", "tavg", "doy", "l_turb", 
+   "atmospheric_pressure", "JDay", "Hour_0", "Hour_1", "Hour_2", "Hour_3", 
+   "Hour_4", "Hour_5", "Hour_6", "Hour_7", "Hour_8", "Hour_9", "Hour_10", 
+   "Hour_11", "Hour_12", "Hour_13", "Hour_14", "Hour_15", "Hour_16", 
+   "Hour_17", "Hour_18", "Hour_19", "Hour_20", "Hour_21", "Hour_22", 
+   "Hour_23", "Kc_water", "Kc_urban", "Kc_forest", "Kc_shrub", "Kc_grass", 
+   "Kc_row_crop", "tdew", "srad_potential", "cloud", "rh_water", "rh_urban", 
+   "rh_forest", "rh_shrub", "rh_grass", "rh_row_crop") 
+
+desired_columns <- c("date", "year", "month", "day", "doy", "tmax", "tmin",
+                     "tavg", "tdew", "prcp","pet_grass","Hour_1","Hour_6","Hour_12","Hour_18",
+                     "l_turb","cloud","Kc_water","Kc_urban","Kc_forest","Kc_shrub",
+                     "Kc_grass","Kc_row_crop","rh_water","rh_urban",
+                     "rh_forest","rh_shrub","rh_grass","rh_row_crop")
+
+smr_columns <- c("date", "year", "month", "day", "doy", "tmax", "tmin",
+                     "tavg", "tdew", "prcp","pet_grass","hour_1","hour_6","hour_12","hour_18",
+                     "l_turb","cloud","cc_water","cc_urban","cc_forest","cc_shrub",
+                     "cc_grass","cc_row_crop","rh_water","rh_urban",
+                     "rh_forest","rh_shrub","rh_grass","rh_row_crop")
+
 
 ## functions for building weather data
 
@@ -122,7 +145,7 @@ get_hourly_temps <- function(gridMET, latitude) {
 }
 
 
-ann_Kc_curve <- function(time_params, Kc_params, planting_offset, gridMET, crop_name) {
+ann_Kc_curve <- function(gridMET, time_params, Kc_params, planting_offset, crop_name) {
   
   total_curve <- c(rep(Kc_params[["Kc_preplant"]], time_params[["preplant_len"]]),
                    rep(Kc_params[["Kc_init"]], time_params[["init_len"]]),
@@ -200,7 +223,7 @@ dewpoint_temperature <- function(gridMET) {
 }
 
 # calculate the cloud fraction
-calculate_cloud_fraction <- function(gridMET_df, latitude, longitude, timezone) {
+calculate_cloud_fraction <- function(gridMET, latitude, longitude, timezone) {
   
   # setup sequence of days for potential radiation function
   julian_year <- seq(1, 365)
@@ -249,7 +272,7 @@ calculate_cloud_fraction <- function(gridMET_df, latitude, longitude, timezone) 
   
   # add the repeating potential solar radiation frame to the gridMET dataframe
   # based on doy
-  gridMET_joined <- inner_join(gridMET_df, srad_df[, c("doy", "srad_potential")], by = "doy")
+  gridMET_joined <- inner_join(gridMET, srad_df[, c("doy", "srad_potential")], by = "doy")
   
   # cloud fraction is the ratio of the observed solar radiation to 
   # potential solar radiation at that point
@@ -258,7 +281,7 @@ calculate_cloud_fraction <- function(gridMET_df, latitude, longitude, timezone) 
   return(gridMET_joined)
 }
 
-## pressure_from_el() function:
+## pressure_from_el() function: --> not really needed anymore
 pressure_from_el <- function(gridMET, site_latitude, site_longitude) {
   
   # formatting latitude and longitude inputs to match parameter requirements
@@ -293,9 +316,9 @@ pressure_from_el <- function(gridMET, site_latitude, site_longitude) {
 estimated_wind_speed <- function(
     actual_measurement_height = 2,
     measured_wind_speed,
-    measured_land_cover_height = 1.3,
+    measured_land_cover_height = 0.9, # from Hansen 1993, not a big change
     predicted_land_cover_height # possibly a confusing parameter name (the wind 
-    #measurement height not the land cover heght is predicted though 
+    #measurement height not the land cover height is predicted though 
     # measurement height is defined by this land cover height)
     ) {
   
@@ -357,8 +380,7 @@ land_cover_rh <-
       displacement_height <- 0.65 * land_cover_height
       momentum_roughness <- 0.1 * land_cover_height
       heat_vapor_roughness <- 0.2 * momentum_roughness
-      print(momentum_roughness)
-      
+
       estimated_wind_speed_val <- estimated_wind_speed(
         measured_wind_speed = wind_speed,
         predicted_land_cover_height = land_cover_height)
@@ -414,9 +436,9 @@ land_cover_rh_wrapper <-
       # Use sapply instead of lapply, and fix the anonymous function syntax
       rh_values <- sapply(gridMET$wind_vel, function(wind_vel) {
         rh_val <- land_cover_rh(
-          land_cover_height = land_coverage_height,
-          wind_measurement_HEIGHT = wind_measurement_HEIGHT,
-          temp_measurement_HEIGHT = temp_measurement_HEIGHT,
+          land_cover_height = land_cover_height,
+          wind_measurement_height = wind_measurement_height,
+          temp_measurement_height = temp_measurement_height,
           von_karman = von_karman,
           wind_speed = wind_vel
         )
@@ -424,12 +446,27 @@ land_cover_rh_wrapper <-
       })
       
       # Add a new column to gridMET with name 'rh_[land_coverage_name]'
-      gridMET[paste0("rh_", land_cover_name)] <<- rh_values
+      gridMET[paste0("rh_", land_cover_name)] <- rh_values
       
     }
     
     return(gridMET)
   }
+
+rename_columns <- function(gridMET, renamed_columns) {
+  
+  colnames(gridMET) <- renamed_columns
+  
+  return(gridMET)
+  
+}
+
+subset_order_columns <- function(gridMET, desired_columns, renamed_columns) {
+  gridMET_subset <- gridMET %>%
+    select(all_of(desired_columns)) %>%
+    rename_columns(renamed_columns = renamed_columns)
+  return(gridMET_subset)
+}
 
 
 # write weather data out to correct location -- probably needs some work
@@ -454,32 +491,51 @@ write_weather_data <- function(gridMET_joined, start_date, end_date, location) {
   
 }
 
+
+
 # calling functions
-gm_p <- pull_gridMET('Pullman, WA')
-gm_m <- pull_gridMET('Moscow, ID')
-gm_p <- pressure_from_el(gm_p, lat, lon)
-
-gm_p <- land_cover_rh_wrapper(
-  gridMET = gm_p,
-  land_cover_names = land_cover_names,
-  land_cover_heights = land_cover_heights
-)
-
-gm_p_hourly <- get_hourly_temps(gm_p, lat)
-
-gm_p <- ann_Kc_curve(water_time, water_Kc, 0, gm_p, 'water')
-gm_p <- ann_Kc_curve(urban_time, urban_Kc, 0, gm_p, 'urban')
-gm_p <- ann_Kc_curve(forest_time, forest_Kc, 0, gm_p, 'forest')
-gm_p <- ann_Kc_curve(shrub_time, shrub_Kc, 0, gm_p, 'shrub')
-gm_p <- ann_Kc_curve(grass_time, grass_Kc, 0, gm_p, 'grass')
-gm_p <- ann_Kc_curve(row_crop_time, row_crop_Kc, 274, gm_p, 'row_crop')
+gm_m <- pull_gridMET('Moscow, ID') 
+gm_p <- pull_gridMET('Pullman, WA') %>%
+  pressure_from_el(site_latitude = lat, site_longitude = lon) %>%
+  get_hourly_temps(lat) %>%
+  ann_Kc_curve(water_time, water_Kc, 0, 'water') %>%
+  ann_Kc_curve(urban_time, urban_Kc, 0, 'urban') %>%
+  ann_Kc_curve(forest_time, forest_Kc, 0, 'forest') %>%
+  ann_Kc_curve(shrub_time, shrub_Kc, 0, 'shrub') %>%
+  ann_Kc_curve(grass_time, grass_Kc, 0, 'grass') %>%
+  ann_Kc_curve(row_crop_time, row_crop_Kc, 274, 'row_crop') %>%
+  dewpoint_temperature() %>%
+  calculate_cloud_fraction(lat, lon, -8) %>%
+  land_cover_rh_wrapper(land_cover_names = land_cover_names,
+                        land_cover_heights = land_cover_heights,
+                        wind_measurement_height = 2,
+                        temp_measurement_height = 2,
+                        von_karman = 0.41) %>%
+  subset_order_columns(desired_columns = desired_columns,
+                       renamed_columns = smr_columns)
 
 lapse_rate_frame <- lapse_rates(gm_p, gm_m, low_el, high_el)
 
-gm_p <- dewpoint_temperature(gm_p)
 
-gm_p <- calculate_cloud_fraction(gm_p, lat, lon, -8)
 
-gm_p <- rh(gm_p)
+
+#gm_p <- land_cover_rh_wrapper(
+#  gridMET = gm_p,
+#  land_cover_names = land_cover_names,
+#  land_cover_heights = land_cover_heights
+#)
+
+#gm_p_hourly <- get_hourly_temps(gm_p, lat)
+
+#gm_p <- ann_Kc_curve(gm_p, water_time, water_Kc, 0, 'water')
+#gm_p <- ann_Kc_curve(gm_p, urban_time, urban_Kc, 0, 'urban')
+#gm_p <- ann_Kc_curve(gm_p, forest_time, forest_Kc, 0, 'forest')
+#gm_p <- ann_Kc_curve(gm_p, shrub_time, shrub_Kc, 0, 'shrub')
+#gm_p <- ann_Kc_curve(gm_p, rass_time, grass_Kc, 0, 'grass')
+#gm_p <- ann_Kc_curve(gm_p, row_crop_time, row_crop_Kc, 274, 'row_crop')
+
+#gm_p <- dewpoint_temperature(gm_p)
+
+#gm_p <- calculate_cloud_fraction(gm_p, lat, lon, -8)
 
 
