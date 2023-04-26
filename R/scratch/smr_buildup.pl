@@ -492,7 +492,7 @@ print `r.mapcalc 'condens = if((swe.yesterday+snow)>0.0,q.latent/((2500.0+335.0)
 #  NOTE:  THIS NEEDS TO BE CONVERTED TO DAY/M OR HR/M ACORDING TO THE DESIRED TIMESTEP
 # q.cond (KJ/m^2)
 
-print `r.mapcalc 'q.sensible = 1.0*1.29*(tavg-tsnow_surf)/(rh/(3600.0*24.0))' --o`; # convert to KJ/(m^2 day) MZ 20200329
+print `r.mapcalc 'q.sensible = 1.0*1.29*(tavg-tsnow_surf)/(rh)' --o`; # convert to KJ/(m^2 day) MZ 20200329
 #print `r.mapcalc 'q.sensible = 1.0*1.29*(tavg-tsnow_surf)/(rh/3600)' --o`; #
 
 # q.rain.ground is the combined conductive heat from rain, snow, and ground 
