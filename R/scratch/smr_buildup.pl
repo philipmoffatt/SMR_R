@@ -111,10 +111,10 @@ print `r.mapcalc 'wiltpt_amt = if(landuse==6.0,wiltpt_mc_A*soil_depth_A+wiltpt_m
 print `r.mapcalc 'ETreduction_mc = if(landuse==6.0,fieldcap_amt*0.8/soil_depth,if(landuse==5.0,fieldcap_amt_A*0.8/soil_depth_A,if(landuse==4.0,fieldcap_amt*0.8/soil_depth,if(landuse==3.0,fieldcap_amt*0.7/soil_depth,if(landuse==2.0,fieldcap_amt*0.8/soil_depth,if(landuse==1.0,fieldcap_amt*0.8/soil_depth,fieldcap_amt*0.8/soil_depth))))))' --o`; # DJ 04/12/23 -- changed ETreduction values for urban and water to normal 0.80*... instead of 0
 
 # these values are just walked over from initial forest, partial, clear, road system assuming water,urban/barren are both clear cut (not perfect by any means) --> #print `r.mapcalc 'tmax_rain = if(landuse==3.0,3.1,if(landuse==2.0,1.8,-0.5))' --o`;
-print `r.mapcalc 'tmax_rain = if(landuse==6.0,1.8,if(landuse==5.0,-0.5,if(landuse==4.0,1.8,if(landuse==3.0,3.1,if(landuse==2.0,-0.5,if(landuse==1.0,-0.5,0))))))' --o`;
+print `r.mapcalc 'tmax_rain = if(landuse==6.0,1.0,if(landuse==5.0,1.0,if(landuse==4.0,1.0,if(landuse==3.0,1.0,if(landuse==2.0,1.0,if(landuse==1.0,1.0,0))))))' --o`;
 
 # these were walked over from initial forest, partial, clear, road system where water,urban/barren are both clear cut values (could definitely be improved) --> #print `r.mapcalc 'tmin_snow = if(landuse==3.0,0.9,if(landuse==2.0,-1.0,-3.0))' --o`;
-print `r.mapcalc 'tmin_snow = if(landuse==6.0,-1.0,if(landuse==5.0,-3.0,if(landuse==4.0,-1.0,if(landuse==3.0,0.9,if(landuse==2.0,-3.0,if(landuse==1.0,-3.0,0.0))))))' --o`;
+print `r.mapcalc 'tmin_snow = if(landuse==6.0,-1.0,if(landuse==5.0,-1.0,if(landuse==4.0,-1.0,if(landuse==3.0,-1.0,if(landuse==2.0,-1.0,if(landuse==1.0,-1.0,0.0))))))' --o`;
 
 # Initial conditions storage amount defined (% of saturation)
 print `r.mapcalc 'storage_amt = sat_amt*0.4' --o`;
@@ -304,7 +304,7 @@ print `r.mapcalc 'psat_1988 = 0.0' --o`;
 #____________________________________________________________________________________
 print "\n|----- READING Weather -----|\n";
 #  This set of commands splits a tab delimited array using a while loop
-open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || open ($WEATHER, '<', 'home/petbuser/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || die "Can't open weather file\n";
+open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical.csv') || open ($WEATHER, '<', 'home/petbuser/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || die "Can't open weather file\n";
 #print "\n|----- line 280 -----|\n";
 
 while (<$WEATHER>) {
@@ -420,8 +420,8 @@ print "\n|----- SNOW ACCUMULATION AND MELT MODEL -----|\n";
 # LAZY FIX RIGHT NOW WHERE RH_SNOW IS RH_URBAN BUT THIS WILL NEED TO CHANGE (THOUGH THEY WON'T BE TOO DIFFERENT) --> ADDITIONALL JUST USING ROW CROP RIGHT NOW
 #print `r.mapcalc 'rh = if(swe>0,$rh_water/(1.0-(canopy_cover/3.0)),$rh_row_crop/(1.0-(canopy_cover/3.0)))' --o`; # add canopy cover effects on rh MZ 20200601 --> # changed rh_urban to rh_water for rh_snow substitute
 #print `r.mapcalc 'rh = $rh_row_crop/(1.0-(canopy_cover/3.0))' --o`; # add canopy cover effects on rh MZ 20200601 --> # changed rh_urban to rh_water for rh_snow substitute
-#print `r.mapcalc 'rh = if(landuse==6.0,$rh_row_crop,if(landuse==5.0,$rh_grass,if(landuse==4.0,$rh_shrub,if(landuse==3.0,$rh_forest,if(landuse==2.0,$rh_urban,if(landuse==1.0,$rh_water,$rh_row_crop))))))' --o`;
-print `r.mapcalc 'rh = if(landuse==6.0, $rh_row_crop/(1.0-(canopy_cover/3.0)), if(landuse==5.0, $rh_grass/(1.0-(canopy_cover/3.0)), if(landuse==4.0, $rh_shrub/(1.0-(canopy_cover/3.0)), if(landuse==3.0, $rh_forest/(1.0-(canopy_cover/3.0)), if(landuse==2.0, $rh_urban/(1.0-(canopy_cover/3.0)), if(landuse==1.0, $rh_water/(1.0-(canopy_cover/3.0)), $rh_row_crop/(1.0-canopy_cover/3)))))))' --o`; # DJ 04/22/23, canopy cover effect added in with all landuse types
+print `r.mapcalc 'rh = if(landuse==6.0,$rh_row_crop,if(landuse==5.0,$rh_grass,if(landuse==4.0,$rh_shrub,if(landuse==3.0,$rh_forest,if(landuse==2.0,$rh_urban,if(landuse==1.0,$rh_water,$rh_row_crop))))))' --o`;
+#print `r.mapcalc 'rh = if(landuse==6.0, $rh_row_crop/(1.0-(canopy_cover/3.0)), if(landuse==5.0, $rh_grass/(1.0-(canopy_cover/3.0)), if(landuse==4.0, $rh_shrub/(1.0-(canopy_cover/3.0)), if(landuse==3.0, $rh_forest/(1.0-(canopy_cover/3.0)), if(landuse==2.0, $rh_urban/(1.0-(canopy_cover/3.0)), if(landuse==1.0, $rh_water/(1.0-(canopy_cover/3.0)), $rh_row_crop/(1.0-canopy_cover/3)))))))' --o`; # DJ 04/22/23, canopy cover effect added in with all landuse types
 print `r.mapcalc 'snow.age = if(snow>0.0 && throughfall==0.0,1.0,snow.age+1.0)' --o`; # modified MZ 20190210
 print `r.mapcalc 'albedo = if(swe.yesterday+snow>0.0,min(0.95,0.7383*snow.age^(-0.1908)),0.2)' --o`;
 
@@ -443,7 +443,8 @@ print `r.sun elevation=el aspect=aspect slope=slope linke_value=$l_turb albedo=a
 
 #  Rad_tot is the total radiation in units of KJ/m^2
 #  Convert to daily value by multiply 24, MZ 20170127; Update: Do not multiply 24 because the output of beam etc is already daily in Wh/m2/day. 1Wh/m2/day = 3.6KJ/m2/day
-print `r.mapcalc 'q.srad = (1.0-canopy_cover)*(1.0-albedo)*(beam_rad+diff_rad+refl_rad) * 3600.0/1000.0' --o`; # add canopy cover impact MZ 20200510
+#print `r.mapcalc 'q.srad = (1.0-canopy_cover)*(1.0-albedo)*(beam_rad+diff_rad+refl_rad) * 3600.0/1000.0' --o`; # add canopy cover impact MZ 20200510
+print `r.mapcalc 'q.srad = (1.0-albedo)*(beam_rad+diff_rad+refl_rad) * 3600.0/1000.0' --o`; # remove canopy cover plm 20230426
 
 #  q.lw is the net heat energy added to the snowpack by longwave rad. 
 #  assume the emissivity of snow is 0.98
@@ -456,8 +457,8 @@ print `r.mapcalc 'q.srad = (1.0-canopy_cover)*(1.0-albedo)*(beam_rad+diff_rad+re
 #  Convert to daily value by multiply 24, MZ 20190127
 
 #print `r.mapcalc 'q.lw = 5.67*(10.0^-8.0)*3600.0*24.0/1000.0*(max(0.72,(0.72+0.005*tavg)*(1.0-0.84*$cloud)+0.84*$cloud)*(tavg+273.15)^4.0-0.98*(tsnow_surf+273.15)^4.0)' --o`;
-#print `r.mapcalc 'q.lw = 5.67*(10.0^-8.0)*3600.0*24.0/1000.0*(max(0.72,(9.2*(10^-6.0)*(tavg+273.15)^2.0)*(1.0-0.84*$cloud)+0.84*$cloud)*(tavg+273.15)^4.0-0.98*(tsnow_surf+273.15)^4.0)' --o`; # MZ 20190408 from Campbell an introductino to environmental biophysics eqn (10.11) to calculate clear sky emissivity e(0)=9.2*10^-6*Tavg^2, where Tavg is in Kelvin
-print `r.mapcalc 'q.lw = 5.67*(10.0^-8.0)*3600.0*24.0/1000.0*(max(0.72,((9.2*(10^-6.0)*(tavg+273.15)^2.0)*(1.0-0.84*$cloud)+0.84*$cloud)*(1-canopy_cover)+0.92*canopy_cover)*(tavg+273.15)^4.0-0.98*(tsnow_surf+273.15)^4.0)' --o`; # add canopy cover impact MZ 20200510
+print `r.mapcalc 'q.lw = 5.67*(10.0^-8.0)*3600.0*24.0/1000.0*(max(0.72,(9.2*(10^-6.0)*(tavg+273.15)^2.0)*(1.0-0.84*$cloud)+0.84*$cloud)*(tavg+273.15)^4.0-0.98*(tsnow_surf+273.15)^4.0)' --o`; # MZ 20190408 from Campbell an introductino to environmental biophysics eqn (10.11) to calculate clear sky emissivity e(0)=9.2*10^-6*Tavg^2, where Tavg is in Kelvin
+#print `r.mapcalc 'q.lw = 5.67*(10.0^-8.0)*3600.0*24.0/1000.0*(max(0.72,((9.2*(10^-6.0)*(tavg+273.15)^2.0)*(1.0-0.84*$cloud)+0.84*$cloud)*(1-canopy_cover)+0.92*canopy_cover)*(tavg+273.15)^4.0-0.98*(tsnow_surf+273.15)^4.0)' --o`; # add canopy cover impact MZ 20200510
 
 #  act. air vapor density calculated using tdew 
 #  esat = e((16.78*tdew-116.9)/(tdew+237.3))                     units = (kPa)
@@ -755,7 +756,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 
 	print `r.mapcalc 'runoff_flow = if(storage_amt>sat_amt,storage_amt-sat_amt,0.0)' --o`;
 
-	print `r.mapcalc 'storage_amt = if(strms_30m > 0, sat_amt, storage_amt-runoff_flow)' --o`;
+	print `r.mapcalc 'storage_amt = if(strms_30m==1, sat_amt, storage_amt-runoff_flow)' --o`;
 	print `r.mapcalc 'runoff_daily_flow = runoff_daily_flow+runoff_flow' --o`;
 
 	print `r.mapcalc 'saturation = storage_amt/sat_amt*100' --o`; # DJ 04/12/23-- made it so saturation is always 100$ at stream cells 
@@ -813,7 +814,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
     `r.mapcalc 'pet_$year = pet_$year + pet' --o`;
   }
   
-  if ($doy == 283) { # will need to change to 365
+  if ($doy == 365) { # will need to change to 365
     print `r.out.gdal input=precip_$year output=/Users/$user/Dropbox/SMR_R/raw_data/smr_output/maps/precip_$year.tif --o`;#/raw_data/smr_output/maps/precip_$year.tif`;
     print `r.out.gdal input=pet_$year output=/Users/$user/Dropbox/SMR_R/raw_data/smr_output/maps/pet_$year.tif --o`;  #/raw_data/smr_output/maps/pet_$year.tif`;
   }
@@ -824,7 +825,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
   }
   
   # at the end of the year divide by number of days in the year and multiply by 100 to get the percentage of the year each cell spends at saturation
-  if ($doy == 283) { # need to make 365 eventually once markdown is set up
+  if ($doy == 365) { # need to make 365 eventually once markdown is set up
     `r.mapcalc 'psat_$year = (psat_$year / 365) * 100' --o`; 
     print `r.out.gdal input=psat_$year output=/Users/$user/Dropbox/SMR_R/raw_data/smr_output/maps/psat_$year.tif --o`;
   }
@@ -1007,10 +1008,16 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 			print `r.stats.zonal base=watershed cover=u.surface out=temp35 method=sum --o --quiet`;
 			print $u_surface_{$wshed_id} = `r.stats -A input=temp35`;
 			$u_surface_{$wshed_id} = $u_surface_{$wshed_id}*1;
+			
+		# **********************************  36 ***************************************		
+    # actualET_daily_flow
+    	print `r.stats.zonal base=watershed cover=actualET_daily_flow out=temp36 method=sum --o --quiet`;
+			print $actual_ET_daily_{$wshed_id} = `r.stats -A input=temp36`;
+			$actual_ET_daily_{$wshed_id} = $actual_ET_daily_{$wshed_id}*1;
 
 		#  Create mass balance output file
-    open(OUT, ">>", "/Users/duncanjurayj/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || open(OUT, ">>", "/Users/philipmoffatt/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || die("Cannot Open File");
-		print OUT "$wshed_id $date $year $runoff_cm_{$wshed_id} $precip_cm_{$wshed_id} $rain_cm_{$wshed_id} $actualET_flow_cm_{$wshed_id} $canopy_evap_cm_{$wshed_id} $snowmelt_cm_{$wshed_id} $storage_amt_cm_{$wshed_id} $throughfall_cm_{$wshed_id} $canopy_storage_amt_cm_{$wshed_id} $perc_cm_{$wshed_id} $Q_{$wshed_id} $swe_cm_{$wshed_id} $condens_cm_{$wshed_id} $snow_cm_{$wshed_id} $base_flow_{$wshed_id} $srad_{$wshed_id} $latent_{$wshed_id} $sensible_{$wshed_id} $lw_{$wshed_id} $q_rain_ground_cm_{$wshed_id} $q_total_{$wshed_id} $ice_content_{$wshed_id} $liquid_water_{$wshed_id} $refreeze_{$wshed_id} $vap_d_air_{$wshed_id} $vap_d_snow_{$wshed_id} $u_surface_{$wshed_id}\n";
+    open(OUT, ">>", "/Users/duncanjurayj/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || open(OUT, ">>", "/Users/philipmoffatt/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id_tst.csv") || die("Cannot Open File");
+		print OUT "$wshed_id $date $year $runoff_cm_{$wshed_id} $precip_cm_{$wshed_id} $rain_cm_{$wshed_id} $actualET_flow_cm_{$wshed_id} $canopy_evap_cm_{$wshed_id} $snowmelt_cm_{$wshed_id} $storage_amt_cm_{$wshed_id} $throughfall_cm_{$wshed_id} $canopy_storage_amt_cm_{$wshed_id} $perc_cm_{$wshed_id} $Q_{$wshed_id} $swe_cm_{$wshed_id} $condens_cm_{$wshed_id} $snow_cm_{$wshed_id} $base_flow_{$wshed_id} $srad_{$wshed_id} $latent_{$wshed_id} $sensible_{$wshed_id} $lw_{$wshed_id} $q_rain_ground_cm_{$wshed_id} $q_total_{$wshed_id} $ice_content_{$wshed_id} $liquid_water_{$wshed_id} $refreeze_{$wshed_id} $vap_d_air_{$wshed_id} $vap_d_snow_{$wshed_id} $u_surface_{$wshed_id} $actual_ET_daily_{$wshed_id}\n";
 		close(OUT); 
 
 		print "\n \n";
