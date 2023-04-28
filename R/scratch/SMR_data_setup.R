@@ -508,13 +508,18 @@ for (x in 1:length(initial_depth_names)) {
     
     depth_rast[is.na(depth_rast)] <- 0  # Set NA values to 0
     streams[is.na(streams)] <- 0  # Set NA values to 0
-
     soil_depth <- overlay(streams, depth_rast, fun=soil_depth_fun)
     soil_depth[soil_depth == 0] <- NA
     
-    raster::writeRaster(soil_depth, paste0(imitate_smr_setup, output_depth_names[x]))
+    raster::writeRaster(streams, file.path(imitate_smr_setup, "strms_30m.asc"), overwrite=TRUE)
+    raster::writeRaster(soil_depth, paste0(imitate_smr_setup, output_depth_names[x]), overwrite=TRUE)
   }
 }
+
+# fixing stream values
+streams <- raster(paste0(imitate_smr_setup, "/strms_30m.asc"))
+streams[is.na(streams) & mfc_mask == 1] <- 0
+writeRaster(streams, file.path(imitate_smr_setup, "strms_30m.asc"), overwrite=TRUE)
 
 # combined soil depth (A+B)
 combined_depth <- raster(paste0(imitate_smr_setup, "/soil_depth_A.asc")) + 
