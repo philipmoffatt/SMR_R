@@ -568,7 +568,7 @@ all_years <- seq(min(historical_joined$year), max(historical_joined$year), by = 
 all_months <- seq(1, 12, by = 1)
 all_month_year <- expand.grid(year = all_years, month = all_months)
 
-# left-join average temperature values from the original dataframe
+# left-join average temperature values from the original data frame
 daily_avg_temps <- left_join(all_month_year, avg_temp_by_month_year, by = c("year", "month")) %>%
   mutate(day = 1,
          date = ymd(paste(year, month, day, sep = "-"))
