@@ -1,0 +1,87 @@
+---
+title: "testing flow"
+output: html_document
+date: "2023-04-22"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(terra)
+library(grwat)
+library(lubridate)
+#https://cran.r-project.org/web/packages/grwat/vignettes/baseflow.html
+
+```
+
+## decomposition mark down 
+In this doc I look cruding at the the likelihood that summer flows come from the auto runoff assumption of SMR and streamflow. In the past we have discouted these summer peaks. and perhaps we are using a low threshold for stream cell iniations. 
+
+```{r }
+user <- Sys.info()["user"]
+setwd(paste0("/Users/", user, "/Dropbox/SMR_R"))
+post_processing_script_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/R/scratch/functional_PP.R")
+source_smr_function_path <<- paste0("/Users/", user,"/Dropbox/SMR_R/R/scratch/source_SMR_function.R")
+perl_script_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/R/scratch/smr_buildup.pl")
+
+# pulling raw data paths in
+validation_data_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/raw_data/validation_data/USGSdischarge.csv")
+modeled_data_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_79.csv")
+map_output_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/raw_data/smr_output/maps")
+
+```
+
+## Getting data 
+I am spliting data a couple of ways. I cam finding a cheap baseflow speration for the observed data sowe can look at quick flow. I am doing the same for the modled data. then I am taking the stream cells times the precipaition to identify dryseason stream cell runoff. 
+
+```{r stream data , echo=T}
+user <- Sys.info()["user"]
+setwd(paste0("/Users/", user, "/Dropbox/SMR_R"))
+# get asc data 
+modeled_data = "./processed_data/smr_output/MFC_007_2023-04-20/mfc_mb.csv" %>% read_csv
+
+Streams = "./processed_data/ASC/dem_streams.asc" %>% rast
+mask = "./processed_data/ASC/MFC/dem_mfc_mask.asc" %>% rast
+lu = "./processed_data/ASC/MFC/NLCD_simple.asc" %>% rast
+
+
+# get areas 
+stream_area_m2 = ((Streams) %>% values %>%  sum(.,na.rm=T))*30*30
+mask_area_m2 = ((mask) %>% values %>%  sum(.,na.rm=T))*30*30
+lu2_area_m2 = (((lu %>% values)==2) %>%  sum(.,na.rm=T))*30*30
+
+
+#get flow rate in cm ## unit checks 
+stream_area_m3_s_cm = stream_area_m2/24/60/60
+lu2_area_m3_s_cm = lu2_area_m2/24/60/60
+impervious_area_m3_s_cm = (stream_area_m2+lu2_area_m2)/24/60/60
+
+#find fun values
+modeled_data$validation_base_flow = gr_baseflow(modeled_data$validation_Q, method = 'lynehollick', a = 0.925, passes = 3)
+modeled_data$stream_quickflow = stream_area_m3_s_cm*modeled_data$precip_cm/mask_area_m2 ## unit check 
+modeled_data$lu2_quickflow = lu2_area_m3_s_cm*modeled_data$precip_cm/mask_area_m2 ## unit check 
+modeled_data$impervious_quickflow = impervious_area_m3_s_cm*modeled_data$precip_cm/mask_area_m2 ## unit check 
+```
+## plots
+I am spliting data a couple of ways. I cam finding a cheap baseflow speration for the observed data sowe can look at quick flow. I am doing the same for the modled data. then I am taking the stream cells times the precipaition to identify dryseason stream cell runoff.
+
+```{r stream plots , echo=T}
+# baseflow - semi log
+ggplot(modeled_data)+
+  geom_line(aes(x = date, y = validation_base_flow))+
+  geom_line(aes(x = date, y = base_flow), col = "blue")+
+  scale_y_continuous(trans='log10')
+
+# quick flow
+ggplot(modeled_data)+
+  geom_line(aes(x = date, y = (validation_Q -validation_base_flow), col = "obs quick flow"))+
+  geom_line(aes(x = date, y = Q-base_flow, col = "modeled quick flow"), alpha = .5)+
+  geom_line(aes(x = date, y = stream_quickflow, col = "stream quick flow"),alpha = .5)
+
+#scatter of summer quick flow 
+ggplot(modeled_data %>% filter(month(date)>5,month(date)<11))+
+  geom_point(aes(stream_quickflow,Q-base_flow, col = "stream cells"))+
+  geom_point(aes(lu2_quickflow,Q-base_flow, col = "urban cells"))+
+  geom_point(aes(impervious_quickflow,Q-base_flow, col = "impervious cells"))
+```
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
