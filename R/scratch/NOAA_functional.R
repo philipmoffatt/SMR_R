@@ -2,6 +2,7 @@
 # specific but eventually should incorporate the 'stations within' feature. 
 
 library(tidyverse)
+library(tidyr)
 library(dplyr) 
 library(lubridate)
 library(AOI)
@@ -10,65 +11,6 @@ library(rnoaa)
 library(chillR)
 library(humidity)
 library(bigleaf)
-
-# variable setup
-ghcnd <- 'USC00456789'
-date_min <- '1959-10-01'
-date_max <- '1979-10-01'
-latitude <- 46.7312700
-sunshine_path <- "./raw_data/weather/sunshine_min_wallaWalla.csv"
-wind_path <- "./raw_data/weather/Estimated Pullman Historic Wind Speed.csv"
-
-# setting up dictionaries for crop curves
-water_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
-water_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.6525, 'Kc_mid'=0.6525, 'Kc_end'=0.6525, 'Kc_post_harv'=0.30)
-
-urban_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
-urban_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.30, 'Kc_end'=0.30, 'Kc_post_harv'=0.30)
-
-# using FAO conifer values for now meaning it's static but that can change
-forest_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
-forest_Kc <- list('Kc_preplant'=1, 'Kc_init'=1, 'Kc_mid'=1, 'Kc_end'=1, 'Kc_post_harv'=1)
-
-# using deciduous orchard
-shrub_time <- list('preplant_len'=60, 'init_len'=20, 'dev_len'=70, 'mid_len'=90, 'late_len'=30, 'post_len'=95)
-shrub_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.45, 'Kc_mid'=0.95, 'Kc_end'=0.70, 'Kc_post_harv'=0.30)
-
-#relied on frost dates from AgWeatherNet: Pullman station: frost on --> May 1st, frost off --> September 19th --> splitting resiudal (125) in half for now
-grass_time <- list('preplant_len'=113, 'init_len'=10, 'dev_len'=20, 'mid_len'=64, 'late_len'=62, 'post_len'=96)
-grass_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.75, 'Kc_end'=0.75, 'Kc_post_harv'=0.30)
-
-# using spring wheat values for now
-#row_crop_time <- list('preplant_len'=75, 'init_len'=20, 'dev_len'=25, 'mid_len'=60, 'late_len'=30, 'post_len'=155)
-row_crop_time <- list('preplant_len'=0, 'init_len'=160, 'dev_len'=75, 'mid_len'=75, 'late_len'=25, 'post_len'=30)
-row_crop_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.7, 'Kc_mid'=1.15, 'Kc_end'=0.35, 'Kc_post_harv'=0.30)
-
-# rh calculation variables
-land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
-land_cover_heights <- c(0.01, 4, 11, 0.3, 0.9, 0.9)
-
-# column names
-desired_columns <- c("tmin", "tmax", "year", "month", "day", "source", "lat", "lon", "date", 
-                     "prcp", "srad", "wind_vel", "pet_grass", "vpd", "tavg", "doy", "l_turb", 
-                     "atmospheric_pressure", "JDay", "Hour_0", "Hour_1", "Hour_2", "Hour_3", 
-                     "Hour_4", "Hour_5", "Hour_6", "Hour_7", "Hour_8", "Hour_9", "Hour_10", 
-                     "Hour_11", "Hour_12", "Hour_13", "Hour_14", "Hour_15", "Hour_16", 
-                     "Hour_17", "Hour_18", "Hour_19", "Hour_20", "Hour_21", "Hour_22", 
-                     "Hour_23", "Kc_water", "Kc_urban", "Kc_forest", "Kc_shrub", "Kc_grass", 
-                     "Kc_row_crop", "tdew", "srad_potential", "cloud", "rh_water", "rh_urban", 
-                     "rh_forest", "rh_shrub", "rh_grass", "rh_row_crop") 
-
-desired_columns <- c("date", "year", "month", "day", "doy", "tm.x", "tmin",
-                     "tavg", "tdew", "prcp","pet_hamon","Hour_1","Hour_6","Hour_12","Hour_18",
-                     "l_turb","cloud","Kc_water","Kc_urban","Kc_forest","Kc_shrub",
-                     "Kc_grass","Kc_row_crop","rh_water","rh_urban",
-                     "rh_forest","rh_shrub","rh_grass","rh_row_crop")
-
-smr_columns <- c("date", "year", "month", "day", "doy", "tmax", "tmin",
-                 "tavg", "tdew", "prcp","pet_grass","hour_1","hour_6","hour_12","hour_18",
-                 "l_turb","cloud","cc_water","cc_urban","cc_forest","cc_shrub",
-                 "cc_grass","cc_row_crop","rh_water","rh_urban",
-                 "rh_forest","rh_shrub","rh_grass","rh_row_crop")
 
 
 # pull data with rnoaa package
@@ -144,7 +86,7 @@ get_hourly_temps <- function(noaa_data, latitude, keep_sunrise_sunset=FALSE) {
            tmax = Tmax)
   
   noaa_output <- merge(noaa_data, noaa_subset_hourly, by="date") %>%
-    select(-ends_with(".y")) %>% 
+    dplyr::select(-ends_with(".y")) %>% 
     rename_at(vars(ends_with(".x")), ~str_remove(., ".x")) %>% 
     mutate(
       year = lubridate::year(date), 
@@ -163,7 +105,7 @@ avg_temp_by_month_year <- function(noaa_data) {
     summarise(avg_temp = mean(tavg, na.rm = TRUE))
   
   # Keep all original columns
-  avg_temp_by_month_year <- left_join(noaa_data %>% select(year, month), avg_temp_by_month_year, by = c("year", "month"))
+  avg_temp_by_month_year <- left_join(noaa_data %>% dplyr::select(year, month), avg_temp_by_month_year, by = c("year", "month"))
   
   return(avg_temp_by_month_year)
 }
@@ -201,7 +143,7 @@ daily_avg_temps <- function(noaa_data) {
   daily_avg_temps <- left_join(daily_avg_temps, noaa_data, by = c("year", "month", "day"))
   
   # Remove columns with suffix ".y"
-  daily_avg_temps <- select(daily_avg_temps, !contains(".y"))
+  daily_avg_temps <- dplyr::select(daily_avg_temps, !contains(".y"))
   
   # Remove suffix ".x" from column names
   colnames(daily_avg_temps) <- sub("\\.x$", "", colnames(daily_avg_temps))
@@ -356,11 +298,9 @@ merge_noaa_wind <- function(noaa_data, wind_data) {
     mutate(year = year(date),
            month = month(date),
            day = day(date),
-           doy = yday(date)
-    ) %>%
-    dplyr::select(-DATE) %>%
-    filter(year >= min(noaa_data[, "year"]) & year <= max(noaa_data[, "year"]))
-  
+           doy = yday(date)) %>%
+    dplyr::filter(year >= min(noaa_data[, "year"]) & year <= max(noaa_data[, "year"]))
+
   # Format noaa_data
   noaa_data_formatted <- noaa_data %>%
     mutate(
@@ -373,6 +313,8 @@ merge_noaa_wind <- function(noaa_data, wind_data) {
   
   return(merged_wind_noaa)
 }
+
+
 
 ## aerodynamic resistance to heat transfer calculation
 ## estimated_wind_speed() function: 
@@ -467,6 +409,10 @@ land_cover_rh <-
       momentum_roughness <- 0.1 * land_cover_height
       heat_vapor_roughness <- 0.2 * momentum_roughness
       
+      print(displacement_height)
+      print(momentum_roughness)
+      print(heat_vapor_roughness)
+      
       rh_value <- heat_transfer_resistance(
         wind_measurement_height = wind_measurement_height,
         temp_measurement_height = temp_measurement_height,
@@ -496,7 +442,7 @@ land_cover_rh_wrapper <-
     for (i in 1:length(land_cover_names)) {
       land_cover_name <- land_cover_names[i]
       land_cover_height <- land_cover_heights[i]
-      print(land_cover_height)
+      
       # Use sapply instead of lapply, and fix the anonymous function syntax
       rh_values <- sapply(noaa_data$avg_wind_speed, function(wind_vel) {
         rh_val <- land_cover_rh(
@@ -527,7 +473,7 @@ rename_columns <- function(noaa_data, renamed_columns) {
 
 subset_order_columns <- function(noaa_data, desired_columns, renamed_columns) {
   noaa_subset <- noaa_data %>%
-    select(all_of(desired_columns)) %>%
+    dplyr::select(all_of(desired_columns)) %>%
     rename_columns(renamed_columns = renamed_columns)
   return(noaa_subset)
 }
@@ -546,13 +492,65 @@ write_weather_data <- function(noaa_joined, start_date, end_date, location) {
                                              as.Date(noaa_joined$date) <= as.Date(end_date), ]
   
   # Write the clipped data to the file
-  output_file <- file.path(dir_path, paste0("gridMET_", location, ".csv"))
+  output_file <- file.path(dir_path, paste0("noaa_", location, ".csv"))
   write.table(noaa_joined_clipped,
               file = output_file,
               col.names = FALSE,
               row.names = FALSE)
   
 }
+
+
+# variable setup
+ghcnd <- 'USC00456789'
+date_min <- '1959-10-01'
+date_max <- '1979-10-01'
+latitude <- 46.7312700
+sunshine_path <- "./raw_data/weather/sunshine_min_wallaWalla.csv"
+wind_path <- "./raw_data/weather/Estimated Pullman Historic Wind Speed.csv"
+start_date <- "1965-10-01"
+end_date <- "1968-10-01"
+  
+# setting up dictionaries for crop curves
+water_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
+water_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.6525, 'Kc_mid'=0.6525, 'Kc_end'=0.6525, 'Kc_post_harv'=0.30)
+
+urban_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
+urban_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.30, 'Kc_end'=0.30, 'Kc_post_harv'=0.30)
+
+# using FAO conifer values for now meaning it's static but that can change
+forest_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
+forest_Kc <- list('Kc_preplant'=1, 'Kc_init'=1, 'Kc_mid'=1, 'Kc_end'=1, 'Kc_post_harv'=1)
+
+# using deciduous orchard
+shrub_time <- list('preplant_len'=60, 'init_len'=20, 'dev_len'=70, 'mid_len'=90, 'late_len'=30, 'post_len'=95)
+shrub_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.45, 'Kc_mid'=0.95, 'Kc_end'=0.70, 'Kc_post_harv'=0.30)
+
+#relied on frost dates from AgWeatherNet: Pullman station: frost on --> May 1st, frost off --> September 19th --> splitting resiudal (125) in half for now
+grass_time <- list('preplant_len'=113, 'init_len'=10, 'dev_len'=20, 'mid_len'=64, 'late_len'=62, 'post_len'=96)
+grass_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.75, 'Kc_end'=0.75, 'Kc_post_harv'=0.30)
+
+# using spring wheat values for now
+#row_crop_time <- list('preplant_len'=75, 'init_len'=20, 'dev_len'=25, 'mid_len'=60, 'late_len'=30, 'post_len'=155)
+row_crop_time <- list('preplant_len'=0, 'init_len'=160, 'dev_len'=75, 'mid_len'=75, 'late_len'=25, 'post_len'=30)
+row_crop_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.7, 'Kc_mid'=1.15, 'Kc_end'=0.35, 'Kc_post_harv'=0.30)
+
+# rh calculation variables
+land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
+land_cover_heights <- c(0.01, 4, 11, 0.3, 0.9, 0.9)
+land_cover_names <- c('snow')
+land_cover_heights <- c(0.001)
+
+# column names
+desired_columns <- c("date", "year", "month", "day", "doy", "tm.x", "tmin",
+                     "tavg", "tdew", "prcp","pet_hamon","Hour_1","Hour_6","Hour_12","Hour_18",
+                     "l_turb","cloud","Kc_water","Kc_urban","Kc_forest","Kc_shrub",
+                     "Kc_grass", "Kc_row_crop","rh_snow")
+
+smr_columns <- c("date", "year", "month", "day", "doy", "tmax", "tmin",
+                 "tavg", "tdew", "prcp","pet_grass","hour_1","hour_6","hour_12","hour_18",
+                 "l_turb","cloud","cc_water","cc_urban","cc_forest","cc_shrub",
+                 "cc_grass","cc_row_crop","rh_snow")
 
 
 # function calls
@@ -582,4 +580,22 @@ wx <- pull_noaa(site_id = ghcnd, date_min = date_min, date_max = date_max) %>%
                         von_karman = 0.41) %>% 
   subset_order_columns(desired_columns = desired_columns,
                        renamed_columns = smr_columns)
+
+# write big historical
+write_weather_data(
+  noaa_joined = wx,
+  start_date = start_date,
+  end_date = end_date,
+  location = "pullman"
+)
   
+# write mini historical
+mini_start_date <- "1965-10-01"
+mini_end_date <- "1965-10-10"
+
+write_weather_data(
+  noaa_joined = wx,
+  start_date = mini_start_date,
+  end_date = mini_end_date,
+  location = "pullman_mini"
+)
