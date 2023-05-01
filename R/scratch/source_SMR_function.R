@@ -93,7 +93,7 @@ import_files_into_GRASS <-
     execGRASS("r.import", 
               input = file_dir, 
               output = gsub("\\.[^.]+$", "", file), 
-              flags="o")
+              flags=c("o", "overwrite"))
     
     print(paste0(file, " was imported"))
     
