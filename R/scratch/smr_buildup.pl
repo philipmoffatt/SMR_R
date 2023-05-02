@@ -94,10 +94,10 @@ close($WATERSHED) || die "Cannot close the watershed properties file";
 print `r.mapcalc 'max_canopy_storage_amt = if(landuse==6.0,0.147,if(landuse==5.0,0.15,if(landuse==4.0,0.15,if(landuse==3.0,0.31,if(landuse==2.0,0.1,if(landuse==1.0,0.0,0.0))))))' --o`;
 
 # values for our 6 land covers were mapped over from the existing forest, partial, clear, road classes --> #print `r.mapcalc 'canopy_cover = if(landuse==3.0,0.01,if(landuse==2.0,0.5,0.99))' --o`; # MZ 20200510 add canopy cover fraction for solar radiation calc
-print `r.mapcalc 'canopy_cover = if(landuse==6.0,0.50,if(landuse==5.0,0.60,if(landuse==4.0,0.60,if(landuse==3.0,0.80,if(landuse==2.0,0,if(landuse==1.0,0,0.0))))))' --o`; ## DJ 3/14/23 --> changed the canopy_cover values to match those in email from Philip
+print `r.mapcalc 'canopy_cover = if(landuse==6.0,0.1,if(landuse==5.0,0.2,if(landuse==4.0,0.60,if(landuse==3.0,0.80,if(landuse==2.0,0,if(landuse==1.0,0,0.0))))))' --o`; ## DJ 3/14/23 --> changed the canopy_cover values to match those in email from Philip
 
 #for now just mapped kfactor over from old landuse and assumed urban to be the same as clear cut (should probably be higher) --> #print `r.mapcalc 'kfactor = if(landuse==3.0,0.71,if(landuse==2.0,0.695,0.68))*$time_step/24.0' --o`;  #from output 68
-#print `r.mapcalc 'kfactor = if(landuse==6.0, 0.695,if(landuse==5.0, 0.71,if(landuse==4.0,0.695,if(landuse==3.0,0.68,if(landuse==2.0,0.71,if(landuse==1.0,0.0,0.0))))))*$time_step/24.0' --o`;  #from output 68
+#print `r.mapcalc 'kfactor = if(landuse==6.0, 0.695,if(landuse==5.0, 0.71,if(landuse==4.0,0.5,if(landuse==3.0,0.99,if(landuse==2.0,0.01,if(landuse==1.0,0.001,0.0))))))*$time_step/24.0' --o`;  #from output 68
 
 # just using a walkover from old land use for now but we can improve on this --> #print `r.mapcalc 'tbase = if(landuse==3.0,1.7,if(landuse==2.0,1.9,2.1))' --o`;
 #print `r.mapcalc 'tbase = if(landuse==6.0, 1.9,if(landuse==5.0, 1.7,if(landuse==4.0, 1.9,if(landuse==3.0, 2.1,if(landuse==2.0, 1.7,if(landuse==1.0, 1.7, 0.0))))))' --o`;
@@ -305,7 +305,7 @@ print `r.mapcalc 'psat_1988 = 0.0' --o`;
 #____________________________________________________________________________________
 print "\n|----- READING Weather -----|\n";
 #  This set of commands splits a tab delimited array using a while loop
-open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/raw_data/weather/noaa_pullman_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical.csv') || open ($WEATHER, '<', '/home/petbuser/Dropbox/SMR_R/processed_data/imitate_smr_setup/pullman_historical_mini.csv') || die "Can't open weather file\n";
+open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/raw_data/weather/noaa_pullman_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/noaa_pullman_mini.csv') || open ($WEATHER, '<', '/home/petbuser/Dropbox/SMR_R/processed_data/imitate_smr_setup/noaa_pullman_mini.csv') || die "Can't open weather file\n";
 #print "\n|----- line 280 -----|\n";
 
 while (<$WEATHER>) {
@@ -801,13 +801,13 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	# february --> this may need to be changed.
 	if ($doy == 62) {
 		print `r.mapcalc 'avg_feb_runoff_$year = runoff_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_feb_runoff_$year output=/raw_data/smr_output/maps/feb_avg_runoff_$year.tif --o`;
+		print `r.out.gdal input=avg_feb_runoff_$year output=/Users/$user/Dropbox/SMR_R/raw_data/smr_output/maps/feb_avg_runoff_$year.tif --o`;
 		
 		print `r.mapcalc 'avg_A_amt_feb_$year = A_amt_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_A_amt_feb_$year output=/raw_data/smr_output/maps/avg_A_amt_feb_$year.tif --o`;
+		print `r.out.gdal input=avg_A_amt_feb_$year output=/Users/$user/Dropbox/SMR_R/raw_data/smr_output/maps/avg_A_amt_feb_$year.tif --o`;
 
 		print `r.mapcalc 'avg_B_amt_feb_$year = B_amt_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_B_amt_feb_$year output=/raw_data/smr_output/maps/avg_B_amt_feb_$year.tif --o`;
+		print `r.out.gdal input=avg_B_amt_feb_$year output=/Users/$user/Dropbox/SMR_R/raw_data/smr_output/maps/avg_B_amt_feb_$year.tif --o`;
 		}
 
   # maps of annual precipitation and pet to confirm distribution is correct
