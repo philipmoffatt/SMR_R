@@ -539,7 +539,7 @@ row_crop_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.7, 'Kc_mid'=1.15, 'Kc_end'=0
 land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
 land_cover_heights <- c(0.01, 4, 11, 0.3, 0.9, 0.9)
 land_cover_names <- c('snow')
-land_cover_heights <- c(0.001)
+land_cover_heights <- c(0.01)
 
 # column names
 desired_columns <- c("date", "year", "month", "day", "doy", "tm.x", "tmin",
