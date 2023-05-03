@@ -73,7 +73,7 @@ import_files_into_GRASS <-
     mapset <- readline(prompt = "Choose a mapset from the list of mapsets above: ")
     
   }
-  
+
   initGRASS(gisBase = grass_dir,
             gisDbase = grass_data_dir,
             location = location,
