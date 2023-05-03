@@ -478,11 +478,13 @@ watershed_unmasked <- raster("./processed_data/dem/MFC/dem_mfc_mask.tif")
 if(drop_pullman == TRUE) {
   watershed <- crop(watershed_unmasked, extent(mfc_no_pullman)) %>%
     mask(., mfc_no_pullman)
+  watershed <- crop(watershed_unmasked, extent(MFC)) %>%
+    mask(., MFC)
 } else {
   watershed <- watershed_unmasked
 }
 
-watershed[] <- ifelse(watershed[] < 1, 0, watershed[])
+watershed[watershed==0] <- NA
 mapview(watershed)
 
 raster::writeRaster(watershed, "./processed_data/imitate_smr_setup/watershed.tif", overwrite=T)
