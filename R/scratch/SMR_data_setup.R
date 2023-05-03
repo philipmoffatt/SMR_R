@@ -491,7 +491,7 @@ raster::writeRaster(watershed, "./processed_data/imitate_smr_setup/watershed.tif
 
 # set values for watershed properties
 wshed_id = 79
-area_cells = freq(mfc_mask, value = 1)
+area_cells = freq(watershed, value = 1)
 res_vol = 5
 res_coeff = 0.05
 
