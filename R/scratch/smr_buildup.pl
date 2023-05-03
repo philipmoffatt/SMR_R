@@ -3,7 +3,7 @@
 
 print `g.remove -f type=raster name=MASK`;
 print `g.region rast=watershed`;
-print `r.mapcalc 'watershed = if(watershed==1.0,1,1)' --o`;
+print `r.mapcalc 'watershed = if(watershed==1,1,0)' --o`;
 
 # setting user specific variable
 my $user = $ENV{'USER'};
@@ -305,7 +305,7 @@ print `r.mapcalc 'psat_1988 = 0.0' --o`;
 #____________________________________________________________________________________
 print "\n|----- READING Weather -----|\n";
 #  This set of commands splits a tab delimited array using a while loop
-open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/raw_data/weather/noaa_pullman_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/noaa_pullman_mini.csv') || open ($WEATHER, '<', '/home/petbuser/Dropbox/SMR_R/processed_data/imitate_smr_setup/noaa_pullman_mini.csv') || die "Can't open weather file\n";
+open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/raw_data/weather/noaa_pullman_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/noaa_pullman.csv') || open ($WEATHER, '<', '/home/petbuser/Dropbox/SMR_R/processed_data/imitate_smr_setup/noaa_pullman_mini.csv') || die "Can't open weather file\n";
 #print "\n|----- line 280 -----|\n";
 
 while (<$WEATHER>) {
@@ -596,7 +596,7 @@ print "\n \n";
 # assume once surface storage is exceeded all  reaches stream
 # print `echo "road_runoff=if(roads==1.0,max(0.0,snowmelt+throughfall-1.5)*5.0/$gridsize,0.0)" | r.mapcalc`;
 #print `r.mapcalc 'road_runoff = if(roads==1.0,max(0.0,snowmelt+throughfall-1.5)*5.0/$gridsize,0.0)' --o`;
-print `r.mapcalc 'road_runoff = 0.001'`; #if(landuse==2.0,max(0.0,snowmelt+throughfall-1.5)/$gridsize,0.0)' --o`; removed the x5 part of the road runoff (becuase grid size is already 30)
+print `r.mapcalc 'road_runoff = 0.001' --o`; #if(landuse==2.0,max(0.0,snowmelt+throughfall-1.5)/$gridsize,0.0)' --o`; removed the x5 part of the road runoff (becuase grid size is already 30)
 print `r.mapcalc 'water_input = snowmelt+throughfall' --o`;
 print `r.mapcalc 'snowmelt = if(water_input>0.0,snowmelt*(water_input-road_runoff)/water_input,snowmelt)' --o`;
 print `r.mapcalc 'throughfall = if(water_input>0.0,throughfall*(water_input-road_runoff)/water_input,throughfall)' --o`;
@@ -759,7 +759,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 
 	print `r.mapcalc 'runoff_flow = if(storage_amt>sat_amt,storage_amt-sat_amt,0.0)' --o`;
 
-	print `r.mapcalc 'storage_amt = if(strms_30m==1, sat_amt, storage_amt-runoff_flow)' --o`;
+	print `r.mapcalc 'storage_amt = storage_amt-runoff_flow' --o`; # needs stream effect
 	print `r.mapcalc 'runoff_daily_flow = runoff_daily_flow+runoff_flow' --o`;
 
 	print `r.mapcalc 'saturation = storage_amt/sat_amt*100' --o`; # DJ 04/12/23-- made it so saturation is always 100$ at stream cells 
@@ -1019,7 +1019,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 			$actual_ET_daily_{$wshed_id} = $actual_ET_daily_{$wshed_id}*1;
 
 		#  Create mass balance output file
-    open(OUT, ">>", "/Users/duncanjurayj/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || open(OUT, ">>", "/Users/philipmoffatt/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id_tst.csv") || open(OUT, ">>", "/home/petbuser/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || die("Cannot Open File");
+    open(OUT, ">>", "/Users/$user/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || open(OUT, ">>", "/Users/philipmoffatt/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id_tst.csv") || open(OUT, ">>", "/home/petbuser/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || die("Cannot Open File");
 		print OUT "$wshed_id $date $year $runoff_cm_{$wshed_id} $precip_cm_{$wshed_id} $rain_cm_{$wshed_id} $actualET_flow_cm_{$wshed_id} $canopy_evap_cm_{$wshed_id} $snowmelt_cm_{$wshed_id} $storage_amt_cm_{$wshed_id} $throughfall_cm_{$wshed_id} $canopy_storage_amt_cm_{$wshed_id} $perc_cm_{$wshed_id} $Q_{$wshed_id} $swe_cm_{$wshed_id} $condens_cm_{$wshed_id} $snow_cm_{$wshed_id} $base_flow_{$wshed_id} $srad_{$wshed_id} $latent_{$wshed_id} $sensible_{$wshed_id} $lw_{$wshed_id} $q_rain_ground_cm_{$wshed_id} $q_total_{$wshed_id} $ice_content_{$wshed_id} $liquid_water_{$wshed_id} $refreeze_{$wshed_id} $vap_d_air_{$wshed_id} $vap_d_snow_{$wshed_id} $u_surface_{$wshed_id} $actual_ET_daily_{$wshed_id}\n";
 		close(OUT); 
 
