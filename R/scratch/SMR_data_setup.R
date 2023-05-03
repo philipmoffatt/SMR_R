@@ -4,9 +4,13 @@ library(raster)
 library(FedData)
 library(sf)
 library(terra)
+library(whitebox)
 
 ## define MFC ----
 raw_path = "./raw_data"
+
+## boolean for whether to drop pullman
+drop_pullman = TRUE
 
 # grab dummy data with a covering extent: PRW raster. 
 PRW <- st_read(file.path(raw_path, "template", "huc12.shp"))
@@ -17,8 +21,24 @@ PRW <- st_read(file.path(raw_path, "template", "huc12.shp"))
 MFC <- PRW %>% filter(Id == "79")
 
 MFC_buf <- PRW %>% filter(Id == "79") %>% st_buffer(., 300)
-  #   mapview(MFC)
+mapview(MFC)
 
+mfc_no_pullman <- 
+  st_read(
+    file.path(
+      raw_path, 
+      "template", "mfc_no_pullman", "layers", "globalwatershed.shp")) %>%
+  st_buffer(., 300) %>%
+  st_transform(crs = st_crs(MFC_buf)) 
+mapview(MFC_buf) + mapview(mfc_no_pullman)
+
+mfc_no_pullman <- st_intersection(mfc_no_pullman, MFC_buf)
+
+#if(drop_pullman == TRUE) {
+#  MFC_buf <- st_intersection(MFC_buf, mfc_no_pullman)
+#} else {
+#  MFC_buf <- MFC_buf
+#}
 
 ### pulling data 
 NED <- FedData::get_ned(
@@ -44,6 +64,7 @@ NLCD <- FedData::get_nlcd(
   # extraction.dir = "./procesed_data/NLCD",
   label = "MFC", 
   force.redo = F)
+
 
 ### white box DEM processing -----------------
 ## https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html#Basins
@@ -97,8 +118,21 @@ plot(basins)
 # this needs to be genrallized. 
 mfc_mask = basins == 84
 mfc_mask[is.na(mfc_mask[])] = 0
-# plot(mfc_rast)
-raster::writeRaster(mfc_rast, paste0(dir_path,"/dem_mfc_mask.tif"))
+ #plot(mfc_mask)
+
+#if(drop_pullman == TRUE) {
+  # crop mfc_mask to extent of mfc_no_pullman
+#  mfc_mask <- crop(mfc_mask, extent(mfc_no_pullman)) %>%
+#    mask(., mfc_no_pullman_buffered)
+#} else {
+  # Leave mft_mask unchanged
+#  mft_mask <- mft_mask
+#}
+
+mapview(mfc_mask)
+
+
+raster::writeRaster(mfc_rast, paste0(dir_path,"/dem_mfc_mask.tif"), overwrite=T)
 
 
 wbt_d8_flow_accumulation(input = paste0(dir_path,"/dem_breached.tif"),
@@ -404,17 +438,17 @@ mfc_asc_files = list.files(path = "./processed_data/ASC/MFC/", full.names = T)
 tst <- rast(mfc_asc_files)
 iso_mask = mask(iso, mfc_mask, maskvalue = 1, inverse = T)
 
-for(k in unique(iso_mask)){
-    temp_path = mfc_path %>% gsub(., pattern = "MFC", replacement = paste0("sub_",k))
-    if(!dir.exists(temp_path)){dir.create(temp_path)}
+#for(k in unique(iso_mask)){
+#    temp_path = mfc_path %>% gsub(., pattern = "MFC", replacement = paste0("sub_",k))
+#    if(!dir.exists(temp_path)){dir.create(temp_path)}
 
-      temp <- tst %>% crop(., rast(iso_mask)) %>% 
-        mask(., rast(iso_mask)==k, maskvalue = 1, inverse = T) %>% trim
-
-      writeRaster(temp_mfc, filename = paste0(temp_path,"/",j,"_",i,".asc"),
-        overwrite=T)
-
-  }
+#      temp <- tst %>% crop(., rast(iso_mask)) %>% 
+#        mask(., rast(iso_mask)==k, maskvalue = 1, inverse = T) %>% trim
+#      print(temp_path)
+#      writeRaster(temp_mfc, filename = paste0(temp_path,"/",j,"_",i,".asc"),
+#        overwrite=T)
+  
+#  }
 
 # re imagine the building of iso build full set then load as a stack and mask all at once
 #
@@ -423,6 +457,9 @@ print("The asc file package complete")
 
 
 ### ----- Unit Conversions and Renaming for Perl Script ----- ###
+
+## all maps need to be cropped to mfc_no_pullman
+mapview(mfc_no_pullman)
 
 # setting up out path to folder for unit converted maps and watershed properties file
 imitate_smr_setup = file.path("./processed_data", "imitate_smr_setup")
@@ -436,11 +473,25 @@ if(!dir.exists(imitate_smr_setup)) {
 file.copy(from = "./processed_data/dem/MFC/dem_mfc_mask.tif",
           to = "./processed_data/imitate_smr_setup/watershed.tif")
 
+watershed_unmasked <- raster("./processed_data/dem/MFC/dem_mfc_mask.tif")
+
+if(drop_pullman == TRUE) {
+  watershed <- crop(watershed_unmasked, extent(mfc_no_pullman)) %>%
+    mask(., mfc_no_pullman)
+} else {
+  watershed <- watershed_unmasked
+}
+
+watershed[] <- ifelse(watershed[] < 1, 0, watershed[])
+mapview(watershed)
+
+raster::writeRaster(watershed, "./processed_data/imitate_smr_setup/watershed.tif", overwrite=T)
+
 # set values for watershed properties
 wshed_id = 79
 area_cells = freq(mfc_mask, value = 1)
 res_vol = 5
-res_coeff = 0.01
+res_coeff = 0.05
 
 # build frame from values
 wshed_frame = data.frame(wshed_id, area_cells, res_vol, res_coeff)
@@ -449,19 +500,61 @@ wshed_frame = data.frame(wshed_id, area_cells, res_vol, res_coeff)
 write.table(wshed_frame, sep = " ", row.names = F, col.names = F, file = paste0(imitate_smr_setup, "/wshed_res_properties.ini"))
 
 # rename and write out the temp_mfc raster as 'landuse'
-writeRaster(temp_mfc, './processed_data/imitate_smr_setup/landuse.asc', datatype = "INT4S", overwrite = TRUE)
+if(drop_pullman == TRUE) {
+  temp_mfc <- crop(temp_mfc, extent(mfc_no_pullman)) %>%
+    mask(., mfc_no_pullman)
+} else {
+  temp_mfc <- temp_mfc
+}
+
+writeRaster(temp_mfc, './processed_data/imitate_smr_setup/landuse.asc', datatype = "INT4S", overwrite = T, )
 
 # copying over and renaming rasters so they fit into SMR perl
-copy_from = c("/dem_breached.asc", "/dem_streams.asc", "/dem_mfc_mask.asc")
-copy_to = c("/el.asc", "/strms_30m.asc", "/watershed.asc")
+copy_from = c("/dem_breached.tif", "/dem_streams.tif")
+copy_to = c("/el.asc", "/strms_30m.asc")
+
+dem_path <- "./processed_data/dem/MFC"
 
 # rasters that just need a name change
 for (x in 1:length(copy_from)) {
-  if (!file.exists(paste0(imitate_smr_setup, copy_to[x]))) {
-    converted <- raster(paste0(copy_from_path, copy_from[x]))
-    file.copy(paste0(copy_from_path, copy_from[x]), paste0(imitate_smr_setup, copy_to[x]))
-  }
+    path_to_file <- paste0(dem_path, copy_from[x])
+   
+    #print(paste0("raster copied from: ", path_to_file))
+    #print(copy_from[x])
+    converted <- raster(path_to_file)
+    
+    if(drop_pullman == TRUE) {
+      converted <- crop(converted, mfc_no_pullman) %>%
+        mask(., mfc_no_pullman)
+      converted <- crop(converted, MFC) %>%
+        mask(., MFC)
+    } else {
+      converted <- converted
+    }
+    
+    plot(converted, main=copy_from[x])
+    
+    copy_to_path <- paste0(imitate_smr_setup, copy_to[x])
+    print(copy_to_path)
+    
+    #file.copy(paste0(copy_from_path, copy_from[x]), paste0(imitate_smr_setup, copy_to[x]))
+    print(paste0('writing raster: ', copy_to[x]))
+    writeRaster(converted, filename = copy_to_path, overwrite = T)
+  #}
 }
+
+# stream fix
+streams <- raster(path_to_file) 
+streams[is.na(streams)] <- 0
+
+crs(streams) <- crs(mfc_no_pullman)
+
+streams <- crop(streams, extent(mfc_no_pullman)) %>% 
+  mask(., mfc_no_pullman)
+streams <- crop(streams, extent(MFC)) %>% 
+  mask(., MFC)
+
+writeRaster(streams, copy_to_path, overwrite=T)
 
 # converting from % to moisture content (/100)
 percentages = c("/wfifteenbar.r_A.asc", "/wfifteenbar.r_B.asc",
@@ -475,10 +568,20 @@ moisture_contents = c("/wiltpt_mc_A.asc", "/wiltpt_mc_B.asc",
                         )
 
 for (x in 1:length(percentages)) {
-  if (!file.exists(paste0(imitate_smr_setup, moisture_contents[x]))) {
+  #if (!file.exists(paste0(imitate_smr_setup, moisture_contents[x]))) {
     converted <- raster(paste0(copy_from_path, percentages[x])) / 100
-    raster::writeRaster(converted, paste0(imitate_smr_setup, moisture_contents[x]))
-  }
+
+    if(drop_pullman == TRUE) {
+      converted <- crop(converted, extent(mfc_no_pullman)) %>%
+        mask(., mfc_no_pullman)
+    } else {
+      converted <- converted
+    }
+    plot(converted)
+    
+    print(paste0('writing raster: ', moisture_contents[x]))
+    raster::writeRaster(converted, paste0(imitate_smr_setup, moisture_contents[x]), overwrite = T)
+  #}
 }
 
 # converting from um/second to cm/day (*8.64)
@@ -486,40 +589,98 @@ um_per_second = c("/ksat.r_A.asc", "/ksat.r_B.asc")
 cm_per_day = c("/Ksat_matrix_A.asc", "/Ksat_matrix_B.asc")
 
 for (x in 1:length(um_per_second)) {
-  if (!file.exists(paste0(imitate_smr_setup, cm_per_day[x]))) {
+  #if (!file.exists(paste0(imitate_smr_setup, cm_per_day[x]))) {
     converted <- raster(paste0(copy_from_path, um_per_second[x])) * 8.64
-    raster::writeRaster(converted, paste0(imitate_smr_setup, cm_per_day[x]))
-  }
+    
+    if(drop_pullman == TRUE) {
+      converted <- crop(converted, extent(mfc_no_pullman)) %>%
+        mask(., mfc_no_pullman)
+    } else {
+      converted <- converted
+    }
+    plot(converted)
+    
+    print(paste0('writing raster: ', cm_per_day[x]))
+    
+    raster::writeRaster(converted, paste0(imitate_smr_setup, cm_per_day[x]), overwrite = T)
+ # }
 }
 
 # calculate soil depths based based on stream cells
 initial_depth_names = c("/depth_A.asc", "/depth_B.asc")
 output_depth_names = c("/soil_depth_A.asc", "/soil_depth_B.asc")
+
 soil_depth_fun <- function(x, y) {
   z <- ifelse(x>0, 1, y) 
   return(z)
   }
 
 for (x in 1:length(initial_depth_names)) {
-  if (!file.exists(paste0(imitate_smr_setup, output_depth_names[x]))) {
+  #if (!file.exists(paste0(imitate_smr_setup, output_depth_names[x]))) {
+    
+    horizon <- ifelse(grepl("A", initial_depth_names[x]), "A", ifelse(grepl("B", initial_depth_names[x]), "B", NA))
+    print(horizon)
+    landuse <- raster(file.path(imitate_smr_setup, "landuse.asc"))
+    plot(landuse)
     
     depth_rast <- raster(paste0(copy_from_path, initial_depth_names[x]))
+    plot(depth_rast)
     streams <- raster(paste0(imitate_smr_setup, "/strms_30m.asc"))
     
-    depth_rast[is.na(depth_rast)] <- 0  # Set NA values to 0
-    streams[is.na(streams)] <- 0  # Set NA values to 0
-    soil_depth <- overlay(streams, depth_rast, fun=soil_depth_fun)
-    soil_depth[soil_depth == 0] <- NA
+    #depth_rast[is.na(depth_rast)] <- 0  # Set NA values to 0
+    #streams[!is.na(mfc_mask)] <- 0  # Set NA values to 0
     
-    raster::writeRaster(streams, file.path(imitate_smr_setup, "strms_30m.asc"), overwrite=TRUE)
-    raster::writeRaster(soil_depth, paste0(imitate_smr_setup, output_depth_names[x]), overwrite=TRUE)
-  }
+    #soil_depth <- overlay(streams, depth_rast, fun=soil_depth_fun)
+    #soil_depth[soil_depth == 0] <- NA
+
+    if(drop_pullman == TRUE) {
+      depth_rast <- crop(depth_rast, extent(mfc_no_pullman)) %>%
+        mask(., mfc_no_pullman)
+      streams <- crop(streams, extent(mfc_no_pullman)) %>%
+        mask(., mfc_no_pullman)
+    }
+    
+    plot(streams)
+    
+    if (horizon=="A") {
+      depth_rast[streams>0] <- 1
+      depth_rast[landuse==2] <- 2
+      plot(depth_rast)
+    } else if (horizon=="B") {
+      depth_rast[streams>0] <- 19
+      depth_rast[landuse==2] <- 20
+      plot(depth_rast)
+    } else {
+      depth_rast = depth_rast
+    }
+    
+
+    print(paste0("writing out streams raster with drop_pullman being: ", drop_pullman))
+    raster::writeRaster(streams, file.path(imitate_smr_setup, "strms_30m.asc"), overwrite=T)
+    
+    print(paste0("writing out renamed raster: ", output_depth_names[x]))
+    raster::writeRaster(depth_rast, paste0(imitate_smr_setup, output_depth_names[x]), overwrite=T)
+  #}
 }
 
 # fixing stream values
 streams <- raster(paste0(imitate_smr_setup, "/strms_30m.asc"))
-streams[is.na(streams) & mfc_mask == 1] <- 0
-writeRaster(streams, file.path(imitate_smr_setup, "strms_30m.asc"), overwrite=TRUE)
+#streams[is.na(streams)] <- 0
+
+#mfc_no_pullman <- crop(mfc_mask, mfc_no_pullman) --> don't think i need/want this
+#mfc_no_pullman[mfc_no_pullman == 0] <- NA
+
+if(drop_pullman == TRUE) {
+  streams <- crop(streams, extent(mfc_no_pullman)) %>%
+    mask(., mfc_no_pullman)
+  #streams[is.na(mfc_no_pullman)] <- NA
+  converted <- streams
+} else {
+  streams <- streams
+}
+
+mapview(streams)
+writeRaster(streams, file.path(imitate_smr_setup, "strms_30m.asc"), overwrite=T)
 
 # combined soil depth (A+B)
 combined_depth <- raster(paste0(imitate_smr_setup, "/soil_depth_A.asc")) + 
@@ -527,7 +688,8 @@ combined_depth <- raster(paste0(imitate_smr_setup, "/soil_depth_A.asc")) +
 
 raster::writeRaster(
   combined_depth,
-  paste0(imitate_smr_setup, "/soil_depth.asc")
+  paste0(imitate_smr_setup, "/soil_depth.asc"),
+  overwrite = T
   )
 
 # calculate the combined saturation amount
@@ -538,7 +700,8 @@ sat_amt <- raster(paste0(imitate_smr_setup, "/sat_mc_A.asc")) *
 
 raster::writeRaster(
   sat_amt,
-  paste0(imitate_smr_setup, "/sat_amt.asc")
+  paste0(imitate_smr_setup, "/sat_amt.asc"),
+  overwrite = T
   )
 
 # calculate the combined wilting point amount
@@ -550,7 +713,8 @@ wiltpt_amt <-
 
 raster::writeRaster(
   wiltpt_amt,
-  paste0(imitate_smr_setup, "/wiltpt_amt.asc")
+  paste0(imitate_smr_setup, "/wiltpt_amt.asc"),
+  overwrite = T
 )
 
 # setting residual floats for calculating fieldcap_amts
@@ -571,15 +735,15 @@ fieldcap_amt_B <-
 
 fieldcap_amt <- fieldcap_amt_A + fieldcap_amt_B
 
-raster::writeRaster(fieldcap_amt_A, paste0(imitate_smr_setup, "/fieldcap_amt_A.asc"))
-raster::writeRaster(fieldcap_amt_B, paste0(imitate_smr_setup, "/fieldcap_amt_B.asc"))
-raster::writeRaster(fieldcap_amt, paste0(imitate_smr_setup, "/fieldcap_amt.asc"))
+raster::writeRaster(fieldcap_amt_A, paste0(imitate_smr_setup, "/fieldcap_amt_A.asc"), overwrite = T)
+raster::writeRaster(fieldcap_amt_B, paste0(imitate_smr_setup, "/fieldcap_amt_B.asc"), overwrite = T)
+raster::writeRaster(fieldcap_amt, paste0(imitate_smr_setup, "/fieldcap_amt.asc"), overwrite = T)
 
 # make Ksubsurface from Ksat_matrix_A
 Ksubsurface <- 
   raster(paste0(imitate_smr_setup, "/Ksat_matrix_A.asc")) / 500
 
-raster::writeRaster(Ksubsurface, paste0(imitate_smr_setup, "/Ksubsurface.asc"))
+raster::writeRaster(Ksubsurface, paste0(imitate_smr_setup, "/Ksubsurface.asc"), overwrite = T)
 
 # make ETreduction from fieldcap_amt and total soil_depth
 ETreduction_mc <-
@@ -587,19 +751,19 @@ ETreduction_mc <-
   0.8 /
   raster(paste0(imitate_smr_setup, "/soil_depth.asc"))
 
-raster::writeRaster(ETreduction_mc, paste0(imitate_smr_setup, "/ETreduction_mc.asc"))
+raster::writeRaster(ETreduction_mc, paste0(imitate_smr_setup, "/ETreduction_mc.asc"), overwrite = T)
 
 # make Ksat_mpores from Ksat_matrices
-Ksat_mpore_A = 
+Ksat_mpore_A <- 
   raster(paste0(imitate_smr_setup, "/Ksat_matrix_A.asc")) *
   10
 
-Ksat_mpore_B = 
+Ksat_mpore_B <- 
   raster(paste0(imitate_smr_setup, "/Ksat_matrix_B.asc")) /
   2
 
-raster::writeRaster(Ksat_mpore_A, paste0(imitate_smr_setup, "/Ksat_mpore_A.asc"))
-raster::writeRaster(Ksat_mpore_B, paste0(imitate_smr_setup, "/Ksat_mpore_B.asc"))
+raster::writeRaster(Ksat_mpore_A, paste0(imitate_smr_setup, "/Ksat_mpore_A.asc"), overwrite = T)
+raster::writeRaster(Ksat_mpore_B, paste0(imitate_smr_setup, "/Ksat_mpore_B.asc"), overwrite = T)
 
 # make Kfc_A and Kfc_B with: Ksat_matrix_A/B, sat_mc_A/B, fieldcap_amt_A/B,
 # and soil_depth_A/B --> using Bresler's formula
@@ -620,8 +784,8 @@ Kfc_B <-
          fieldcap_amt_B/raster(paste0(imitate_smr_setup, "/soil_depth_B.asc")))
   )
 
-raster::writeRaster(Kfc_A, paste0(imitate_smr_setup, "/Kfc_A.asc"))
-raster::writeRaster(Kfc_B, paste0(imitate_smr_setup, "/Kfc_B.asc"))
+raster::writeRaster(Kfc_A, paste0(imitate_smr_setup, "/Kfc_A.asc"), overwrite = T)
+raster::writeRaster(Kfc_B, paste0(imitate_smr_setup, "/Kfc_B.asc"), overwrite = T)
 
 
 # FLOW DIRECTION PROGRAM
@@ -629,7 +793,15 @@ raster::writeRaster(Kfc_B, paste0(imitate_smr_setup, "/Kfc_B.asc"))
 #    cell.  An elevation difference of one unit for a diagonal cell would
 #    be 1/(square root of 2)=0.707  flow units.
 
-el <- rast("/Users/duncanjurayj/Documents/SMR_R/processed_data/imitate_smr_setup/el.asc")
+el <- rast("./processed_data/imitate_smr_setup/el.asc")
+
+if(drop_pullman == TRUE) {
+  el <- raster(el)
+  el <- crop(el, extent(mfc_no_pullman)) %>%
+    mask(., mfc_no_pullman)
+  el <- rast(el)
+}
+
 #el <- rast(el)
 
 # Calculate the differences with the 8-neighbors cells 
@@ -671,6 +843,7 @@ flowunits <- sum(slope_delta)
 percent_flow = slope_delta/flowunits
 names(percent_flow) <- c("north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest")
 
+
 plot(percent_flow)
 
 raster::writeRaster(flowunits, paste0(imitate_smr_setup, "/flowunits.asc"), overwrite=T)
@@ -678,7 +851,13 @@ raster::writeRaster(flowunits, paste0(imitate_smr_setup, "/flowunits.asc"), over
 for (direction in names(percent_flow)) {
   file_name <- paste0(imitate_smr_setup, "/", direction, ".asc")
   
-  raster::writeRaster(percent_flow[[direction]], file_name, overwrite = TRUE)
+  raster::writeRaster(percent_flow[[direction]], file_name, overwrite = T)
 }
+
+
+
+
+
+
 
 
