@@ -55,9 +55,9 @@ convert_units <- function(noaa_data) {
            tmin = tmin / 10,
            tmax = tmax / 10,
            tobs = tobs / 10,
-           tavg = (tmax + tmin) / 2)
+           tavg = (tmax + tmin) / 2,
+           prcp = prcp / 100)
   
-  noaa_data$prcp <- noaa_data$prcp / 10
   return(noaa_data)
 }
 
@@ -151,7 +151,7 @@ daily_avg_temps <- function(noaa_data) {
   return(daily_avg_temps)
 }
 
-# to apply satuartion vapor pressure function 
+# to apply saturation vapor pressure function 
 # entire column with specific parameters
 apply_svp <- function(x) {
   return(SVP(x, isK = FALSE, formula = "Murray"))
@@ -199,7 +199,7 @@ join_noaa_sunshine <- function(noaa_data, sunshine) {
   return(joined_data)
 }
 
-# eqution for hamon pet which can produce pet in cm or mm
+# equation for hamon pet which can produce pet in cm or mm
 hamon_pet_equation <- function(proportionality_coefficient=1, day_length, sat_vapor_pressure, tavg, units='cm') {
   pet_hamon <- ((proportionality_coefficient * 0.165 * 216.7) * (day_length / 12)) *
     (sat_vapor_pressure / (tavg + 273.3))
@@ -548,7 +548,7 @@ desired_columns <- c("date", "year", "month", "day", "doy", "tm.x", "tmin",
                      "Kc_grass", "Kc_row_crop","rh_snow")
 
 smr_columns <- c("date", "year", "month", "day", "doy", "tmax", "tmin",
-                 "tavg", "tdew", "prcp","pet_grass","hour_1","hour_6","hour_12","hour_18",
+                 "tavg", "tdew", "precip","pet","hour_1","hour_6","hour_12","hour_18",
                  "l_turb","cloud","cc_water","cc_urban","cc_forest","cc_shrub",
                  "cc_grass","cc_row_crop","rh_snow")
 
@@ -580,6 +580,19 @@ wx <- pull_noaa(site_id = ghcnd, date_min = date_min, date_max = date_max) %>%
                         von_karman = 0.41) %>% 
   subset_order_columns(desired_columns = desired_columns,
                        renamed_columns = smr_columns)
+
+## ugly calibration fix -- will work on it tomorrow
+wx$pet <- wx$pet * 1.69
+d <- wx
+
+
+d %>% 
+  group_by(year) %>%
+  summarise(sum_pet = sum(pet), tot_p = sum(precip)) %>%
+  ggplot()+
+  geom_point(aes(year,sum_pet))+
+  geom_line(aes(year,tot_p))
+
 
 # write big historical
 write_weather_data(
