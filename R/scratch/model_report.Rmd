@@ -14,8 +14,6 @@ perl_script_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/R/scratch/smr_build
 validation_data_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/raw_data/validation_data/USGSdischarge.csv")
 modeled_data_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_79.csv")
 map_output_path <<- paste0("/Users/", user, "/Dropbox/SMR_R/raw_data/smr_output/maps")
-
-
 ```
 
 ```{r, function sourcing, echo = FALSE}
