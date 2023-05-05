@@ -305,7 +305,7 @@ print `r.mapcalc 'psat_1988 = 0.0' --o`;
 #____________________________________________________________________________________
 print "\n|----- READING Weather -----|\n";
 #  This set of commands splits a tab delimited array using a while loop
-open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/raw_data/weather/noaa_pullman_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/noaa_pullman.csv') || open ($WEATHER, '<', '/home/petbuser/Dropbox/SMR_R/processed_data/imitate_smr_setup/noaa_pullman_mini.csv') || die "Can't open weather file\n";
+open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/raw_data/weather/noaa_pullman_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/noaa_pullman.csv') || open ($WEATHER, '<', '/home/petbuser/Dropbox/SMR_R/raw_data/weather/noaa_pullman.csv') || die "Can't open weather file\n";
 #print "\n|----- line 280 -----|\n";
 
 while (<$WEATHER>) {
@@ -328,12 +328,12 @@ while (<$WEATHER>) {
 	print `r.mapcalc 'kfactor = if(landuse==6.0,0.0,if(landuse==5.0,0.0,if(landuse==4.0,0.0,if(landuse==3.0,0.71,if(landuse==2.0,0.695,if(landuse==1.0,0.68,0.0))))))' --o`;
 
 	#print `r.mapcalc 'tbase = if(landuse==3.0,1.7,if(landuse==2.0,1.9,2.1))' --o`; # Degree-day
-	print `r.mapcalc 'tbase = if(landuse==6.0,0.0,if(landuse==5.0,0.0,if(landuse==4.0,0.0,if(landuse==3.0,1.7,if(landuse==2.0,1.9,if(landuse==1.0,2.1,0.0))))))' --o`;
+	print `r.mapcalc 'tbase = if(landuse==6.0,0.1,if(landuse==5.0,0.2,if(landuse==4.0,0.5,if(landuse==3.0,0.99,if(landuse==2.0,0.01,if(landuse==1.0,0.001,0.0))))))' --o`;
 
   print `r.mapcalc 'max_canopy_storage_amt = if(landuse==6.0,0.147,if(landuse==5.0,0.15,if(landuse==4.0,0.15,if(landuse==3.0,0.31,if(landuse==2.0,0.1,if(landuse==1.0,0.0,0.0))))))' --o`;
 	
 	# this is redundant because it's the same as above but i'm not sure why it's here
-print `r.mapcalc 'canopy_cover = if(landuse==6.0,0.1,if(landuse==5.0,0.2,if(landuse==4.0,0.50,if(landuse==3.0,0.99,if(landuse==2.0,0.01,if(landuse==1.0,0.001,0.001))))))' --o`; ## DJ 3/14/23 --> changed the canopy_cover values to match those in email from Philip
+  print `r.mapcalc 'canopy_cover = if(landuse==6.0,0.1,if(landuse==5.0,0.2,if(landuse==4.0,0.50,if(landuse==3.0,0.99,if(landuse==2.0,0.01,if(landuse==1.0,0.001,0.001))))))' --o`; ## DJ 3/14/23 --> changed the canopy_cover values to match those in email from Philip
 
 	# this is redundant because it's the same as above but i'm not sure why it's here
 	print `r.mapcalc 'root_zone = if(landuse==6.0,soil_depth,if(landuse==5.0,soil_depth_A,if(landuse==4.0,soil_depth,if(landuse==3.0,soil_depth,if(landuse==2.0,1.0,if(landuse==1.0,1.0,1.0))))))' --o`; # DJ 04/12/23 --> changed root_zone == 0 to root_zone == 1
@@ -1019,7 +1019,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 			$actual_ET_daily_{$wshed_id} = $actual_ET_daily_{$wshed_id}*1;
 
 		#  Create mass balance output file
-    open(OUT, ">>", "/Users/$user/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || open(OUT, ">>", "/Users/philipmoffatt/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id_tst.csv") || open(OUT, ">>", "/home/petbuser/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || die("Cannot Open File");
+    open(OUT, ">>", "/Users/$user/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || open(OUT, ">>", "/Users/philipmoffatt/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id_tst.csv") || open(OUT, ">>", "/home/petbuser/Dropbox/SMR_R/raw_data/smr_output/linux_MFC_mass_balance_$wshed_id.csv") || die("Cannot Open File");
 		print OUT "$wshed_id $date $year $runoff_cm_{$wshed_id} $precip_cm_{$wshed_id} $rain_cm_{$wshed_id} $actualET_flow_cm_{$wshed_id} $canopy_evap_cm_{$wshed_id} $snowmelt_cm_{$wshed_id} $storage_amt_cm_{$wshed_id} $throughfall_cm_{$wshed_id} $canopy_storage_amt_cm_{$wshed_id} $perc_cm_{$wshed_id} $Q_{$wshed_id} $swe_cm_{$wshed_id} $condens_cm_{$wshed_id} $snow_cm_{$wshed_id} $base_flow_{$wshed_id} $srad_{$wshed_id} $latent_{$wshed_id} $sensible_{$wshed_id} $lw_{$wshed_id} $q_rain_ground_cm_{$wshed_id} $q_total_{$wshed_id} $ice_content_{$wshed_id} $liquid_water_{$wshed_id} $refreeze_{$wshed_id} $vap_d_air_{$wshed_id} $vap_d_snow_{$wshed_id} $u_surface_{$wshed_id} $actual_ET_daily_{$wshed_id}\n";
 		close(OUT); 
 
