@@ -47,6 +47,8 @@ version_tracker <- function(modeled_path, simulation_note = "") {
   }
   
   map_path <- file.path(out_path, "maps") 
+  #map_path <- file.path(out_path, paste0("maps_", Sys.info()[["user"]])) # trying to make things user dependent so multiple runs can happen at once
+  print(paste0("new user dependent map path name: ", map_path))
   
   if(!dir.exists(map_path)) {
     dir.create(map_path)
@@ -301,6 +303,7 @@ radiation_ts <- function(combined_data, log_transform = FALSE) {
     guides(color=guide_legend(title='Precip Type'))
   
 }
+
 # annual mass balance function
 mass_balance <- function(combined_data, log_transform = FALSE) {
   
@@ -378,6 +381,7 @@ q.latent_debug <- function(combined_data, log_transform = FALSE) {
   
 }
 
+
 visualize_map_outputs <- function(map, title) {
 
   par(mar=c(1.8, 1.8, 1.8, 1.8))
@@ -389,40 +393,42 @@ visualize_map_outputs <- function(map, title) {
   
 }
 
-get_map_outputs <- function(raw_map_dir, version_tracked_map_dir) {
+
+#get_map_outputs <- function(raw_map_dir, version_tracked_map_dir) {
   
-  print(paste0("version tracked map path: ", version_tracked_map_dir))
+  #print(paste0("version tracked map path: ", version_tracked_map_dir))
   
-  tif_files <- list.files(path = raw_map_dir, pattern = "\\.tif$", full.names = TRUE)
+  #tif_files <- list.files(path = raw_map_dir, pattern = "\\.tif$", full.names = TRUE)
   
-  if (length(tif_files) == 0) {
-    cat("no .tif files found in raw_map_dir.\n")
-    return()
-  }
+  #if (length(tif_files) == 0) {
+  #  cat("no .tif files found in raw_map_dir.\n")
+  #  return()
+  #}
   
-  for (tif_file in tif_files) {
-    success <- file.copy(from = tif_file, to = file.path(version_tracked_map_dir, basename(tif_file)))
-    if (!success) {
-      cat("failed to copy", tif_file, "to", version_tracked_map_dir, "\n")
-    }
-  }
+  #for (tif_file in tif_files) {
+  #  success <- file.copy(from = tif_file, to = file.path(version_tracked_map_dir, basename(tif_file)))
+  #  if (!success) {
+  #    cat("failed to copy", tif_file, "to", version_tracked_map_dir, "\n")
+  #  }
+  #}
   
-  file.remove(tif_files)
+  #file.remove(tif_files)
   
-  list_of_files <- list.files(version_tracked_map_dir, pattern=".*\\.tif$", full.names=TRUE)
-  print(list_of_files)
+  #list_of_files <- list.files(version_tracked_map_dir, pattern=".*\\.tif$", full.names=TRUE)
+  #print(list_of_files)
   
-  for (file in list_of_files) {
-    var_name <- sub("\\.tif$", "", basename(file))
-    
-    title <- paste0(var_name, " (cm)")
+  #for (file in list_of_files) {
+  #  var_name <- sub("\\.tif$", "", basename(file))
+  #  
+  #  title <- paste0(var_name, " (cm)")
     
     #assign(var_name, raster::raster(file))
     #map <- get(var_name)
-    visualize_map_outputs(raster::raster(file), title)
+  #  visualize_map_outputs(raster::raster(file), title)
     
-  }
-}
+  #}
+#}
+
 
 get_map_outputs <- function(raw_map_dir, version_tracked_map_dir) {
   
@@ -444,6 +450,10 @@ get_map_outputs <- function(raw_map_dir, version_tracked_map_dir) {
       assign(var_name, raster::raster(file.path(version_tracked_map_dir, basename(tif_file))))
     }
   }
+  
+  #generic_version_tracked_map_dir <- gsub("/maps_duncanjurayj$", "/maps", version_tracked_map_dir)
+  
+  #file.rename(version_tracked_map_dir, generic_version_tracked_map_dir)
   
   for (var_name in ls()) {
     if (class(get(var_name)) == "RasterLayer") {
