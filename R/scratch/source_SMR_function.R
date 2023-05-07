@@ -1,10 +1,33 @@
 library(rgrass)
 
+get_grassdata_dir <- function() {
+  os <- Sys.info()["sysname"]
+  grass_data_glob <- "grassdata"
+  
+  if (os == "Linux") {
+    grass_data_dir <- Sys.glob(file.path("/home", "*", grass_data_glob))
+  } else if (os == "Darwin") {
+    grass_data_dir <- Sys.glob(file.path("/Users", "*", grass_data_glob))
+  } else if (os == "Windows") {
+    grass_data_dir <- Sys.glob(file.path("C:", "Users", "*", grass_data_glob))
+  }
+  
+  return(grass_data_dir)
+}
+
 run_SMR <- 
-  function(location = NULL, mapset = NULL) {
+  function(location = NULL, mapset = NULL, perl_script, 
+           map_output_dir = NULL) {
+    
+    if (!is.null(map_output_dir)) {
+      if (!file.exists(map_output_dir)) {
+        dir.create(map_output_dir, recursive = TRUE)
+      }
+    }
     
   grass_dir <- Sys.glob("/Applications/*GRASS*/Contents/Resources") 
-  grass_data_dir <- Sys.glob("/Users/*/grassdata")
+  #grass_data_dir <- Sys.glob("/Users/*/grassdata")
+  grass_data_dir <- get_grassdata_dir() # testing operating system flexible grass data directory
   
   if (is.null(location) || is.null(mapset)) {
     locations <- dir(grass_data_dir)
@@ -25,6 +48,9 @@ run_SMR <-
     # prompt user for a mapset name
     mapset <- readline(prompt = "Choose a mapset from the list of mapsets above: ")
     
+    perl_script <- readline(prompt = "Write the name of the perl script you want to run: ")
+
+    
   }
   
   initGRASS(gisBase = grass_dir,
@@ -44,7 +70,10 @@ run_SMR <-
   
   setwd(current_dir)
   
-  system("perl smr_buildup.pl")
+  #system("perl smr_buildup.pl") 
+  
+  system(paste0("perl ", perl_script))
+  
 }
 
 import_files_into_GRASS <- 
