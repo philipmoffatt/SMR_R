@@ -93,7 +93,6 @@ gridMET_difference_lapse <- function(low_df, high_df, low_elev, high_elev, varia
   return(lapse_rate)
 }
 
-grid_meta <- param_meta$gridmet
 met_pullman <- pull_gridMET('Pullman, WA')
 met_moscow <- pull_gridMET('Moscow, ID')
 
