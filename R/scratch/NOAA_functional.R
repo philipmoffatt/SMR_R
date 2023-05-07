@@ -496,7 +496,8 @@ write_weather_data <- function(noaa_joined, start_date, end_date, location) {
   write.table(noaa_joined_clipped,
               file = output_file,
               col.names = FALSE,
-              row.names = FALSE)
+              row.names = FALSE,
+              sep = " ")
   
 }
 
