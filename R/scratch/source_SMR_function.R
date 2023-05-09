@@ -9,7 +9,7 @@ get_grassdata_dir <- function() {
   } else if (os == "Darwin") {
     grass_data_dir <- Sys.glob(file.path("/Users", "*", grass_data_glob))
   } else if (os == "Windows") {
-    grass_data_dir <- Sys.glob(file.path("C:", "Users", "*", grass_data_glob))
+    grass_data_dir <- "C:/Users/philip.moffat/Documents/grassdata" # hard coded solution
   }
   
   return(grass_data_dir)
@@ -23,11 +23,12 @@ get_grass_app_path <- function() {
     grass_path <- Sys.glob("program files/*grass*/Contents/Resources") # file.path("program files", "grass 8.2", "Contents", "Resources")
   } else if (os == "Darwin") {
     grass_path <- Sys.glob("/Applications/*GRASS*/Contents/Resources") # using a * instead of applications might be better --> works the same
-  } 
+  } else if (os == "Windows") {
+    grass_path <- "C:/Program Files/GRASS GIS 8.2" # hard coded solution
+  }
   
   return(grass_path)
 }
-
 
 run_SMR <- 
   function(location = NULL, mapset = NULL, perl_script, 
@@ -142,5 +143,4 @@ import_files_into_GRASS <-
     
   }
 }
-
 
