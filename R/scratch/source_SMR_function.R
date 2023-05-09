@@ -5,7 +5,7 @@ get_grassdata_dir <- function() {
   grass_data_glob <- "grassdata"
   
   if (os == "Linux") {
-    grass_data_dir <- Sys.glob(file.path("/home", "*", grass_data_glob))
+    grass_data_dir <- Sys.glob(file.path("/home", "*", "Documents", grass_data_glob))
   } else if (os == "Darwin") {
     grass_data_dir <- Sys.glob(file.path("/Users", "*", grass_data_glob))
   } else if (os == "Windows") {
@@ -14,6 +14,20 @@ get_grassdata_dir <- function() {
   
   return(grass_data_dir)
 }
+
+get_grass_app_path <- function() {
+  os <- Sys.info()["sysname"]
+  
+  # currently only works with linux and mac
+  if (os == "Linux") {
+    grass_path <- Sys.glob("program files/*grass*/Contents/Resources") # file.path("program files", "grass 8.2", "Contents", "Resources")
+  } else if (os == "Darwin") {
+    grass_path <- Sys.glob("/Applications/*GRASS*/Contents/Resources") # using a * instead of applications might be better --> works the same
+  } 
+  
+  return(grass_path)
+}
+
 
 run_SMR <- 
   function(location = NULL, mapset = NULL, perl_script, 
@@ -25,7 +39,7 @@ run_SMR <-
       }
     }
     
-  grass_dir <- Sys.glob("/Applications/*GRASS*/Contents/Resources") 
+  grass_dir <- get_grass_app_path() # Sys.glob("/Applications/*GRASS*/Contents/Resources") 
   #grass_data_dir <- Sys.glob("/Users/*/grassdata")
   grass_data_dir <- get_grassdata_dir() # testing operating system flexible grass data directory
   
@@ -79,8 +93,8 @@ run_SMR <-
 import_files_into_GRASS <- 
   function(import_dir, location = NULL, mapset = NULL) {
   
-  grass_dir <- Sys.glob("/Applications/*GRASS*/Contents/Resources") 
-  grass_data_dir <- Sys.glob("/Users/*/grassdata") 
+  grass_dir <- get_grass_app_path()  # Sys.glob("/Applications/*GRASS*/Contents/Resources") 
+  grass_data_dir <- get_grassdata_dir() # Sys.glob("/Users/*/grassdata") 
   
   if (is.null(location) || is.null(mapset)) {
     locations <- dir(grass_data_dir)
