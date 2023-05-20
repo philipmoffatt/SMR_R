@@ -1,0 +1,512 @@
+)
+VaM_data <- preprocessing(
+"./raw_data/USGSdischarge.csv",
+"./raw_data/smr_output/mfc_mb_2023-03-29.csv",
+"1965-10-01",
+"1970-10-01",
+c('wshed_id', 'date', 'year', 'runoff_cm', 'precip_cm', 'rain_cm', 'actualET_flow_cm', 'canopy_evap_cm', 'snowmelt_cm', 'storage_amt_cm', 'throughfall_cm', 'canopy_storage_amt_cm', 'perc_cm', 'Q', 'swe_cm', 'condens_cm', 'snow_cm', 'baseflow', 'srad', 'latent', 'sensible', 'lw', 'q_rain_ground', 'q_total')
+)
+NSE_Q <- nse_Q(VaM_data)
+KGE_Q <- kge_Q(VaM_data)
+annual_mass_balance(VaM_data)
+flux_ts_loop(VaM_data, flux_vector)
+VaM_data <- preprocessing(
+"./raw_data/USGSdischarge.csv",
+"./raw_data/smr_output/mfc_mb_2023-03-31.csv",
+"1965-10-01",
+"1970-10-01",
+c('wshed_id', 'date', 'year', 'runoff_cm', 'precip_cm', 'rain_cm', 'actualET_flow_cm', 'canopy_evap_cm', 'snowmelt_cm', 'storage_amt_cm', 'throughfall_cm', 'canopy_storage_amt_cm', 'perc_cm', 'Q', 'swe_cm', 'condens_cm', 'snow_cm', 'baseflow', 'srad', 'latent', 'sensible', 'lw', 'q_rain_ground', 'q_total')
+)
+annual_fluxes(VaM_data, flux_vector)
+radiation_ts(VaM_data)
+Q_comparison(VaM_data)
+SAM_check(VaM_data)
+precip_plot <- ggplot(data=combined_data) +
+geom_line(aes(x=date, y=precip_cm, color='Precipitation')) +
+geom_line(aes(x=date, y=rain_cm, color='Rain')) +
+geom_line(aes(x=date, y=snow_cm, color='Snow')) +
+xlab('Date') +
+ylab('Precipitation, Rain, and Snow') +
+guides(color=guide_legend(title='Precip Type')) +
+scale_y_continuous(trans='log10',labels = scales::label_number_si())
+# stream flow comparison function
+Q_comparison <- function(combined_data) {
+comparison_plot <- ggplot(data=combined_data) +
+geom_line(aes(x=date, y=validation_Q, color='Validation')) +
+geom_line(aes(x=date, y=Q, color='Modeled')) +
+ggtitle('Observed Versus Simulated Streamflow (with precip, rain, and snow)') +
+theme(plot.title = element_text(hjust = 0.5)) +
+theme(axis.title.x=element_blank()) +
+theme(axis.text.x=element_blank()) +
+ylab('Streamflow (m3/s)') +
+scale_y_continuous(trans='log10') +
+guides(color=guide_legend(title='Q Type'))
+precip_plot <- ggplot(data=combined_data) +
+geom_line(aes(x=date, y=precip_cm, color='Precipitation')) +
+geom_line(aes(x=date, y=rain_cm, color='Rain')) +
+geom_line(aes(x=date, y=snow_cm, color='Snow')) +
+xlab('Date') +
+ylab('Precipitation, Rain, and Snow') +
+guides(color=guide_legend(title='Precip Type')) +
+scale_y_continuous(trans='log10',labels = scales::label_number_si())
+cowplot::plot_grid(comparison_plot, precip_plot, align = "v", ncol = 1, rel_heights = c(0.60, 0.40))
+}
+Q_comparison(VaM_data)
+# stream flow comparison function
+Q_comparison <- function(combined_data) {
+comparison_plot <- ggplot(data=combined_data) +
+geom_line(aes(x=date, y=validation_Q, color='Validation')) +
+geom_line(aes(x=date, y=Q, color='Modeled')) +
+ggtitle('Observed Versus Simulated Streamflow (with precip, rain, and snow)') +
+theme(plot.title = element_text(hjust = 0.5)) +
+theme(axis.title.x=element_blank()) +
+theme(axis.text.x=element_blank()) +
+ylab('Streamflow (m3/s)') +
+scale_y_continuous(trans='log10',labels = scales::label_number_si()) +
+guides(color=guide_legend(title='Q Type'))
+precip_plot <- ggplot(data=combined_data) +
+geom_line(aes(x=date, y=precip_cm, color='Precipitation')) +
+geom_line(aes(x=date, y=rain_cm, color='Rain')) +
+geom_line(aes(x=date, y=snow_cm, color='Snow')) +
+xlab('Date') +
+ylab('Precipitation, Rain, and Snow') +
+guides(color=guide_legend(title='Precip Type')) +
+scale_y_continuous(trans='log10',labels = scales::label_number_si())
+cowplot::plot_grid(comparison_plot, precip_plot, align = "v", ncol = 1, rel_heights = c(0.60, 0.40))
+}
+Q_comparison(VaM_data)
+# stream flow comparison function
+Q_comparison <- function(combined_data) {
+comparison_plot <- ggplot(data=combined_data) +
+geom_line(aes(x=date, y=validation_Q, color='Validation')) +
+geom_line(aes(x=date, y=Q, color='Modeled')) +
+ggtitle('Observed Versus Simulated Streamflow (with precip, rain, and snow)') +
+theme(plot.title = element_text(hjust = 0.5)) +
+theme(axis.title.x=element_blank()) +
+theme(axis.text.x=element_blank()) +
+ylab('Streamflow (m3/s)') +
+scale_y_continuous(trans='log10',labels = scales::label_number_si()) +
+guides(color=guide_legend(title='Q Type'))
+precip_plot <- ggplot(data=combined_data) +
+geom_line(aes(x=date, y=precip_cm, color='Precipitation')) +
+geom_line(aes(x=date, y=rain_cm, color='Rain')) +
+geom_line(aes(x=date, y=snow_cm, color='Snow')) +
+xlab('Date') +
+ylab('Precipitation, Rain, and Snow (mm)') +
+guides(color=guide_legend(title='Precip Type'))
+cowplot::plot_grid(comparison_plot, precip_plot, align = "v", ncol = 1, rel_heights = c(0.60, 0.40))
+}
+Q_comparison(VaM_data)
+# stream flow comparison function
+Q_comparison <- function(combined_data) {
+comparison_plot <- ggplot(data=combined_data) +
+geom_line(aes(x=date, y=validation_Q, color='Validation')) +
+geom_line(aes(x=date, y=Q, color='Modeled')) +
+ggtitle('Observed Versus Simulated Streamflow (with precip, rain, and snow)') +
+theme(plot.title = element_text(hjust = 0.5)) +
+theme(axis.title.x=element_blank()) +
+theme(axis.text.x=element_blank()) +
+ylab(expression(paste(
+"Streamflow (",
+m^3, "/", s,
+")", sep=""))) +
+scale_y_continuous(trans='log10',labels = scales::label_number_si()) +
+guides(color=guide_legend(title='Q Type'))
+precip_plot <- ggplot(data=combined_data) +
+geom_line(aes(x=date, y=precip_cm, color='Precipitation')) +
+geom_line(aes(x=date, y=rain_cm, color='Rain')) +
+geom_line(aes(x=date, y=snow_cm, color='Snow')) +
+xlab('Date') +
+ylab('Precipitation, Rain, and Snow (mm)') +
+scale_y_continuous(labels = scales::label_number_si())+
+guides(color=guide_legend(title='Precip Type'))
+cowplot::plot_grid(comparison_plot, precip_plot, align = "v", ncol = 1, rel_heights = c(0.60, 0.40))
+}
+Q_comparison(VaM_data)
+library(tidyverse)
+library(dplyr)
+library(lubridate)
+library(AOI)
+library(climateR)
+library(rnoaa)
+library(chillR)
+library(humidity)
+library(bigleaf)
+# pull data from PCFS site ####
+# PULLMAN 2 NW, WA US / 	GHCND:USC00456789 / 	46.76016°, -117.1861°
+# Elevation	766.6 m / 1940-10-21 - 	2023-02-17
+wx <- meteo_tidy_ghcnd('USC00456789', var = 'all', date_min = '1959-10-01', date_max = '1979-10-01') %>%
+mutate(date = as.Date(date)) %>%
+complete(date = seq.Date(min(date), max(date), by="day")) %>%
+fill(c('prcp', 'snow', 'snwd', 'tmax', 'tmin', 'tobs'))
+colnames(wx)
+# pull data from PCFS site ####
+# PULLMAN 2 NW, WA US / 	GHCND:USC00456789 / 	46.76016°, -117.1861°
+# Elevation	766.6 m / 1940-10-21 - 	2023-02-17
+wx <- meteo_tidy_ghcnd('USC00456789', var = 'all', date_min = '1959-10-01', date_max = '1979-10-01') %>%
+mutate(date = as.Date(date)) %>%
+complete(date = seq.Date(min(date), max(date), by="day")) %>%
+fill(c('prcp', 'snow', 'snwd', 'tmax', 'tmin', 'tobs')) %>%
+ggplot()+
+geom_point(aes(date, prcp))
+ggplot(wx)+
+geom_point(aes(date, prcp))
+ggplot(data=wx,aes(date, prcp))+
+geom_point()
+# pull data from PCFS site ####
+# PULLMAN 2 NW, WA US / 	GHCND:USC00456789 / 	46.76016°, -117.1861°
+# Elevation	766.6 m / 1940-10-21 - 	2023-02-17
+wx <- meteo_tidy_ghcnd('USC00456789', var = 'all', date_min = '1959-10-01', date_max = '1979-10-01') %>%
+mutate(date = as.Date(date)) %>%
+complete(date = seq.Date(min(date), max(date), by="day")) %>%
+fill(c('prcp', 'snow', 'snwd', 'tmax', 'tmin', 'tobs'))
+ggplot(data=wx,aes(date, prcp))+
+geom_point()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year) %>%
+ggplot(aes(date, prcp))+
+geom_point()
+?summarise
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year) %>%
+summarise(mean = mean(prcp), n = n())
+ggplot(aes(year, mean))+
+geom_point()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year) %>%
+summarise(mean = mean(prcp), n = n())
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year) %>%
+summarise(mean = mean(prcp), n = n()) %>%
+ggplot(aes(year, mean))+
+geom_point()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year) %>%
+summarise(Total = sum(prcp), n = n()) %>%
+ggplot(aes(year, mean))+
+geom_point()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year) %>%
+summarise(Total = sum(prcp), n = n()) %>%
+ggplot(aes(year, Total))+
+geom_point()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year) %>%
+summarise(Total = sum(prcp), n = n()) %>%
+ggplot(aes(year, Total))+
+geom_line()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year) %>%
+summarise(Total = sum(prcp), n = n()) %>%
+ggplot(aes(year, Total))+
+geom_bar()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year) %>%
+summarise(Total = sum(prcp), n = n()) %>%
+ggplot(aes(Total))+
+geom_bar()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(month) %>%
+summarise(Total = sum(prcp), n = n()) %>%
+ggplot(aes(month, Total))+
+geom_point()
+?meteo_tidy_ghcnd
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(month) %>%
+summarise(Total = sum(prcp)/10, n = n()) %>%
+ggplot(aes(month, Total))+
+geom_point()
+?meteo_tidy_ghcnd
+# pull data from PCFS site (prcp in tenths of mm, temp in tenths of Celcius) ####
+# PULLMAN 2 NW, WA US / 	GHCND:USC00456789 / 	46.76016°, -117.1861°
+# Elevation	766.6 m / 1940-10-21 - 	2023-02-17
+wx <- meteo_tidy_ghcnd('USC00456789', var = c('PRCP','TMAX',"TMIN"), date_min = '1959-10-01', date_max = '1979-10-01') %>%
+mutate(date = as.Date(date),
+prcp = PRCP/10,
+tmax = TMAX/10,
+tmin = TMIN/10) %>%
+complete(date = seq.Date(min(date), max(date), by="day")) %>%
+fill(c('prcp', 'snow', 'snwd', 'tmax', 'tmin', 'tobs'))
+wx <- meteo_tidy_ghcnd('USC00456789', var = c('PRCP','TMAX',"TMIN"), date_min = '1959-10-01', date_max = '1979-10-01')
+# pull data from PCFS site (prcp in tenths of mm, temp in tenths of Celcius) ####
+# PULLMAN 2 NW, WA US / 	GHCND:USC00456789 / 	46.76016°, -117.1861°
+# Elevation	766.6 m / 1940-10-21 - 	2023-02-17
+wx <- meteo_tidy_ghcnd('USC00456789', var = c('PRCP','TMAX',"TMIN"), date_min = '1959-10-01', date_max = '1979-10-01') %>%
+mutate(date = as.Date(date),
+prcp = prcp/10,
+tmax = tmax/10,
+tmin = tmin/10) %>%
+complete(date = seq.Date(min(date), max(date), by="day")) %>%
+fill(c('prcp', 'snow', 'snwd', 'tmax', 'tmin', 'tobs'))
+# pull data from PCFS site (prcp in tenths of mm, temp in tenths of Celcius) ####
+# PULLMAN 2 NW, WA US / 	GHCND:USC00456789 / 	46.76016°, -117.1861°
+# Elevation	766.6 m / 1940-10-21 - 	2023-02-17
+wx <- meteo_tidy_ghcnd('USC00456789', var = c('PRCP',
+'TMAX',
+"TMIN",
+'SNOW'), date_min = '1959-10-01', date_max = '1979-10-01') %>%
+mutate(date = as.Date(date),
+prcp = prcp/10,
+tmax = tmax/10,
+tmin = tmin/10) %>%
+complete(date = seq.Date(min(date), max(date), by="day")) %>%
+fill(c('prcp', 'snow', 'snwd', 'tmax', 'tmin', 'tobs'))
+# pull data from PCFS site (prcp in tenths of mm, temp in tenths of Celcius) ####
+# PULLMAN 2 NW, WA US / 	GHCND:USC00456789 / 	46.76016°, -117.1861°
+# Elevation	766.6 m / 1940-10-21 - 	2023-02-17
+wx <- meteo_tidy_ghcnd('USC00456789', var = c('PRCP',
+'TMAX',
+"TMIN",
+'SNOW',
+'SNWD'), date_min = '1959-10-01', date_max = '1979-10-01') %>%
+mutate(date = as.Date(date),
+prcp = prcp/10,
+tmax = tmax/10,
+tmin = tmin/10) %>%
+complete(date = seq.Date(min(date), max(date), by="day")) %>%
+fill(c('prcp', 'snow', 'snwd', 'tmax', 'tmin', 'tobs'))
+# pull data from PCFS site (prcp in tenths of mm, temp in tenths of Celcius) ####
+# PULLMAN 2 NW, WA US / 	GHCND:USC00456789 / 	46.76016°, -117.1861°
+# Elevation	766.6 m / 1940-10-21 - 	2023-02-17
+wx <- meteo_tidy_ghcnd('USC00456789', var = c('PRCP',
+'TMAX',
+"TMIN",
+'SNOW',
+'SNWD'), date_min = '1959-10-01', date_max = '1979-10-01') %>%
+mutate(date = as.Date(date),
+prcp = prcp/10,
+tmax = tmax/10,
+tmin = tmin/10) %>%
+complete(date = seq.Date(min(date), max(date), by="day")) %>%
+fill(c('prcp', 'snow', 'snwd', 'tmax', 'tmin'))
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(month) %>%
+summarise(Total = sum(prcp)/10, n = n()) %>%
+ggplot(aes(month, Total))+
+geom_point()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year, month) %>%
+summarise(Total = sum(prcp)/10, n = n()) %>%
+ggplot(aes(year, Total))+
+geom_point()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year, month) %>%
+summarise(Total = sum(prcp)/10, n = n()) %>%
+ggplot(aes(date, Total))+
+geom_point()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year, month) %>%
+summarise(Total = sum(prcp)/10, n = n()) %>%
+ggplot(aes(year, Total, color = month))+
+geom_point()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year, month)
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year, month) %>%
+summarise(Total = sum(prcp)/10, n = n())
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year, month) %>%
+summarise(Total = sum(prcp)/10, n = n(), date)
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year, month) %>%
+summarise(Total = sum(prcp)/10, n = n(), date) %>%
+ggplot(aes(date, Total, color = month))+
+geom_point()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year, month) %>%
+summarise(Total = sum(prcp)/10, n = n(), date) %>%
+ggplot(aes(date, Total), color = month)+
+geom_point()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year, month) %>%
+summarise(Total = sum(prcp)/10, n = n(), date) %>%
+ggplot(aes(date, Total), color = month)+
+geom_line()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year, month) %>%
+summarise(Total = sum(prcp)/10, n = n(), date, snwd) %>%
+ggplot(aes(date, Total), color = month)+
+geom_line()
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year, month) %>%
+summarise(Total = sum(prcp)/10, n = n(), date, snwd) %>%
+ggplot()+
+geom_line(aes(date, Total))+
+geom_point(aes(date, snwd))
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year, month) %>%
+summarise(Total = sum(prcp)/10, n = n(), date, snow) %>%
+ggplot()+
+geom_line(aes(date, Total))+
+geom_point(aes(date, snwd))
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year, month) %>%
+summarise(Total = sum(prcp)/10, n = n(), date, snow) %>%
+ggplot()+
+geom_line(aes(date, Total))+
+geom_point(aes(date, snow))
+wx %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date)) %>%
+group_by(year, month) %>%
+summarise(Total = sum(prcp)/10, n = n(), date, snow) %>%
+ggplot()+
+geom_line(aes(date, Total))
+data.table(param_meta$gridmet)
+library(data.table)
+data.table(param_meta$gridmet)
+# add in day-of-year and separate dates to get year on its own
+gridMET_p <- gridMET_p %>%
+mutate(doy = yday(date),
+year = lubridate::year(date),
+month = lubridate::month(date),
+day = lubridate::day(date),
+tmin = tmin - 273.15,
+tmax = tmax - 273.15,
+tavg = (tmax+tmin)/2,
+output = ifelse(month == 2, 1, 0),
+l_turb = 2.5
+)
+gridMETdata <- param_meta$gridmet
+View(gridMETdata)
+# pull precipitation (mm), temp (C), pet (mm) from GRIDMET
+AOI_p = AOI::geocode('Pullman', pt = TRUE)
+gridMET_p  = as.data.frame(getGridMET(AOI_p, param = c('prcp', 'tmax', 'tmin', 'pet_grass', 'srad', 'wind_vel'),
+startDate = "2000-01-01",
+endDate = "2022-12-31"))
+# select date, prcp, tmax, tmin and add tavg, year, month, day
+pullman <- gridMET_p[,c(4:8)] %>%
+mutate(year = lubridate::year(date),
+month = lubridate::month(date),
+day = lubridate::day(date),
+tmax = tmax - 273.15,
+tmin = tmin - 273.15,
+tavg = (tmax+tmin)/2)
+# add in day-of-year and separate dates to get year on its own
+gridMET_p <- gridMET_p %>%
+mutate(doy = yday(date),
+year = lubridate::year(date),
+month = lubridate::month(date),
+day = lubridate::day(date),
+tmin = tmin - 273.15,
+tmax = tmax - 273.15,
+tavg = (tmax+tmin)/2,
+output = ifelse(month == 2, 1, 0),
+l_turb = 2.5
+)
+# gridMET pull for moscow mountain
+AOI_m = AOI::geocode('Moscow Mountain', pt = TRUE)
+gridMET_m  = as.data.frame(getGridMET(AOI_m, param = c('prcp', 'tmax', 'tmin', 'pet_grass', 'srad', 'wind_vel'),
+startDate = "2000-01-01",
+endDate = "2022-12-31"))
+gridMET_m <- gridMET_m %>%
+mutate(doy = yday(date),
+year = lubridate::year(date),
+month = lubridate::month(date),
+day = lubridate::day(date),
+tmin = tmin - 273.15,
+tmax = tmax - 273.15,
+tavg = (tmax+tmin)/2,
+output = ifelse(month == 2, 1, 0),
+l_turb = 2.5
+)
+# leaving the original gridMET_p frame copying new one
+data_p <- gridMET_p[,c("tmin", "tmax", "year", "month", "day")] %>%
+rename(Year = year,
+Day = day,
+Month = month,
+Tmin = tmin,
+Tmax = tmax
+)
+# extracting hourly temperatures from the minimum and maximum temperatures
+# pulling four evenly spaced hours (1, 6, 12, 18) to make the 'temperature matrix'
+# joining the original gridMET_p data with the new temperature matrix
+gridMET_p_hourly <- make_hourly_temps(latitude = 46.7312700, year_file = data_p, keep_sunrise_sunset = FALSE) %>%
+rename(year = Year,
+day = Day,
+month = Month,
+tmin = Tmin,
+tmax = Tmax)
+gridMET_p_hourly <- gridMET_p_hourly[, c("year", "month", "day", "Hour_1", "Hour_6", "Hour_12", "Hour_18")]
+# joining original gridMET_p with new hourly data to add in temperature matrix
+gridMET_joined_p <- inner_join(gridMET_p, gridMET_p_hourly)
+# do the same hourly calculation for moscow
+data_m <- gridMET_m[,c("tmin", "tmax", "year", "month", "day")] %>%
+rename(Year = year,
+Day = day,
+Month = month,
+Tmin = tmin,
+Tmax = tmax
+)
+# extracting hourly temperatures from the minimum and maximum temperatures
+# pulling four evenly spaced hours (1, 6, 12, 18) to make the 'temperature matrix'
+# joining the original gridMET_p data with the new temperature matrix
+gridMET_m_hourly <- make_hourly_temps(latitude = 46.7312700, year_file = data_m, keep_sunrise_sunset = FALSE) %>%
+rename(year = Year,
+day = Day,
+month = Month,
+tmin = Tmin,
+tmax = Tmax)
+# pull date information for merging and pulling 4 6-hour-spaced temperatures
+gridMET_m_hourly <- gridMET_m_hourly[, c("year", "month", "day", "Hour_1", "Hour_6", "Hour_12", "Hour_18")]
+# join all gridMET data with the new hourly matrix based on date information
+gridMET_joined_m <- inner_join(gridMET_m, gridMET_m_hourly)
+View(gridMET_joined_m)
+plot(gridMET_joined_m[,c(7,8,14:17)])
+plot(gridmMET_joined_m[,4],gridMET_joined_m[,c(7,8,14:17)])
+plot(gridMET_joined_m[,4],gridMET_joined_m[,c(7,8,14:17)])
+plot(x=gridMET_joined_m[,4],y=gridMET_joined_m[,c(7,8,14:17)])
+length(gridMET_joined_m[,4])
+length(gridMET_joined_m)
+plot(x=gridMET_joined_m[,4],y=gridMET_joined_m[,c(7,8,18:21)])
+plot(gridMET_joined_m[,c(18:21)])

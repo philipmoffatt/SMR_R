@@ -613,3 +613,15 @@ write_weather_data(
   end_date = mini_end_date,
   location = "pullman_mini"
 )
+
+# write mini historical
+medium_start_date <- "1965-10-01"
+medium_end_date <- "1966-10-01"
+
+write_weather_data(
+  noaa_joined = wx,
+  start_date = medium_start_date,
+  end_date = medium_end_date,
+  location = "pullman_medium"
+)
+

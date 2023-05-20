@@ -1,0 +1,66 @@
+---
+title: "Post Processing Report"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# libraries
+library(trackdown)
+# trackdown::upload_file(file = "reports/PostProcessingReport.Rmd", hide_code = TRUE)
+trackdown::download_file(file = "reports/PostProcessingReport.Rmd")
+```
+
+## GitHub Documents
+
+This is an R Markdown format used for publishing markdown documents to GitHub. When you click the **Knit** button all R code chunks are run and a markdown file (.md) suitable for publishing to GitHub is generated.
+
+## Stream flow timeseries
+
+Modeled discharge (mm) is compared to the observed data over time. 
+
+```{r discharge, echo=FALSE}
+# call output file for model
+# call observation data
+# calculate NSE and KGE
+# save out NSE and KGE to data table. What variables of interest should be included for the run records?
+# plot hydrograph - figure should include text box with NSE and KGE?
+```
+
+## Water Budget
+
+The annual water budget is broken down by flux each year. The changes in storage are reflected in the timeseries.
+
+```{r water budget, echo=FALSE}
+# call output file from model
+# calculate the annual change in storage:  dS=P-E-R-Perc, should break out baseflow?
+# plot bars for fluxes each year:  Storage, P, E, RO
+# plot dS
+# plot baseflow?
+```
+
+## Snow Accumulation and Melt Algorithm
+
+The SAM module simulates snowpack accumulation and melt-out processes by resolving the surface energy budget at a 6-hr time step. Snowpack depth (mm) is compared with SWE and snowmelt over time below.
+
+```{r SAM, echo=FALSE}
+# call output file from model- possibly this is done in one file earlier on?
+# calculate max Snowpack and date; snowmelt and melt period (days)
+# plot snowpack depth
+# plot swe - include text boxe(s) with max swe & date for each year
+# plot snowmelt - include total amount and melt-out period as an offset text box
+```
+
+## SAM Energy Budget
+
+The various energy fluxes are plotted over time for the model run period.
+
+```{r energy budget, echo=FALSE}
+# call output file of tabulated daily total fluxes for:  tsnow_surf, u.surface, u.total, q.total, refreeze. Others?
+# plot energy flux timeseries
+```
+
+
+
+## a new title for the pp report

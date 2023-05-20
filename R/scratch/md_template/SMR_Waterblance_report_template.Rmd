@@ -1,0 +1,31 @@
+---
+title: "SMR Waterblance Report Template"
+output: html_document
+date: "2023-03-31"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r data, echo=FALSE, quiet =T}
+source(file.path(dirname(getwd()),"functional_PP.r"))
+```
+
+
+## Missouri Flat Creek Water Balance 
+Table 1. The Missouri Flat Creek water balance with annual flows precented in percentage of annual rainfall 
+```{r} 
+summary(cars)
+```
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+figure 1. The Missouri Flat Creek water balance with annual flows precented in percentage of annual rainfall 
+
+```{r pressure2, echo=FALSE}
+# plot(pressure2)
+```
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

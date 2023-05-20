@@ -6,6 +6,7 @@ library(lubridate)
 library(AOI)
 library(climateR)
 library(mapview)
+library(elevatr)
 
 # function for pulling gridMET data -- for now the second site will need to be
 # explicitly requested but it probably wouldn't be to hard to automate that 
@@ -94,9 +95,11 @@ gridMET_difference_lapse <- function(low_df, high_df, low_elev, high_elev, varia
 }
 
 met_pullman <- pull_gridMET('Pullman, WA')
-met_moscow <- pull_gridMET('Moscow, ID')
+met_moscow <- pull_gridMET('Moscow Mountain, ID')
 
-precip_lapse_model <- gridMET_lapse_rate(met_pullman, met_moscow, variable_name = "prcp", 784, 1433)
+precip_lapse_model <- gridMET_model_lapse(met_pullman, met_moscow, variable_name = "prcp", 784, 1433)
 pet_lapse_model <- gridMET_model_lapse(met_pullman, met_moscow, variable_name = "pet_grass", 784, 1433)
 temp_lapse <- gridMET_difference_lapse(met_pullman, met_moscow, variable_name = "tavg", 784, 1433)
+
+
 

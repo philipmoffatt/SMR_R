@@ -13,26 +13,6 @@ library(sf)
 library(FAO56)
 library(elevatr)
 
-# list of useful functions:
-# 1. function that takes in a single location --> gets the weather data for that location
-# and finds nearby locations at a different elevation and calculates the lapse rate
-# - this function should do all the initial formatting and etc
-# - this function could also try with multiple nearby locations and average it out
-#   - the lapse rate should be called as a helper function
-# 2. dissagregate
-# 3. 
-
-#visualizations:
-# 3. crop coefficient curves for each land cover --> https://cran.r-project.org/web/packages/FAO56/FAO56.pdf
-# 4. tavg, tmax, and time series
-# 5. tavg, tdew time series
-# 6. precipitation time series
-# 7. pet time series
-# 8. rh values for each land cover
-# 9. annual accumulated pet and precipitation fluxes
-# 10. the pet, temperature, and precipitation lapse rates
-# 11. outputs a summary markdown to give an intuitive sense for the data
-# 12. a function which takes in a few parameters and calls all of these
 
 ## constant setup:
 # initialize variables
@@ -93,7 +73,6 @@ smr_columns <- c("date", "year", "month", "day", "doy", "tmax", "tmin",
 
 
 ## functions for building weather data
-
 pull_gridMET <- function(site_name) {
   
   # establish AOI

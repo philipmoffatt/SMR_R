@@ -1,39 +1,13 @@
 #!/usr/bin/perl
-# this is a test smr perl script where outputs are dependent on the user --> 
-#   this method should allow multiple users on different - smr_multiple_users.pl
+
 
 print `g.remove -f type=raster name=MASK`;
 print `g.region rast=watershed`;
 print `r.mapcalc 'watershed = if(watershed==1,1,0)' --o`;
 
-# setting user specific variables: user name, operating system, and home 
-# directory home directory name
-
-my $operating_system = $^O;
-my $home_dir_name;
-my $user;
-
-if ($operating_system eq 'msys') {
-    $user = $ENV{'USERNAME'};
-} elsif ($operating_system eq 'darwin') {
-    $user = $ENV{'USER'};
-} elsif ($operating_system eq 'linux') { # this may also need to be changed
-    $user = $ENV{'USER'}; # this may also need to be changed 
-}
-
-if ($operating_system eq 'darwin') {
-    $home_dir_name = "Users";
-} elsif ($operating_system eq 'linux') {
-    $home_dir_name = "home";
-} elsif ($operating_system eq 'msys') {
-    $home_dir_name = "C:/Users"; # this may need to become #C:/Users -- 
-}
-
+# setting user specific variable
+my $user = $ENV{'USER'};
 print "The current user is: $user\n";
-print "The current operating system is: $operating_system\n";
-print "Based on the operating system the home directory is: $home_dir_name\n";
-print "Weather file directory is: /$home_dir_name/$user/Dropbox/SMR_R/raw_data/weather/noaa_pullman_mini_sn.csv\n";
-
 #print `rm Q_* `;
 #print `rm M_* `;
 #print `rm R_* `;
@@ -56,9 +30,11 @@ $temp_time_step = 6.0; # hrs
 $high_site_el = 1443;
 $low_site_el = 784;
 $mean_annual_onsite_precip = 43.921; # cm 
-#$mean_annual_sea_level_precip = 15.53944; # calculated based on pullman average and lapse rate
-$precip_LR = 0.08; # cm / m based on 2000-2020 mean annual precip diff betwn pullman & Moscow Mountain
-$temp_LR = -2.20; # C / km based on 2000-2020 mean annual temp diff betwn pullman & Moscow Mountain
+$mean_annual_sea_level_precip = 15.53944; # calculated based on pullman average and lapse rate
+$precip_LR = 0.09195; # cm / m
+$temp_LR = -3.20; # C / km
+
+#print `r.mapcalc 'MASK = if(wsheds_all>0,1,0)' --o`;
 
 # --------------------------------------------------------------------------------
 #    SLOPE & ASPECT FOR SAM
@@ -75,7 +51,7 @@ my $filename = 'wshed_res_properties.ini';
 # Open properties file
 open(my $WATERSHED, '<', $filename) || die "Cannot open the watershed properties file";
 
-# Read each line of the watershed file and assign values based on watershed ID
+# Read each line of the file and assign values based on watershed ID
 print "\n \n";
 print "\n|----- READING WATERSHED PROPERTIES -----|\n";
 print "\n \n";
@@ -85,7 +61,7 @@ while (my $line = <$WATERSHED>) {
 	
 	if ($wshed_id > 0.0) {
 		$area_{$wshed_id} = $area_cells * $gridsize * $gridsize; #square meters
-		$res_vol_{$wshed_id} = 10;
+		$res_vol_{$wshed_id} = $res_vol;
 		$res_coeff_{$wshed_id} = $res_coeff;
 		$base_flow_{$wshed_id} = 0.0;
 		
@@ -103,78 +79,65 @@ while (my $line = <$WATERSHED>) {
 # Close the watershed properties file
 close($WATERSHED) || die "Cannot close the watershed properties file";
 
-#____________________________________________________________________________________
-#
-# PERMANENT MAPS REFERENCED FOR MODEL CALCULATIONS
-#____________________________________________________________________________________
+print "\n|----- INITIALIZING WATERSHED PROPERTIES -----|\n";
 
-#         el (The DEM in meters)
-#         watershed (A map defining the extent of the watershed, 1=inside watershed)
-#         fieldcap_mc =  field capacity moisture content (m^3/m^3), water drains at moisture
-#           contents above field capacity
-#         soil_depth =  Depth to a hydraulic restrictive layer (cm), includes all soil layers
-#         wiltpt_amt =  Wilting point moisture depth (cm)
-#         ETreduction_mc = Moisture content at which actual ET becomes limited by soil moisture
-#					  (assumed to be 80% of field capacity) (m^3/m^3)
-#         Ksat_matix =  The lateral matrix Ksat (ignoring macropores) of the soil layer (cm/day)
-#	        Ksat_mpore =  The lateral Ksat of the soil layer when macropores are active (cm/day)
-#         Ksubsurface = The vertical Ksat through the hydraulic restrictive layer (cm/day)
 
-#____________________________________________________________________________________
-#
-# MODEL INITIAL CONDITIONS & INTIAL MAPS
-#____________________________________________________________________________________
-# land use map legend: 1 = water, 2 = urban/rock/barren/other, 3 = forest/woody wetlands, 4 = shrub, 5 = grass/grassy wetland/pasture, 6 = row crop
+# Land use and canopy cover storage -----------------------------------------------------------
+# MFC land use map legend: 1 = water, 2 = urban/rock/barren/other, 3 = forest/woody wetlands, 4 = shrub, 5 = grass/grassy wetland/pasture, 6 = row crop
+
 #	maximum canopy storage (cm) in descending land use number (6-1) order -- can range: 
 	#	1. water: 0 cm
-	#	2. urban/rock/barren/other: 0.1 cm (Li, X. et al. 2005) 
-	#	3. forest/woody wetlands: 0.276 - 0.31 cm (Soto‐Schönherr, S., & Iroumé, A. 2016), spruce (Floriancic et al. 2022)
-	# 4. shrub: 0.15 cm (Tromble, J. M. 1988)
-	#	5. grass/grassy wetland/pasture: 0.15 cm (Gifford, G. F. 1976)
-	#	6. row crop: 0.068 - 0.147 cm (Di, W., Jiusheng, L., & Minjie, R. 2006)
+	#	2. urban/rock/barren/other: 0.1 cm
+	#	3. forest/woody wetlands: .276 - 0.31 cm
+	# 	4. shrub: 0.15 cm
+	#	5. grass/grassy wetland/pasture: 0.15 cm
+	#	6. row crop: 0.068 - 0.147 cm
 print `r.mapcalc 'max_canopy_storage_amt = if(landuse==6.0,0.147,if(landuse==5.0,0.15,if(landuse==4.0,0.15,if(landuse==3.0,0.31,if(landuse==2.0,0.1,if(landuse==1.0,0.0,0.0))))))' --o`;
 
-# Canopy cover is defined by landuse and is used to modify the calculation of resistence to heat transfer in the SAM Module; values range from 0.1-0.99; larger values increase resistence which slows snowmelt. 
-print `r.mapcalc 'canopy_cover = if(landuse==6.0,0.1,if(landuse==5.0,0.2,if(landuse==4.0,0.50,if(landuse==3.0,0.99,if(landuse==2.0,0.01,if(landuse==1.0,0.001,0.001))))))' --o`;
-
-# Root zone defines the portion of the soil that is affected by actual evaporation.
+# Soil moisture conditions ---------------------------------------------------------------------
+# root zone determines how much of the soil profile is subjected to ET
 print `r.mapcalc 'root_zone = if(landuse==6.0,soil_depth,if(landuse==5.0,soil_depth_A,if(landuse==4.0,soil_depth,if(landuse==3.0,soil_depth,if(landuse==2.0,1.0,if(landuse==1.0,1.0,1.0))))))' --o`;
 
-# Wiltpt amount is the amount of water that causes plants to wilt.
-#print `r.mapcalc 'wiltpt_amt = if(landuse==6.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==5.0,wiltpt_mc_A*soil_depth_A,if(landuse==4.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==3.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==2.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==1.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B))))))' --o`;
-
-# ETreduction is the amount of water that can evaporate from the soil; 80% for all classes except forest which is 70% and urban/barren/rock/water is 0. 
-print `r.mapcalc 'ETreduction_mc = if(landuse==6.0,fieldcap_amt_A*0.8/soil_depth_A,if(landuse==5.0,fieldcap_amt_A*0.8/soil_depth_A,if(landuse==4.0,fieldcap_amt_A*0.8/soil_depth_A,if(landuse==3.0,fieldcap_amt_A*0.8/soil_depth_A,if(landuse==2.0,fieldcap_amt_A*0.8/soil_depth_A,if(landuse==1.0,fieldcap_amt_A*0.8/soil_depth_A,fieldcap_amt_A*0.8/soil_depth_A))))))' --o`;
-
-# The temperature above which all precip is considered to fall as rain.
-print `r.mapcalc 'tmax_rain = if(landuse==6.0,1.0,if(landuse==5.0,1.0,if(landuse==4.0,1.0,if(landuse==3.0,1.0,if(landuse==2.0,1.0,if(landuse==1.0,1.0,0))))))' --o`;
-
-# The temperature below which all precip is considered to fall as snow.
-print `r.mapcalc 'tmin_snow = if(landuse==6.0,0.0,if(landuse==5.0,0.0,if(landuse==4.0,0.0,if(landuse==3.0,0.0,if(landuse==2.0,0.0,if(landuse==1.0,0.0,0.0))))))' --o`;
-
 # Initial conditions storage amount defined (% of saturation)
-print `r.mapcalc 'storage_amt_A = sat_mc_A * 0.4' --o`;
-print `r.mapcalc 'storage_amt_B = sat_mc_B * 0.4' --o`;
-#print `r.mapcalc 'storage_amt_A = (wiltpt_mc_A+(fieldcap_mc_A-wiltpt_mc_A)*0.2)*soil_depth_A' --o`;
-print `r.mapcalc 'storage_amt = storage_amt_A + storage_amt_B' --o`;
+print `r.mapcalc 'storage_amt = sat_amt*0.4' --o`;
+print `r.mapcalc 'storage_amt_A = sat_amt*0.4' --o`;
+print `r.mapcalc 'storage_amt_A = (wiltpt_mc_A+(fieldcap_mc_A-wiltpt_mc_A)*0.2)*soil_depth_A' --o`;
 
-#  storage_amt_ini was the storage amt of the previous run (9/31/1998)
-#  storage_amt in stream cells is assumed at saturation
+#  storage_amt in stream cells is assumed at saturation, this causes lateral flow from uphill cells to route to runoff immediately
 #  soil depth in stream cells is assumed at 1 cm A horizon, 19 cm B horizon
+#  stream cells are defined as those cells having an upslope contributing area of 1000 cells (using a 30m DEM)
 
 print `r.mapcalc 'canopy_storage_amt = 0.0' --o`;
 print `r.mapcalc 'swe = 0.0' --o`;
+# wiltpt_amt is the residual moisture held by the soil matrix against further ET. Plants are unable to access soil water at this point.
+print `r.mapcalc 'wiltpt_amt = if(landuse==6.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==5.0,wiltpt_mc_A*soil_depth_A,if(landuse==4.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==3.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==2.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==1.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B))))))' --o`;
 
-#  Initiation for SAM MZ 20190127
+# ETreduction was done based on 80% for all classes except forest which is 70% and urban/barren/rock/water being 0 
+print `r.mapcalc 'ETreduction_mc = if(landuse==6.0,fieldcap_amt*0.8/soil_depth,if(landuse==5.0,fieldcap_amt_A*0.8/soil_depth_A,if(landuse==4.0,fieldcap_amt*0.8/soil_depth,if(landuse==3.0,fieldcap_amt*0.7/soil_depth,if(landuse==2.0,fieldcap_amt*0.01/soil_depth,if(landuse==1.0,fieldcap_amt*0.01/soil_depth,fieldcap_amt*0.8/soil_depth))))))' --o`; 
+
+# Precipitaiton partitioning between rain and snow ----------------------------------------------
+# Tmax_rain is the temperature above which all precip falls as rain
+print `r.mapcalc 'tmax_rain = if(landuse==6.0,1.0,if(landuse==5.0,1.0,if(landuse==4.0,1.0,if(landuse==3.0,1.0,if(landuse==2.0,1.0,if(landuse==1.0,1.0,0))))))' --o`;
+
+# Tmin_snow is the temperature below which all precip is assumed to fall as snow
+print `r.mapcalc 'tmin_snow = if(landuse==6.0,-1.0,if(landuse==5.0,-1.0,if(landuse==4.0,-1.0,if(landuse==3.0,-1.0,if(landuse==2.0,-1.0,if(landuse==1.0,-1.0,0.0))))))' --o`;
+
+#  Initiation for SAM ------------------------------------------------------------------------------
 print `r.mapcalc 'snow.age = 1.0' --o`;
 print `r.mapcalc 'swe.yesterday = 0.0' --o`;
 print `r.mapcalc 'albedo = 0.2' --o`;
 print `r.mapcalc 'liquid.water = 0.0' --o`;
 print `r.mapcalc 'ice.content = 0.0' --o`;
 print `r.mapcalc 'tsnow_surf = -2.0' --o`;
-print `r.mapcalc 'u.surface = 24.0*tsnow_surf*(2.1*1000.0*min(swe/100.0,0.02)+1000.0*2.1*max(0.0,0.02-swe/100.0))' --o`; # convert to daily MZ 20190410 | should not be convert to daily becasue u.surface is in KJ/m^2. It is not a rate, it is the energy content of the surface layer. So the comment on 20190410 is wrong. MZ 20200330
+print `r.mapcalc 'u.surface = 24.0*tsnow_surf*(2.1*1000.0*min(swe/100.0,0.02)+1000.0*2.1*max(0.0,0.02-swe/100.0))' --o`;
 print `r.mapcalc 'tsnow.pack = -0.5' --o`;
-print `r.mapcalc 'u.total = 24.0*tsnow.pack*(2.1*1000.0*swe/100.0+2.1*1000.0*0.4)' --o`; # convert to daily MZ 20190410 | should not be convert to daily becasue u.surface is in KJ/m^2. It is not a rate, it is the energy content of the surface layer. So the comment on 20190410 is wrong. MZ 20200330
+print `r.mapcalc 'u.total = 24.0*tsnow.pack*(2.1*1000.0*swe/100.0+2.1*1000.0*0.4)' --o`;
+
+# Canopy cover values are used in the SAM module to impart changes to the resistance to heat transfer. Small canopy cover values
+# do not modify calculated rh (resistance to heat transfer), whereas canopy cover values near 1 increase rh by 50%. 
+# The forest canopy shades the snowpack and protects it from wind, increasing the resistance to heat transfer.
+print `r.mapcalc 'canopy_cover = if(landuse==6.0,0.1,if(landuse==5.0,0.2,if(landuse==4.0,0.60,if(landuse==3.0,0.80,if(landuse==2.0,0,if(landuse==1.0,0,0.0))))))' --o`; 
+
 
 #  set the initial (t-1) time step, by MZ 2017.2.5
 print `r.mapcalc 'mass_balance_total = 0.0' --o`;
@@ -335,11 +298,9 @@ print `r.mapcalc 'psat_1988 = 0.0' --o`;
 #
 # START READING WEATHER DATA
 #____________________________________________________________________________________
-
 print "\n|----- READING Weather -----|\n";
-
 #  This set of commands splits a tab delimited array using a while loop
-open ($WEATHER, '<', "/$home_dir_name/$user/Dropbox/SMR_R/raw_data/weather/noaa_pullman_mini_sn.csv") || die "Can't open weather file\n"; 
+open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/raw_data/weather/noaa_pullman_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/noaa_pullman.csv') || open ($WEATHER, '<', '/home/petbuser/Dropbox/SMR_R/processed_data/imitate_smr_setup/noaa_pullman_mini.csv') || die "Can't open weather file\n";
 #print "\n|----- line 280 -----|\n";
 
 while (<$WEATHER>) {
@@ -355,34 +316,72 @@ while (<$WEATHER>) {
 
 	@hourly_tmp_array = ($hour_1,$hour_6,$hour_12,$hour_18);
 
+#   changed snowmelt so that clear cut melt is the same as partial cut melt
+	print `r.mapcalc 'kfactor = if(landuse==3.0,0.734,if(landuse==2.0,0.734,0.719))*$time_step/24.0' --o`;
+	print `r.mapcalc 'tbase = if(landuse==3.0,1.54,if(landuse==2.0,1.54,2.14))' --o`;
+	print `r.mapcalc 'kfactor = if(landuse==3.0,0.71,if(landuse==2.0,0.695,0.68))*$time_step/24.0' --o`; # Degree-day
+	print `r.mapcalc 'kfactor = if(landuse==6.0,0.0,if(landuse==5.0,0.0,if(landuse==4.0,0.0,if(landuse==3.0,0.71,if(landuse==2.0,0.695,if(landuse==1.0,0.68,0.0))))))' --o`;
+
+	#print `r.mapcalc 'tbase = if(landuse==3.0,1.7,if(landuse==2.0,1.9,2.1))' --o`; # Degree-day
+	print `r.mapcalc 'tbase = if(landuse==6.0,0.0,if(landuse==5.0,0.0,if(landuse==4.0,0.0,if(landuse==3.0,1.7,if(landuse==2.0,1.9,if(landuse==1.0,2.1,0.0))))))' --o`;
+
+  print `r.mapcalc 'max_canopy_storage_amt = if(landuse==6.0,0.147,if(landuse==5.0,0.15,if(landuse==4.0,0.15,if(landuse==3.0,0.31,if(landuse==2.0,0.1,if(landuse==1.0,0.0,0.0))))))' --o`;
+	
+	# this is redundant because it's the same as above but i'm not sure why it's here
+	print `r.mapcalc 'canopy_cover = if(landuse==6.0,0.50,if(landuse==5.0,0.60,if(landuse==4.0,0.60,if(landuse==3.0,0.80,if(landuse==2.0,0,if(landuse==1.0,0,0.0))))))' --o`; ## DJ 3/14/23 --> changed the canopy_cover values to match those in email from Philip
+
+	# this is redundant because it's the same as above but i'm not sure why it's here
+	print `r.mapcalc 'root_zone = if(landuse==6.0,soil_depth,if(landuse==5.0,soil_depth_A,if(landuse==4.0,soil_depth,if(landuse==3.0,soil_depth,if(landuse==2.0,1.0,if(landuse==1.0,1.0,1.0))))))' --o`; # DJ 04/12/23 --> changed root_zone == 0 to root_zone == 1
+  
+	# this is redundant because it's the same as above but i'm not sure why it's here
+  print `r.mapcalc 'wiltpt_amt = if(landuse==6.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==5.0,wiltpt_mc_A*soil_depth_A,if(landuse==4.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==3.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==2.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==1.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B))))))' --o`;
+
+	# ETreduction was done based on 80% for all classes except forest which is 70% and urban/barren/rock/water being 0
+	print `r.mapcalc 'ETreduction_mc = if(landuse==6.0,fieldcap_amt*0.8/soil_depth,if(landuse==5.0,fieldcap_amt_A*0.8/soil_depth_A,if(landuse==4.0,fieldcap_amt*0.8/soil_depth,if(landuse==3.0,fieldcap_amt*0.7/soil_depth,if(landuse==2.0,fieldcap_amt*0.8/soil_depth,if(landuse==1.0,fieldcap_amt*0.8/soil_depth,fieldcap_amt*0.8/soil_depth))))))' --o`; # DJ 04/12/23 -- changed ETreduction values for urban and water to normal 0.80*... instead of 0
+
+
 #  --------------------------------------------------------------------
 #  --------------------------------------------------------------------
 #____________________________________________________________________________________
 #
-#  1.  LAPSE RATE CALCS & PRECIPITATION PARTITIONING
+#  1.  SNOWMELT AND INTERCEPTION ALGORITHM
 #____________________________________________________________________________________
-print "\n|----- Partitioning Precipitation for $date -----|\n";
+
+#  rain and snow are in (cm)
+#  Mica snotel elevation = 1447.8 m, Mica snotel mean annual precip = 145.7 cm
+#  Precip lapse rate = 0.08136 cm / meter of elevation
+#  Mean Annual Precip at sea level (0 m elevation or intercept) = 27.9 cm
+#  Temperature lapse rate is -5.31 C/km
+#  Potential evapotranspiration warm calculated using the Hargreaves method using 
+#  Mica snotel temperature.  A PET lapse rate was determined by calculating PET
+#  for temperatures extrapolated to St Maries elevation (675.4 m) and fitting
 
 # rain and snow are in (cm)
 # Moscow Mountain SNOTEL elevation = 1443 m, Pullman Station elevation = 784 m
-# precipitation lapse rate between sites = 0.08 cm / meter of elevation
+# precipitation lapse rate between sites = 0.09195 cm / meter of elevation --> seems low but move forward with this for now
 # temperature lapse rate between sites = - -3.20 C/km --> also on the lower end it seems, but fine to use for now we can always modify both values --> divide by 1000 to work with meters
-# precipitation throughout watershed is calculated with: precip_at_pullman * (elevation * lapse_rate / MAPpullman); the LR is from MAP differences btwn elevations of 784 and 1443 m; it predicts a MAP for a cell based on its elevation and divides that by the MAP at the precip measurement elevation.
+# precipitation throughout watershed is calculated with: (elevation * precip_lapse_rate + mean_annual_sea_level_precip) / (higher_station_mean_annual_precip) * (actual_precip_data)
 # temperature throughout watershed is calculated with: temp - (temp_lapse_rate * (el - low_site_elevation)) --> this assumes data is taken from the lower site (Pullman site)
-# an equation between PET and elevation.  PET_moscow_mountain = 1.8281 * PET_pullman + -0.2486 (cm)
+#  an equation between PET and elevation.  PET_moscow_mountain = 1.8281 * PET_pullman + -0.2486 (cm)
 
-print `r.mapcalc 'precip = $precip * (el * $precip_LR / $mean_annual_onsite_precip)' --o`;
+
+# this equation may be wrong 
+print `r.mapcalc 'precip = (el*$precip_LR+$mean_annual_sea_level_precip) / ($mean_annual_onsite_precip) * $precip' --o`;
 print `r.mapcalc 'tavg = $tavg + ($temp_LR/1000) * (el - $low_site_el)' --o`;
 print `r.mapcalc 'tdew = $tdew + ($temp_LR/1000) * (el - $low_site_el)' --o`;
 print `r.mapcalc 'rain = if(tavg>tmax_rain,precip,if(tavg<tmin_snow,0.0,(tavg-tmin_snow)/(tmax_rain-tmin_snow)*precip))' --o`;
 print `r.mapcalc 'snow = precip-rain' --o`;
+
+# THESE ARE STILL FROM MICA!!! NEED TO UPDATE -- Duncan 3/12/23 --> these have been updated to get MM from Pullman: Duncan 3/13/23
 print `r.mapcalc 'pet_data = (1.8281 * $pet - 0.2486)' --o`;
 print `r.mapcalc "pet = (pet_data - $pet) * ($low_site_el - el)/($high_site_el - $low_site_el)+pet_data" --o`;
-
+#print `r.mapcalc "pet = (pet_data-$pet)*($low_site_el-el)/($high_site_el-$low_site_el)+pet_data" --o`;
 # interception is calculated for Spruce trees based on work by Lankreijer et al. 1999, Agricultural and Forest
 # Meteorology 98-99:595.  Max Storage of Canopy was taken as 2.0 mm.  During rain, evaporation is 0.04 mm/hr.
 # When there is no rain, for the time being, it is assumed that evaporation = 50% of PET.
-# Assume evaporation of canopy storage is at the potential rate
+
+#  Assume canopy storage is 3 mm for full canopy, 1.5 mm for partial canopy
+#  Assume evaporation of canopy storage is at the potential rate
 
 print `r.mapcalc 'canopy_storage_amt = canopy_storage_amt + rain' --o`;
 print `r.mapcalc 'throughfall = if(canopy_storage_amt>max_canopy_storage_amt,canopy_storage_amt-max_canopy_storage_amt,0.0)' --o`;
@@ -391,10 +390,19 @@ print `r.mapcalc 'canopy_evap = if(rain>0.0,min(canopy_storage_amt,pet),min(cano
 print `r.mapcalc 'pet = max(0.0,pet-canopy_evap)' --o`;
 print `r.mapcalc 'canopy_storage_amt = canopy_storage_amt-canopy_evap' --o`;
 
-#____________________________________________________________________________________
-#
-#  2.  SNOWMELT AND INTERCEPTION ALGORITHM
-#____________________________________________________________________________________
+#  Degree Day snowmelt
+#  USACE recommends forest = 0.23 cm/C/day, 0 C, open = 0.27 cm/C/day, Tb=0
+#  Fitting Mica Creek snotel data  Ksnow = 0.719 cm/C/day, Tb = 2.14
+#  For open areas assume USACE difference between forest and open melt accurate
+#  Using solver in excel fit open area snow parameters by preserving USACE difference
+#  Assumed melt in partial cut increased by 1/3 of the difference between open and forest areas 
+#  Fitted open area parameters Ksnow_open = 0.764 cm/C/day, Tb_open = 0.42
+#  Fitted partial cut parameters Ksnow_partial = 0.734 cm/C/day, Tb_partial = 1.54
+
+#print `r.mapcalc 'snowmelt = if(swe+snow-max(0.0,kfactor*(tavg-tbase))<0.0,swe+snow,max(0.0,kfactor*(tavg-tbase)))' --o`;
+#print `r.mapcalc 'swe = swe+snow-snowmelt' --o`;
+
+#print "\n \n";
 print "\n|----- SNOW ACCUMULATION AND MELT MODEL -----|\n";
 #  ------------------------------- SAM --------------------------------------
 #  Snow accumulation and melt (SAM) model
@@ -403,7 +411,15 @@ print "\n|----- SNOW ACCUMULATION AND MELT MODEL -----|\n";
 #  assumes the albedo of the soil is 0.2
 #  albedo (100 x %)
 
-print `r.mapcalc 'rh = $rh_snow/(1.0-(canopy_cover/3.0))' --o`; # duncan jurayj 2023051 ## testing for why soil storage is 0
+#print `r.mapcalc 'rh = if(swe>0,if(landuse==1 || landuse==2,$rh_veg,$rh_snow),$rh_veg)' --o`; # modified MZ 20190205
+#print `r.mapcalc 'rh = if(swe>0,$rh_snow,$rh_veg)' --o`; # modified MZ 20190205
+# LAZY FIX RIGHT NOW WHERE RH_SNOW IS RH_URBAN BUT THIS WILL NEED TO CHANGE (THOUGH THEY WON'T BE TOO DIFFERENT) --> ADDITIONALL JUST USING ROW CROP RIGHT NOW
+#print `r.mapcalc 'rh = if(swe>0,$rh_water/(1.0-(canopy_cover/3.0)),$rh_row_crop/(1.0-(canopy_cover/3.0)))' --o`; # add canopy cover effects on rh MZ 20200601 --> # changed rh_urban to rh_water for rh_snow substitute
+#print `r.mapcalc 'rh = $rh_row_crop/(1.0-(canopy_cover/3.0))' --o`; # add canopy cover effects on rh MZ 20200601 --> # changed rh_urban to rh_water for rh_snow substitute
+#print `r.mapcalc 'rh = if(landuse==6.0,$rh_row_crop,if(landuse==5.0,$rh_grass,if(landuse==4.0,$rh_shrub,if(landuse==3.0,$rh_forest,if(landuse==2.0,$rh_urban,if(landuse==1.0,$rh_water,$rh_row_crop))))))' --o`;
+#print `r.mapcalc 'rh = if(landuse==6.0, $rh_row_crop/(1.0-(canopy_cover/3.0)), if(landuse==5.0, $rh_grass/(1.0-(canopy_cover/3.0)), if(landuse==4.0, $rh_shrub/(1.0-(canopy_cover/3.0)), if(landuse==3.0, $rh_forest/(1.0-(canopy_cover/3.0)), if(landuse==2.0, $rh_urban/(1.0-(canopy_cover/3.0)), if(landuse==1.0, $rh_water/(1.0-(canopy_cover/3.0)), $rh_row_crop/(1.0-canopy_cover/3)))))))' --o`; # DJ 04/22/23, canopy cover effect added in with all landuse types
+#print `r.mapcalc 'rh = if(swe>0,$rh_water*10,0)' --o`; # junk trial plm 20230428
+print `r.mapcalc 'rh = if(swe>0,$rh_snow/1.0-(canopy_cover/3.0),0)' --o`; # duncan jurayj 2023051
 print `r.mapcalc 'snow.age = if(snow>0.0 && throughfall==0.0,1.0,snow.age+1.0)' --o`; # modified MZ 20190210
 print `r.mapcalc 'albedo = if(swe.yesterday+snow>0.0,min(0.95,0.7383*snow.age^(-0.1908)),0.2)' --o`;
 
@@ -695,7 +711,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 
 	print `r.mapcalc 'ET_coeff = if(landuse==6.0,$cc_row_crop,if(landuse==5.0,$cc_grass,if(landuse==4.0,$cc_shrub,if(landuse==3.0,$cc_forest,if(landuse==2.0,$cc_urban,if(landuse==1.0,$cc_water,$cc_water))))))' --o`; # DJ - 3/14/23 --> taking out the -10 and removing the /100 below because our Kc values are small already # DJ 04/06/2023 -- commented out landuse effect to just use ETcoeff of 1.
 
-	print `r.mapcalc 'root_storage_amt = if(landuse==6.0,storage_amt,if(landuse==5.0,storage_amt,if(landuse==4.0,storage_amt,if(landuse==3.0,storage_amt,if(landuse==2.0,storage_amt,if(landuse==1.0,storage_amt,storage_amt))))))' --o`;
+	print `r.mapcalc 'root_storage_amt = if(landuse==6.0,storage_amt,if(landuse==5.0,storage_amt,if(landuse==4.0,storage_amt,if(landuse==3.0,storage_amt_A,if(landuse==2.0,storage_amt,if(landuse==1.0,storage_amt,storage_amt))))))' --o`;
 
 	print `r.mapcalc 'actualET_flow = if(root_storage_amt>(root_zone*ETreduction_mc),min(max(0.0,(root_storage_amt-wiltpt_amt)),pet*ET_coeff*$temp_time_step/24.0),if(root_storage_amt>wiltpt_amt,min(max(0.0,(root_storage_amt-wiltpt_amt)),max(0.0,pet*((root_storage_amt/root_zone-wiltpt_amt/root_zone)/(ETreduction_mc-wiltpt_amt/root_zone))*ET_coeff*$temp_time_step/24.0)),0.0))' --o`; ### FIX  to avoid negative values - MZ 20171030 Fixed # DJ - 3/14/23 --> removing
 
@@ -780,13 +796,13 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	# february --> this may need to be changed.
 	if ($doy == 62) {
 		print `r.mapcalc 'avg_feb_runoff_$year = runoff_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_feb_runoff_$year output=/$home_dir_name/$user/Dropbox/SMR_R/raw_data/smr_output/maps_$user/feb_avg_runoff_$year.tif --o`;
+		print `r.out.gdal input=avg_feb_runoff_$year output=/Users/$user/Dropbox/SMR_R/raw_data/smr_output/maps/feb_avg_runoff_$year.tif --o`;
 		
 		print `r.mapcalc 'avg_A_amt_feb_$year = A_amt_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_A_amt_feb_$year output=/$home_dir_name/$user/Dropbox/SMR_R/raw_data/smr_output/maps_$user/avg_A_amt_feb_$year.tif --o`;
+		print `r.out.gdal input=avg_A_amt_feb_$year output=/Users/$user/Dropbox/SMR_R/raw_data/smr_output/maps/avg_A_amt_feb_$year.tif --o`;
 
 		print `r.mapcalc 'avg_B_amt_feb_$year = B_amt_feb_$year / 29' --o`;
-		print `r.out.gdal input=avg_B_amt_feb_$year output=/$home_dir_name/$user/Dropbox/SMR_R/raw_data/smr_output/maps_$user/avg_B_amt_feb_$year.tif --o`;
+		print `r.out.gdal input=avg_B_amt_feb_$year output=/Users/$user/Dropbox/SMR_R/raw_data/smr_output/maps/avg_B_amt_feb_$year.tif --o`;
 		}
 
   # maps of annual precipitation and pet to confirm distribution is correct
@@ -797,8 +813,8 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
   }
   
   if ($doy == 365) { # will need to change to 365
-    print `r.out.gdal input=precip_$year output=/$home_dir_name/$user/Dropbox/SMR_R/raw_data/smr_output/maps_$user/precip_$year.tif --o`;
-    print `r.out.gdal input=pet_$year output=/$home_dir_name/$user/Dropbox/SMR_R/raw_data/smr_output/maps_$user/pet_$year.tif --o`; 
+    print `r.out.gdal input=precip_$year output=/Users/$user/Dropbox/SMR_R/raw_data/smr_output/maps/precip_$year.tif --o`;#/raw_data/smr_output/maps/precip_$year.tif`;
+    print `r.out.gdal input=pet_$year output=/Users/$user/Dropbox/SMR_R/raw_data/smr_output/maps/pet_$year.tif --o`;  #/raw_data/smr_output/maps/pet_$year.tif`;
   }
   
   # count up number of days in a year each cell is at saturation
@@ -809,7 +825,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
   # at the end of the year divide by number of days in the year and multiply by 100 to get the percentage of the year each cell spends at saturation
   if ($doy == 365) { # need to make 365 eventually once markdown is set up
     `r.mapcalc 'psat_$year = (psat_$year / 365) * 100' --o`; 
-    print `r.out.gdal input=psat_$year output=/$home_dir_name/$user/Dropbox/SMR_R/raw_data/smr_output/maps_$user/psat_$year.tif --o`;
+    print `r.out.gdal input=psat_$year output=/Users/$user/Dropbox/SMR_R/raw_data/smr_output/maps/psat_$year.tif --o`;
   }
 
 	open($WATERSHED, '<', 'wshed_res_properties.ini') || "Can't open watershed properties file\n";
@@ -998,7 +1014,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 			$actual_ET_daily_{$wshed_id} = $actual_ET_daily_{$wshed_id}*1;
 
 		#  Create mass balance output file
-    open(OUT, ">>", "/$home_dir_name/$user/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$user.csv") || die "Can't open weather file\n";
+    open(OUT, ">>", "/Users/$user/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || open(OUT, ">>", "/Users/philipmoffatt/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id_tst.csv") || open(OUT, ">>", "/home/petbuser/Dropbox/SMR_R/raw_data/smr_output/MFC_mass_balance_$wshed_id.csv") || die("Cannot Open File");
 		print OUT "$wshed_id $date $year $runoff_cm_{$wshed_id} $precip_cm_{$wshed_id} $rain_cm_{$wshed_id} $actualET_flow_cm_{$wshed_id} $canopy_evap_cm_{$wshed_id} $snowmelt_cm_{$wshed_id} $storage_amt_cm_{$wshed_id} $throughfall_cm_{$wshed_id} $canopy_storage_amt_cm_{$wshed_id} $perc_cm_{$wshed_id} $Q_{$wshed_id} $swe_cm_{$wshed_id} $condens_cm_{$wshed_id} $snow_cm_{$wshed_id} $base_flow_{$wshed_id} $srad_{$wshed_id} $latent_{$wshed_id} $sensible_{$wshed_id} $lw_{$wshed_id} $q_rain_ground_cm_{$wshed_id} $q_total_{$wshed_id} $ice_content_{$wshed_id} $liquid_water_{$wshed_id} $refreeze_{$wshed_id} $vap_d_air_{$wshed_id} $vap_d_snow_{$wshed_id} $u_surface_{$wshed_id} $actual_ET_daily_{$wshed_id}\n";
 		close(OUT); 
 

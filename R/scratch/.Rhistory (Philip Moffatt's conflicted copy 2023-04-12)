@@ -1,0 +1,68 @@
+library(tidyverse)
+library(AOI)
+library(climateR)
+# establish AOI
+AOI::aoi_get("Pullman") %>%
+AOI::aoi_map(returnMap = TRUE)
+library(rnoaa)
+# use noaa
+# Get a table of all datasets
+ncdc_datasets()
+# establish AOI
+site <- AOI::aoi_get("Pullman") %>%
+AOI::aoi_map(returnMap = TRUE)
+site$width
+str(geocode("Pullman"))
+# establish AOI
+site <- 'Pullman'
+AOI::aoi_get(site) %>%
+AOI::aoi_map(returnMap = TRUE)
+str(geocode(site))
+lat <- geocode(site$lat)
+lat <- geocode(site)
+lat$lat
+cords <- geocode(site)
+lat <- cords$lat
+lon <- cords$lon
+#
+station_data <- ghcnd_stations() # Takes a while to run
+lat_lon_df <- data.frame(id = site,
+latitude = lat,
+longitude = lon)
+# pull data from PCFS site
+wx <- meteo_tidy_ghcnd('USW00094129',
+var = 'all',
+date_min = '1959-10-01',
+date_max = '1979-10-01')
+# pull data from PCFS site
+wx <- meteo_tidy_ghcnd('USC00456789',
+var = 'all',
+date_min = '1959-10-01',
+date_max = '1979-10-01')
+station_data <- ghcnd_stations()
+lat_lon_df <- data.frame(id = site,
+latitude = lat,
+longitude = lon)
+nearby_stations <- meteo_nearby_stations(lat_lon_df = lat_lon_df,
+station_data = station_data, radius = 10)
+View(nearby_stations)
+View(wx)
+test <- ghcnd_search('USC00456789',
+var = 'all',
+date_min = '1959-10-01',
+date_max = '1979-10-01')
+View(test)
+View(wx)
+# calculate tdew
+tavg <- wx %>%
+transmute(date, tavg = (tmax+tmin)/2)
+# calculate tdew
+tavg <- wx %>%
+transmute(date, tavg = (tmax+tmin)/2) %>%
+mutate(tdew = case_when(tavg <= 0 ~ tavg*0.7 - 2,
+tavg > 0 ~ tavg*0.97 - 0.53))
+View(tavg)
+# calculate tdew
+tdew <- wx %>%
+mutate(tdew = case_when(tmin <= 0 ~ tmin * 0.7 - 2,
+tmin > 0 ~ tmin * 0.97 - 0.53))

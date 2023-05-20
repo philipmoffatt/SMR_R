@@ -305,7 +305,7 @@ print `r.mapcalc 'psat_1988 = 0.0' --o`;
 #____________________________________________________________________________________
 print "\n|----- READING Weather -----|\n";
 #  This set of commands splits a tab delimited array using a while loop
-open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/raw_data/weather/noaa_pullman_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/processed_data/imitate_smr_setup/noaa_pullman.csv') || open ($WEATHER, '<', '/home/petbuser/Dropbox/SMR_R/processed_data/imitate_smr_setup/noaa_pullman_mini.csv') || die "Can't open weather file\n";
+open ($WEATHER, '<', '/Users/duncanjurayj/Dropbox/SMR_R/raw_data/weather/noaa_pullman_mini.csv') || open ($WEATHER, '<', '/Users/philipmoffatt/Dropbox/SMR_R/raw_data/weather/noaa_pullman_mini_sn.csv') || open ($WEATHER, '<', '/home/petbuser/Dropbox/SMR_R/processed_data/imitate_smr_setup/noaa_pullman_mini.csv') || die "Can't open weather file\n";
 #print "\n|----- line 280 -----|\n";
 
 while (<$WEATHER>) {
@@ -395,18 +395,6 @@ print `r.mapcalc 'canopy_evap = if(rain>0.0,min(canopy_storage_amt,pet),min(cano
 print `r.mapcalc 'pet = max(0.0,pet-canopy_evap)' --o`;
 print `r.mapcalc 'canopy_storage_amt = canopy_storage_amt-canopy_evap' --o`;
 
-#  Degree Day snowmelt
-#  USACE recommends forest = 0.23 cm/C/day, 0 C, open = 0.27 cm/C/day, Tb=0
-#  Fitting Mica Creek snotel data  Ksnow = 0.719 cm/C/day, Tb = 2.14
-#  For open areas assume USACE difference between forest and open melt accurate
-#  Using solver in excel fit open area snow parameters by preserving USACE difference
-#  Assumed melt in partial cut increased by 1/3 of the difference between open and forest areas 
-#  Fitted open area parameters Ksnow_open = 0.764 cm/C/day, Tb_open = 0.42
-#  Fitted partial cut parameters Ksnow_partial = 0.734 cm/C/day, Tb_partial = 1.54
-
-#print `r.mapcalc 'snowmelt = if(swe+snow-max(0.0,kfactor*(tavg-tbase))<0.0,swe+snow,max(0.0,kfactor*(tavg-tbase)))' --o`;
-#print `r.mapcalc 'swe = swe+snow-snowmelt' --o`;
-
 #print "\n \n";
 print "\n|----- SNOW ACCUMULATION AND MELT MODEL -----|\n";
 #  ------------------------------- SAM --------------------------------------
@@ -424,7 +412,8 @@ print "\n|----- SNOW ACCUMULATION AND MELT MODEL -----|\n";
 #print `r.mapcalc 'rh = if(landuse==6.0,$rh_row_crop,if(landuse==5.0,$rh_grass,if(landuse==4.0,$rh_shrub,if(landuse==3.0,$rh_forest,if(landuse==2.0,$rh_urban,if(landuse==1.0,$rh_water,$rh_row_crop))))))' --o`;
 #print `r.mapcalc 'rh = if(landuse==6.0, $rh_row_crop/(1.0-(canopy_cover/3.0)), if(landuse==5.0, $rh_grass/(1.0-(canopy_cover/3.0)), if(landuse==4.0, $rh_shrub/(1.0-(canopy_cover/3.0)), if(landuse==3.0, $rh_forest/(1.0-(canopy_cover/3.0)), if(landuse==2.0, $rh_urban/(1.0-(canopy_cover/3.0)), if(landuse==1.0, $rh_water/(1.0-(canopy_cover/3.0)), $rh_row_crop/(1.0-canopy_cover/3)))))))' --o`; # DJ 04/22/23, canopy cover effect added in with all landuse types
 #print `r.mapcalc 'rh = if(swe>0,$rh_water*10,0)' --o`; # junk trial plm 20230428
-print `r.mapcalc 'rh = if(swe>0,$rh_snow/1.0-(canopy_cover/3.0),0)' --o`; # duncan jurayj 2023051
+## print `r.mapcalc 'rh = if(swe>0,$rh_snow/1.0-(canopy_cover/3.0),0)' --o`; # duncan jurayj 2023051
+print `r.mapcalc 'rh = if(swe>0,$rh_snow/1.0-(canopy_cover/3.0),0)' --o`; # testing for why model stroage is 0 
 print `r.mapcalc 'snow.age = if(snow>0.0 && throughfall==0.0,1.0,snow.age+1.0)' --o`; # modified MZ 20190210
 print `r.mapcalc 'albedo = if(swe.yesterday+snow>0.0,min(0.95,0.7383*snow.age^(-0.1908)),0.2)' --o`;
 
