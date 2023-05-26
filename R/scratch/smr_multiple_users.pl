@@ -134,13 +134,16 @@ close($WATERSHED) || die "Cannot close the watershed properties file";
 	#	6. row crop: 0.068 - 0.147 cm (Di, W., Jiusheng, L., & Minjie, R. 2006)
 print `r.mapcalc 'max_canopy_storage_amt = if(landuse==6.0,0.147,if(landuse==5.0,0.15,if(landuse==4.0,0.15,if(landuse==3.0,0.31,if(landuse==2.0,0.1,if(landuse==1.0,0.0,0.0))))))' --o`;
 
+# initial water stored in the canopies is zero
+print `r.mapcalc 'canopy_storage_amt = 0.0' --o`;
+
 # Canopy cover is defined by landuse and is used to modify the calculation of resistence to heat transfer in the SAM Module; values range from 0.1-0.99; larger values increase resistence which slows snowmelt. 
 print `r.mapcalc 'canopy_cover = if(landuse==6.0,0.1,if(landuse==5.0,0.2,if(landuse==4.0,0.50,if(landuse==3.0,0.99,if(landuse==2.0,0.01,if(landuse==1.0,0.001,0.001))))))' --o`;
 
 # Root zone defines the portion of the soil that is affected by actual evaporation.
 print `r.mapcalc 'root_zone = if(landuse==6.0,soil_depth,if(landuse==5.0,soil_depth_A,if(landuse==4.0,soil_depth,if(landuse==3.0,soil_depth,if(landuse==2.0,1.0,if(landuse==1.0,1.0,1.0))))))' --o`;
 
-# Wiltpt amount is the amount of water that causes plants to wilt.
+# Wiltpt amount is the amount of water that causes plants to wilt. This is a base map already made in the setup.
 #print `r.mapcalc 'wiltpt_amt = if(landuse==6.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==5.0,wiltpt_mc_A*soil_depth_A,if(landuse==4.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==3.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==2.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,if(landuse==1.0,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B,wiltpt_mc_A*soil_depth_A+wiltpt_mc_B*soil_depth_B))))))' --o`;
 
 # ETreduction is the amount of water that can evaporate from the soil; 80% for all classes except forest which is 70% and urban/barren/rock/water is 0. 
@@ -153,19 +156,15 @@ print `r.mapcalc 'tmax_rain = if(landuse==6.0,1.0,if(landuse==5.0,1.0,if(landuse
 print `r.mapcalc 'tmin_snow = if(landuse==6.0,0.0,if(landuse==5.0,0.0,if(landuse==4.0,0.0,if(landuse==3.0,0.0,if(landuse==2.0,0.0,if(landuse==1.0,0.0,0.0))))))' --o`;
 
 # Initial conditions storage amount defined (% of saturation)
+#  in setup - storage_amt in stream cells is assumed at saturation
+#  in setp up - soil depth in stream cells is assumed at 1 cm A horizon, 19 cm B horizon
 print `r.mapcalc 'storage_amt_A = sat_mc_A * 0.4' --o`;
 print `r.mapcalc 'storage_amt_B = sat_mc_B * 0.4' --o`;
 #print `r.mapcalc 'storage_amt_A = (wiltpt_mc_A+(fieldcap_mc_A-wiltpt_mc_A)*0.2)*soil_depth_A' --o`;
 print `r.mapcalc 'storage_amt = storage_amt_A + storage_amt_B' --o`;
 
-#  storage_amt_ini was the storage amt of the previous run (9/31/1998)
-#  storage_amt in stream cells is assumed at saturation
-#  soil depth in stream cells is assumed at 1 cm A horizon, 19 cm B horizon
-
-print `r.mapcalc 'canopy_storage_amt = 0.0' --o`;
+#  Initiation for SAM
 print `r.mapcalc 'swe = 0.0' --o`;
-
-#  Initiation for SAM MZ 20190127
 print `r.mapcalc 'snow.age = 1.0' --o`;
 print `r.mapcalc 'swe.yesterday = 0.0' --o`;
 print `r.mapcalc 'albedo = 0.2' --o`;
@@ -176,11 +175,12 @@ print `r.mapcalc 'u.surface = 24.0*tsnow_surf*(2.1*1000.0*min(swe/100.0,0.02)+10
 print `r.mapcalc 'tsnow.pack = -0.5' --o`;
 print `r.mapcalc 'u.total = 24.0*tsnow.pack*(2.1*1000.0*swe/100.0+2.1*1000.0*0.4)' --o`; # convert to daily MZ 20190410 | should not be convert to daily becasue u.surface is in KJ/m^2. It is not a rate, it is the energy content of the surface layer. So the comment on 20190410 is wrong. MZ 20200330
 
-#  set the initial (t-1) time step, by MZ 2017.2.5
+#  set the initial (t-1) time step
 print `r.mapcalc 'mass_balance_total = 0.0' --o`;
 print `r.mapcalc 'canopy_storage_amt_pre = 0.0' --o`;
 print `r.mapcalc 'storage_amt_pre = storage_amt' --o`;
 
+# initial maps for each year of weather
 print `r.mapcalc 'runoff_feb_1965 = 0.0' --o`;
 print `r.mapcalc 'runoff_feb_1966 = 0.0' --o`;
 print `r.mapcalc 'runoff_feb_1967 = 0.0' --o`;
@@ -338,9 +338,8 @@ print `r.mapcalc 'psat_1988 = 0.0' --o`;
 
 print "\n|----- READING Weather -----|\n";
 
-#  This set of commands splits a tab delimited array using a while loop
+#  This set of commands splits a tab delimited array using a while loop; it runs until line 1013
 open ($WEATHER, '<', "/$home_dir_name/$user/Dropbox/SMR_R/raw_data/weather/noaa_pullman_mini_sn.csv") || die "Can't open weather file\n"; 
-#print "\n|----- line 280 -----|\n";
 
 while (<$WEATHER>) {
 	chop($_);
@@ -571,15 +570,13 @@ print `r.mapcalc 'tsnow_surf = u.surface/24.0/(2.1*1000.0*min(swe/100.0,0.02)+10
 print "\n|----- END OF SNOW ACCUMULATION AND MELT MODEL -----|\n";
 print "\n \n";
 
-# assume road width is 5 m and assume road surface storage is 1.5 cm 
-# assume once surface storage is exceeded all  reaches stream
-# print `echo "road_runoff=if(roads==1.0,max(0.0,snowmelt+throughfall-1.5)*5.0/$gridsize,0.0)" | r.mapcalc`;
-#print `r.mapcalc 'road_runoff = if(roads==1.0,max(0.0,snowmelt+throughfall-1.5)*5.0/$gridsize,0.0)' --o`;
-print `r.mapcalc 'road_runoff = 0.001' --o`; #if(landuse==2.0,max(0.0,snowmelt+throughfall-1.5)/$gridsize,0.0)' --o`; removed the x5 part of the road runoff (becuase grid size is already 30)
 print `r.mapcalc 'water_input = snowmelt+throughfall' --o`;
 print `r.mapcalc 'snowmelt = if(water_input>0.0,snowmelt*(water_input-road_runoff)/water_input,snowmelt)' --o`;
 print `r.mapcalc 'throughfall = if(water_input>0.0,throughfall*(water_input-road_runoff)/water_input,throughfall)' --o`;
 
+#  -----------------------------Initiate 6-hr Hydrology ----------------------------------
+print "\n|----- Initial Conditions for 6-hr Temp Array -----|\n";
+print "\n \n";
 print `r.mapcalc 'temp_sum = 0.0' --o`;
 print `r.mapcalc 'actualET_daily_flow = 0.0' --o`;
 print `r.mapcalc 'perc_daily_flow = 0.0' --o`;
@@ -588,15 +585,13 @@ print `r.mapcalc 'lateral_daily_out = 0.0' --o`;
 print `r.mapcalc 'lateral_daily_in = 0.0' --o`;
 print `r.mapcalc 'input_daily = 0.0' --o`;
 print `r.mapcalc 'SM_test = 0.0' --o`; 
-
 print `r.mapcalc 'mass_daily_balance = 0.0' --o`; 
 print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 
 
 	foreach $hrly_tmp (@hourly_tmp_array)
 		{
-#			print `r.mapcalc 'temp = $hrly_tmp' --o`; # MZ 20170210
-			print `r.mapcalc 'temp = $hrly_tmp + ($temp_LR/1000)*($el - $low_site_el)' --o`;  # switched order of el and low_site_el as is in the intial lapse rate calculations above
+			print `r.mapcalc 'temp = $hrly_tmp + ($temp_LR/1000)*($el - $low_site_el)' --o`;
 			print `r.mapcalc 'temp_sum = max(0.0,temp)+temp_sum' --o`;
 
 		};
@@ -605,10 +600,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	print "\n \n";
 	foreach $hrly_tmp (@hourly_tmp_array)
 		{
-#			print `r.mapcalc 'temp = $hrly_tmp' --o`; # MZ 20170210
-			print `r.mapcalc 'temp = $hrly_tmp + ($temp_LR/1000)*(el - $low_site_el)' --o`; # switched order of el and low_site_el as is in the intial lapse rate calculations above
-
-			#print "$hrly_tmp \n";
+			print `r.mapcalc 'temp = $hrly_tmp + ($temp_LR/1000)*(el - $low_site_el)' --o`;
 
 
 	#____________________________________________________________________________________
@@ -692,19 +684,19 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	#	5. grass/grassy wetland/pasture: 0.15 cm
 	#	6. row crop: 0.068 - 0.147 cm
 
-
-	print `r.mapcalc 'ET_coeff = if(landuse==6.0,$cc_row_crop,if(landuse==5.0,$cc_grass,if(landuse==4.0,$cc_shrub,if(landuse==3.0,$cc_forest,if(landuse==2.0,$cc_urban,if(landuse==1.0,$cc_water,$cc_water))))))' --o`; # DJ - 3/14/23 --> taking out the -10 and removing the /100 below because our Kc values are small already # DJ 04/06/2023 -- commented out landuse effect to just use ETcoeff of 1.
-
+	print `r.mapcalc 'ET_coeff = if(landuse==6.0,$cc_row_crop,if(landuse==5.0,$cc_grass,if(landuse==4.0,$cc_shrub,if(landuse==3.0,$cc_forest,if(landuse==2.0,$cc_urban,if(landuse==1.0,$cc_water,$cc_water))))))' --o`; 
+	
 	print `r.mapcalc 'root_storage_amt = if(landuse==6.0,storage_amt,if(landuse==5.0,storage_amt,if(landuse==4.0,storage_amt,if(landuse==3.0,storage_amt,if(landuse==2.0,storage_amt,if(landuse==1.0,storage_amt,storage_amt))))))' --o`;
-
-	print `r.mapcalc 'actualET_flow = if(root_storage_amt>(root_zone*ETreduction_mc),min(max(0.0,(root_storage_amt-wiltpt_amt)),pet*ET_coeff*$temp_time_step/24.0),if(root_storage_amt>wiltpt_amt,min(max(0.0,(root_storage_amt-wiltpt_amt)),max(0.0,pet*((root_storage_amt/root_zone-wiltpt_amt/root_zone)/(ETreduction_mc-wiltpt_amt/root_zone))*ET_coeff*$temp_time_step/24.0)),0.0))' --o`; ### FIX  to avoid negative values - MZ 20171030 Fixed # DJ - 3/14/23 --> removing
-
+	
+	print `r.mapcalc 'actualET_flow = if(root_storage_amt>(root_zone*ETreduction_mc),min(max(0.0,(root_storage_amt-wiltpt_amt)),pet*ET_coeff*$temp_time_step/24.0),if(root_storage_amt>wiltpt_amt,min(max(0.0,(root_storage_amt-wiltpt_amt)),max(0.0,pet*((root_storage_amt/root_zone-wiltpt_amt/root_zone)/(ETreduction_mc-wiltpt_amt/root_zone))*ET_coeff*$temp_time_step/24.0)),0.0))' --o`; 
+	
 	print `r.mapcalc 'actualET_daily_flow = actualET_daily_flow+actualET_flow' --o`;
+	
 	print `r.mapcalc 'storage_amt = storage_amt-actualET_flow' --o`;
-
+	
 	print `r.mapcalc 'storage_amt_A = if(landuse==6.0,if(storage_amt<fieldcap_amt,fieldcap_amt_A*storage_amt/fieldcap_amt,fieldcap_amt_A),if(landuse==5.0,if(storage_amt<fieldcap_amt,fieldcap_amt_A*storage_amt/fieldcap_amt,fieldcap_amt_A),if(landuse==4.0,if(storage_amt<fieldcap_amt,fieldcap_amt_A*storage_amt/fieldcap_amt,fieldcap_amt_A),if(landuse==3.0,storage_amt_A-actualET_flow,if(landuse==2.0,if(storage_amt<fieldcap_amt,fieldcap_amt_A*storage_amt/fieldcap_amt,fieldcap_amt_A),if(landuse==1.0,if(storage_amt<fieldcap_amt,fieldcap_amt_A*storage_amt/fieldcap_amt,fieldcap_amt_A),0))))))' --o`;
-
-	print `r.mapcalc 'storage_amt_B = storage_amt-storage_amt_A' --o`; # 20171207 MZ
+	
+	print `r.mapcalc 'storage_amt_B = storage_amt-storage_amt_A' --o`;
 
 
 	#____________________________________________________________________________________
@@ -749,9 +741,8 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 	print "\n|----- END OF 6 HOUR TIME LOOPING -----|\n";
 	print "\n \n";
 
-	print `r.mapcalc 'runoff_daily_flow = runoff_daily_flow+road_runoff' --o`;
+	print `r.mapcalc 'runoff_daily_flow = runoff_daily_flow' --o`; # dropped road runoff
 	print `r.mapcalc 'input_daily_balance = input_daily - (snowmelt + throughfall)' --o`;
-
 	#print `r.mapcalc 'psat_$year = psat_$year + if(saturation>=100,1,0)' --o`;
 
 
@@ -760,6 +751,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 #  7. Output maps
 #____________________________________________________________________________________
 
+print "\n|----- Febrauary runoff & saturation -----|\n";  
 	# the idea here is too sum up the daily stats if it's february (month == 2) and then 
 	# if the day is 60, which will be right at the end of february write out the file to 
 	# an ascii (it will be hard to say if this works until we start trying to run the model)
@@ -789,6 +781,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 		print `r.out.gdal input=avg_B_amt_feb_$year output=/$home_dir_name/$user/Dropbox/SMR_R/raw_data/smr_output/maps_$user/avg_B_amt_feb_$year.tif --o`;
 		}
 
+print "\n|----- annual precip and pet -----|\n";  
   # maps of annual precipitation and pet to confirm distribution is correct
   # with respect to elevation
   if ($doy <= 365) {
@@ -800,7 +793,8 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
     print `r.out.gdal input=precip_$year output=/$home_dir_name/$user/Dropbox/SMR_R/raw_data/smr_output/maps_$user/precip_$year.tif --o`;
     print `r.out.gdal input=pet_$year output=/$home_dir_name/$user/Dropbox/SMR_R/raw_data/smr_output/maps_$user/pet_$year.tif --o`; 
   }
-  
+ 
+ print "\n|----- annual saturation -----|\n";   
   # count up number of days in a year each cell is at saturation
   if ($doy <= 365) { # need to make 365 eventually once markdown is set up
     `r.mapcalc 'psat_$year = psat_$year + if(saturation >= 100, 1, 0)' --o`; # make this 100 but want it to be showing up in ten days for now
@@ -820,14 +814,16 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 		
 		# **********************************  1  ***************************************
 		# Runoff output
-			print `r.stats.zonal base=watershed cover=runoff_daily_flow out=temp1 method=sum --o --quiet`;
-			print $runoff_cm_{$wshed_id} = `r.stats -A -n -N input=temp1`;
+			print `r.stats.zonal base=watershed cover=runoff_daily_flow out=temp1 method=sum --o --quiet`; # Calculates the sum of runoff_daily_flow for each cell in watershed 
+      print "\n|-----The runoff_daily_flow is $temp1 -----|\n";			
+			print $runoff_cm_{$wshed_id} = `r.stats -A -n -N input=temp1`; # A:  Print averaged values, n:  Do not report no data value, N:  Do not report cells where all maps have no data
 			$runoff_cm_{$wshed_id} = $runoff_cm_{$wshed_id}*1; # sum of all cells in cm
 			$runoff_cms_{$wshed_id} = ($runoff_cm_{$wshed_id}/100)*($gridsize*$gridsize)/($time_step*3600.0); # Calculate the runoff in m3/s (cubic meter per second) for sum of all cells
 			$runoff_mm_{$wshed_id} = $runoff_cm_{$wshed_id}*10/$area_cells; # Convert runoff into area average depth (mm)
 
 
 		# **********************************  3  ***************************************
+		print "\n|----- annual average watershed precip -----|\n";	
 		# Precip output
 			print `r.stats.zonal base=watershed cover=precip out=temp3 method=sum --o --quiet`;
 			print $precip_cm_{$wshed_id} = `r.stats -A -n -N input=temp3`;
@@ -835,20 +831,23 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 
 
 		# **********************************  4  ***************************************
+			print "\n|----- annual average watershed rain -----|\n";
 		# Rain output
 			print `r.stats.zonal base=watershed cover=rain out=temp4 method=sum --o --quiet`;
-			print $rain_cm_{$wshed_id} = `r.stats -A input=temp4 nv= `;
+			print $rain_cm_{$wshed_id} = `r.stats -A input=temp4 null_value="null" `;
 			$rain_cm_{$wshed_id} = $rain_cm_{$wshed_id}*1;
 
 
 		# **********************************  5  ***************************************
+			print "\n|----- annual average AET -----|\n";
 		# Actual evaporation output
 			print `r.stats.zonal base=watershed cover=actualET_daily_flow out=temp5 method=sum --o --quiet`;
-			print $actualET_flow_cm_{$wshed_id} = `r.stats -A input=temp5 nv= `;
+			print $actualET_flow_cm_{$wshed_id} = `r.stats -A input=temp5 null_value="AET is null"`;
 			$actualET_flow_cm_{$wshed_id} = $actualET_flow_cm_{$wshed_id}*1;
 
 
 		# **********************************  6  ***************************************
+		print "\n|----- annual average canopy ET -----|\n";
 		# Canopy ET output
 			print `r.stats.zonal base=watershed cover=canopy_evap out=temp6 method=sum --o --quiet`;
 			print $canopy_evap_cm_{$wshed_id} = `r.stats -A input=temp6 nv= `;
@@ -856,6 +855,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 
 
 		# **********************************  7  ***************************************
+		print "\n|----- annual average snowmelt -----|\n";
 		# Snowmelt output
 			print `r.stats.zonal base=watershed cover=snowmelt out=temp7 method=sum --o --quiet`;
 			print $snowmelt_cm_{$wshed_id} = `r.stats -A input=temp7 nv= `;
@@ -863,6 +863,7 @@ print `r.mapcalc 'input_daily_balance = 0.0' --o`;
 
 
 		# **********************************  8  ***************************************
+		print "\n|----- annual average Storage -----|\n";
 		# Storage amount output
 			print `r.stats.zonal base=watershed cover=storage_amt out=temp8 method=sum --o --quiet`;
 			print $storage_amt_cm_{$wshed_id} = `r.stats -A input=temp8 nv= `;
