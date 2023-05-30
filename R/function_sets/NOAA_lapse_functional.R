@@ -8,9 +8,6 @@ library(elevatr)
 library(rnoaa)
 
 
-
-
-
 ### Pulling the NOAA data
 ## packages:
 ## parameters:

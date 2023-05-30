@@ -497,7 +497,6 @@ lapse_rate_frame <- lapse_rates(gm_p, gm_m, low_el, high_el)
 
 
 
-
 #gm_p <- land_cover_rh_wrapper(
 #  gridMET = gm_p,
 #  land_cover_names = land_cover_names,

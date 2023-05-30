@@ -71,9 +71,8 @@ VaM_data <<- preprocessing(
 
 ## Model Performance Metrics:
 
-|       This needs to be filled in. It doesn't matter too much right now 
-|       given the current performance. Should the 'windup year' be excluded
-|       from the evaluation?
+The NSE for streamflow from this run is _____.
+The KGE for streamflow from this run is _____.
 
 ## Report Outline:
 

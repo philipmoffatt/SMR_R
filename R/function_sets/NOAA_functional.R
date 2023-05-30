@@ -28,7 +28,7 @@ pull_noaa <- function(site_id, date_min = NULL, date_max = NULL) {
   
   return(wx)
 }
-
+ 
 # pulling and cleaning sunshine data
 pull_sunshine_data <- function(sunshine_file) {
   sunshine <- read.csv(sunshine_file) %>%
