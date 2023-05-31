@@ -108,7 +108,7 @@ preprocessing <- function(
   
   validation_data <- read.csv(validation_path) %>% 
     mutate(
-      mean_discharge_cms = mean_discharge_cfs*0.028316832,
+      mean_discharge_cms = mean_discharge_cms,#mean_discharge_cfs*0.028316832,
       date = as.Date(date, "%m/%d/%Y")
       )
 
@@ -216,7 +216,7 @@ flux_ts <- function(combined_data, flux, log_transform = FALSE) {
     y_trans <- 'identity'
   }
   
-  flux_series <- combined_data[, flux] / 79384
+  flux_series <- combined_data[, flux] / 72678
   date_series <- combined_data[, 'date']
   max_date <- max(date_series)
   min_date <- min(date_series)
@@ -281,13 +281,13 @@ radiation_ts <- function(combined_data, log_transform = FALSE) {
     y_trans <- 'identity'
   }
   
-  # Divide all values in selected columns by 79384
+  # Divide all values in selected columns by 72678
   combined_data <- combined_data %>%
     mutate(
-      srad = srad/79384,
-      latent = latent/79384,
-      sensible = sensible/79384,
-      lw = lw/79384,
+      srad = srad/72678,
+      latent = latent/72678,
+      sensible = sensible/72678,
+      lw = lw/72678,
       q_rain_ground_cm
     )
   
