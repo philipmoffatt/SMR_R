@@ -14,15 +14,15 @@ library(ggplot2)
 ##   (units, naming, and extent) of the PERL SMR script.
 
 ## Variable Setups:
-imitate_smr_path <- "/Users/duncanjurayj/Dropbox/SMR_R/processed_data/imitate_smr_setup"
-shape_path <- "/Users/duncanjurayj/Dropbox/SMR_R/raw_data/template/mfc_no_pullman/layers/globalwatershed.shp"
-basins_path <- "/Users/duncanjurayj/Dropbox/SMR_R/processed_data/dem/MFC/dem_basins.tif"
+imitate_smr_path <- "./processed_data/imitate_smr_setup"
+shape_path <- "./raw_data/template/mfc_no_pullman/layers/globalwatershed.shp"
+basins_path <- "./processed_data/dem/MFC/dem_basins.tif"
 watershed_id <- 84
-dem_breach_path <- "/Users/duncanjurayj/Dropbox/SMR_R/processed_data/dem/MFC/dem_breached.tif"
-wshed_mask_path <- "/Users/duncanjurayj/Dropbox/SMR_R/processed_data/imitate_smr_setup/watershed.tif"
-streams_raw_path <- "/Users/duncanjurayj/Dropbox/SMR_R/processed_data/dem/MFC/dem_streams.tif"
-nlcd_simple_path <- "/Users/duncanjurayj/Dropbox/SMR_R/processed_data/ASC/MFC/NLCD_simple.asc"
-mfc_folder_path <- "/Users/duncanjurayj/Dropbox/SMR_R/processed_data/ASC/MFC"
+dem_breach_path <- "./processed_data/dem/MFC/dem_breached.tif"
+wshed_mask_path <- "./processed_data/imitate_smr_setup/watershed.tif"
+streams_raw_path <- "./processed_data/dem/MFC/dem_streams.tif"
+nlcd_simple_path <- "./processed_data/ASC/MFC/NLCD_simple.asc"
+mfc_folder_path <- "./processed_data/ASC/MFC"
 initial_depth_names <- c("depth_A.asc", "depth_B.asc")
 output_depth_names <- c("soil_depth_A.tif", "soil_depth_B.tif")
 landuse_path <- file.path(imitate_smr_path, "landuse.tif")
@@ -210,12 +210,16 @@ read_watershed_mask <- function(shapefile_path, basins, watershed_id, buffer=FAL
   
   if (buffer) {
     watershed_mask <- buffer(wshed_mask, buffer_amount)
-    }
+  }
+  
+  watershed_mask[watershed_mask == watershed_id] <- 1
   
   plot(watershed_mask, main = "Watershed Mask")
   
+  
   return(watershed_mask)
 }
+
 write_watershed_mask <- function(mask, output_folder, filename="watershed") {
   if (!dir.exists(output_folder)) {
     dir.create(output_folder, recursive = TRUE)

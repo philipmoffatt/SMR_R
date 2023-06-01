@@ -23,10 +23,10 @@ if (os == "Linux") {
 
 post_processing_script_path <<- file.path(r_path,"scratch","functional_PP.R")
 source_smr_function_path <<- file.path(r_path,"scratch","source_SMR_function.R")
-perl_script_path <<-file.path(r_path,"scratch","smr_multiple_users.pl")
+perl_script_path <<-file.path(r_path,"scratch","test_mac.pl")
 
 # pulling raw data paths in
-validation_data_path <<- file.path(raw_data_path,"validation_data","USGSdischarge.csv")
+validation_data_path <<- file.path(raw_data_path,"validation_data","WERLdischarge.csv")
 mass_balance_path <<- file.path(raw_data_path,"smr_output" , modeled_file_name)
 map_output_path <<- file.path(raw_data_path,'smr_output', map_output_folder_name)
 
@@ -63,10 +63,11 @@ version_tracked_outpath <<- version_tracker(mass_balance_path, simulation_note =
 ```{r, processing_model_data, echo = FALSE}
 VaM_data <<- preprocessing(
   validation_data_path,
-  mass_balance_path, #modeled_data_path,
+  mass_balance_path,
   column_headers,
   version_tracked_outpath = version_tracked_outpath
 )
+
 ```
 
 ## Model Performance Metrics:

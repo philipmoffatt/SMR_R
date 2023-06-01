@@ -125,9 +125,11 @@ import_files_into_GRASS <-
             override = T)
   
   files_in_dir <- list.files(import_dir)
-  
-  csv_ini_files <- grep("\\.(csv|ini)$", files_in_dir)
-  files_in_dir <- files_in_dir[-csv_ini_files]
+
+  #csv_ini_files <- grep("\\.(csv|ini)$", files_in_dir)
+  #files_in_dir <- files_in_dir[-csv_ini_files]
+  print("Files in Dir:")
+  print(files_in_dir)
   
   # import each file into GRASS
   for (file in files_in_dir) {

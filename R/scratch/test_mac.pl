@@ -180,6 +180,30 @@ print `r.mapcalc 'mass_balance_total = 0.0' --o`;
 print `r.mapcalc 'canopy_storage_amt_pre = 0.0' --o`;
 print `r.mapcalc 'storage_amt_pre = storage_amt' --o`;
 
+# Loop for years 1965 to 1975
+for my $year (1965..1975) {
+    my $year_str = sprintf("%04d", $year);
+
+    `r.mapcalc 'runoff_feb_$year_str = 0.0' --o`;
+    `r.mapcalc 'A_amt_feb_$year_str = 0.0' --o`;
+    `r.mapcalc 'B_amt_feb_$year_str = 0.0' --o`;
+    `r.mapcalc 'precip_$year_str = 0.0' --o`;
+    `r.mapcalc 'pet_$year_str = 0.0' --o`;
+    `r.mapcalc 'psat_$year_str = 0.0' --o`;
+}
+
+# Loop for years 2000 to 2022
+for my $year (2000..2022) {
+    my $year_str = sprintf("%04d", $year);
+
+    `r.mapcalc 'runoff_feb_$year_str = 0.0' --o`;
+    `r.mapcalc 'A_amt_feb_$year_str = 0.0' --o`;
+    `r.mapcalc 'B_amt_feb_$year_str = 0.0' --o`;
+    `r.mapcalc 'precip_$year_str = 0.0' --o`;
+    `r.mapcalc 'pet_$year_str = 0.0' --o`;
+    `r.mapcalc 'psat_$year_str = 0.0' --o`;
+}
+
 # initial maps for each year of weather
 print `r.mapcalc 'runoff_feb_1965 = 0.0' --o`;
 print `r.mapcalc 'runoff_feb_1966 = 0.0' --o`;
@@ -339,7 +363,7 @@ print `r.mapcalc 'psat_1988 = 0.0' --o`;
 print "\n|----- READING Weather -----|\n";
 
 #  This set of commands splits a tab delimited array using a while loop; it runs until line 1013
-open ($WEATHER, '<', "/$home_dir_name/$user/Dropbox/SMR_R/raw_data/weather/noaa_pullman.csv") || die "Can't open weather file\n"; 
+open ($WEATHER, '<', "/$home_dir_name/$user/Dropbox/SMR_R/raw_data/weather/gridMET_mini.csv") || die "Can't open weather file\n"; 
 
 while (<$WEATHER>) {
 	chop($_);

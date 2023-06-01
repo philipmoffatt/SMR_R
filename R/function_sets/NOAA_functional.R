@@ -537,8 +537,6 @@ row_crop_time <- list('preplant_len'=0, 'init_len'=160, 'dev_len'=75, 'mid_len'=
 row_crop_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.7, 'Kc_mid'=1.15, 'Kc_end'=0.35, 'Kc_post_harv'=0.30)
 
 # rh calculation variables
-land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
-land_cover_heights <- c(0.01, 4, 11, 0.3, 0.9, 0.9)
 land_cover_names <- c('snow')
 land_cover_heights <- c(0.01)
 
@@ -584,15 +582,6 @@ wx <- pull_noaa(site_id = ghcnd, date_min = date_min, date_max = date_max) %>%
 
 ## ugly calibration fix -- will work on it tomorrow
 wx$pet <- wx$pet * 1.69
-d <- wx
-
-
-d %>% 
-  group_by(year) %>%
-  summarise(sum_pet = sum(pet), tot_p = sum(precip)) %>%
-  ggplot()+
-  geom_point(aes(year,sum_pet))+
-  geom_line(aes(year,tot_p))
 
 
 # write big historical
@@ -610,7 +599,7 @@ mini_end_date <- "1965-10-10"
 write_weather_data(
   noaa_joined = wx,
   start_date = mini_start_date,
-  end_date = mini_end_date,
+  end_date = mini_end_date, 
   location = "pullman_mini"
 )
 

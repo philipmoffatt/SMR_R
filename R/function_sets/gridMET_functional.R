@@ -45,32 +45,23 @@ grass_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.75, 'Kc_end'=0.7
 row_crop_time <- list('preplant_len'=0, 'init_len'=160, 'dev_len'=75, 'mid_len'=75, 'late_len'=25, 'post_len'=30)
 row_crop_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.7, 'Kc_mid'=1.15, 'Kc_end'=0.35, 'Kc_post_harv'=0.30)
 
-land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
-land_cover_heights <- c(0.01, 4, 11, 0.3, 0.9, 0.9)
+#land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
+#land_cover_heights <- c(0.01, 4, 11, 0.3, 0.9, 0.9)
+land_cover_names <- c('snow')
+land_cover_heights <- c(0.01)
+
 
 # column names
-desired_columns <- c("tmin", "tmax", "year", "month", "day", "source", "lat", "lon", "date", 
-   "prcp", "srad", "wind_vel", "pet_grass", "vpd", "tavg", "doy", "l_turb", 
-   "atmospheric_pressure", "JDay", "Hour_0", "Hour_1", "Hour_2", "Hour_3", 
-   "Hour_4", "Hour_5", "Hour_6", "Hour_7", "Hour_8", "Hour_9", "Hour_10", 
-   "Hour_11", "Hour_12", "Hour_13", "Hour_14", "Hour_15", "Hour_16", 
-   "Hour_17", "Hour_18", "Hour_19", "Hour_20", "Hour_21", "Hour_22", 
-   "Hour_23", "Kc_water", "Kc_urban", "Kc_forest", "Kc_shrub", "Kc_grass", 
-   "Kc_row_crop", "tdew", "srad_potential", "cloud", "rh_water", "rh_urban", 
-   "rh_forest", "rh_shrub", "rh_grass", "rh_row_crop") 
-
 desired_columns <- c("date", "year", "month", "day", "doy", "tmax", "tmin",
                      "tavg", "tdew", "prcp","pet_grass","Hour_1","Hour_6","Hour_12","Hour_18",
                      "l_turb","cloud","Kc_water","Kc_urban","Kc_forest","Kc_shrub",
-                     "Kc_grass","Kc_row_crop","rh_water","rh_urban",
-                     "rh_forest","rh_shrub","rh_grass","rh_row_crop")
+                     "Kc_grass", "Kc_row_crop","rh_snow")
+
 
 smr_columns <- c("date", "year", "month", "day", "doy", "tmax", "tmin",
-                     "tavg", "tdew", "prcp","pet_grass","hour_1","hour_6","hour_12","hour_18",
-                     "l_turb","cloud","cc_water","cc_urban","cc_forest","cc_shrub",
-                     "cc_grass","cc_row_crop","rh_water","rh_urban",
-                     "rh_forest","rh_shrub","rh_grass","rh_row_crop")
-
+                 "tavg", "tdew", "precip","pet","hour_1","hour_6","hour_12","hour_18",
+                 "l_turb","cloud","cc_water","cc_urban","cc_forest","cc_shrub",
+                 "cc_grass","cc_row_crop","rh_snow")
 
 ## functions for building weather data
 pull_gridMET <- function(site_name) {
@@ -102,13 +93,14 @@ pull_gridMET <- function(site_name) {
            tmin = tmin - 273.15,
            tavg = (tmax+tmin)/2,
            doy = yday(date),
-           l_turb = 2.5
+           l_turb = 2.5,
+           prcp = prcp/10,
+           pet_grass = pet_grass/10
            )
   
   return(gridMET_data)
   
 }
-
 
 get_hourly_temps <- function(gridMET, latitude) {
   
@@ -442,14 +434,16 @@ rename_columns <- function(gridMET, renamed_columns) {
 
 subset_order_columns <- function(gridMET, desired_columns, renamed_columns) {
   gridMET_subset <- gridMET %>%
-    select(all_of(desired_columns)) %>%
+    dplyr::select(all_of(desired_columns)) %>%
     rename_columns(renamed_columns = renamed_columns)
   return(gridMET_subset)
 }
 
 
 # write weather data out to correct location -- probably needs some work
-write_weather_data <- function(gridMET_joined, start_date, end_date, location) {
+write_weather_data <- function(gridMET, start_date, end_date, location) {
+  
+  gridMET <- gridMET[order(gridMET$date), ]
   
   # Create the directory if it doesn't exist
   dir_path <- "./raw_data/weather"
@@ -458,15 +452,16 @@ write_weather_data <- function(gridMET_joined, start_date, end_date, location) {
   }
   
   # Select only rows within the specified date range
-  gridMET_joined_clipped <- gridMET_joined[as.Date(gridMET_joined$date) >= as.Date(start_date) &
-                                             as.Date(gridMET_joined$date) <= as.Date(end_date), ]
+  gridMET_clipped <- gridMET[as.Date(gridMET$date) >= as.Date(start_date) &
+                                             as.Date(gridMET$date) <= as.Date(end_date), ]
   
   # Write the clipped data to the file
   output_file <- file.path(dir_path, paste0("gridMET_", location, ".csv"))
-  write.table(gridMET_joined_clipped,
+  write.table(gridMET_clipped,
               file = output_file,
               col.names = FALSE,
-              row.names = FALSE)
+              row.names = FALSE,
+              sep = " ")
   
 }
 
@@ -493,27 +488,38 @@ gm_p <- pull_gridMET('Pullman, WA') %>%
   subset_order_columns(desired_columns = desired_columns,
                        renamed_columns = smr_columns)
 
-lapse_rate_frame <- lapse_rates(gm_p, gm_m, low_el, high_el)
+start_date <- "2018-10-10"
+end_date <- "2022-06-10"
 
+# write big historical
+write_weather_data(
+  gridMET = gm_p,
+  start_date = start_date,
+  end_date = end_date,
+  location = "large"
+)
 
+# write mini historical
+mini_start_date <- "2019-10-10"
+mini_end_date <- "2019-10-20"
 
-#gm_p <- land_cover_rh_wrapper(
-#  gridMET = gm_p,
-#  land_cover_names = land_cover_names,
-#  land_cover_heights = land_cover_heights
-#)
+write_weather_data(
+  gridMET = gm_p,
+  start_date = mini_start_date,
+  end_date = mini_end_date,
+  location = "mini"
+)
 
-#gm_p_hourly <- get_hourly_temps(gm_p, lat)
+# write mini historical
+medium_start_date <- "2000-10-01"
+medium_end_date <- "2001-10-01"
 
-#gm_p <- ann_Kc_curve(gm_p, water_time, water_Kc, 0, 'water')
-#gm_p <- ann_Kc_curve(gm_p, urban_time, urban_Kc, 0, 'urban')
-#gm_p <- ann_Kc_curve(gm_p, forest_time, forest_Kc, 0, 'forest')
-#gm_p <- ann_Kc_curve(gm_p, shrub_time, shrub_Kc, 0, 'shrub')
-#gm_p <- ann_Kc_curve(gm_p, rass_time, grass_Kc, 0, 'grass')
-#gm_p <- ann_Kc_curve(gm_p, row_crop_time, row_crop_Kc, 274, 'row_crop')
+write_weather_data(
+  gridMET = gm_p,
+  start_date = medium_start_date,
+  end_date = medium_end_date,
+  location = "medium"
+)
 
-#gm_p <- dewpoint_temperature(gm_p)
-
-#gm_p <- calculate_cloud_fraction(gm_p, lat, lon, -8)
 
 

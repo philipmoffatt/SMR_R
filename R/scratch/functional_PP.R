@@ -98,28 +98,55 @@ get_print_out_line <- function(perl_script_path) {
   }
 }
 
+read_dynamic_csv <- function(file_path) {
+  # Read the first line of the file
+  first_line <- readLines(file_path, n = 1)
+  
+  # Check if the first line contains commas
+  if (grepl(",", first_line)) {
+    # If commas are found, use comma as the separator
+    df <- read.csv(file_path, sep = ",")
+  } else {
+    # If no commas are found, use space as the separator
+    df <- read.csv(file_path, sep = " ")
+  }
+  
+  return(df)
+}
+
 preprocessing <- function(
     validation_path, 
     modeled_path, 
     modeled_headers,
     version_tracked_outpath
-    ) 
-  {
+) {
   
-  validation_data <- read.csv(validation_path) %>% 
+  #validation_data <- read.csv(validation_path) %>% 
+  #  mutate(
+  #    mean_discharge_cms = as.numeric(mean_discharge_cms), # Convert mean_discharge_cms to numeric
+  #    date = as.Date(date, "%m/%d/%Y")
+  #  )
+  
+  validation_data <- read_dynamic_csv(validation_path) %>%
     mutate(
-      mean_discharge_cms = mean_discharge_cms,#mean_discharge_cfs*0.028316832,
+      mean_discharge_cms = as.numeric(mean_discharge_cms),
       date = as.Date(date, "%m/%d/%Y")
-      )
+    ) %>%
+    fill(date, mean_discharge_cms)
+  
+  validation_data <- validation_data[order(validation_data$date), ]
+  
 
   modeled_data <- read.csv(modeled_path, sep=' ', header = FALSE, col.names = modeled_headers) %>% 
-  mutate(date = as.Date(date))
+    mutate(date = as.Date(date))
   
+
   common_start <- max(min(validation_data$date), min(modeled_data$date))
+  print(common_start)
   common_end <- min(max(validation_data$date), max(modeled_data$date))
+  print(common_end)
 
   validation_data <- validation_data[validation_data$date >= common_start & validation_data$date <= common_end, ]
-  
   modeled_data <- modeled_data[modeled_data$date >= common_start & modeled_data$date <= common_end, ]
   
   validation_data <- validation_data[, c('date', 'mean_discharge_cms')] %>%
@@ -127,14 +154,14 @@ preprocessing <- function(
   
   modeled_data <- merge(modeled_data, validation_data)
   
-  out_path = file.path(version_tracked_outpath, 'mfc_mb.csv')
+  out_path <- file.path(version_tracked_outpath, 'mfc_mb.csv')
   write.csv(x = modeled_data, file = out_path)
-
+  
   file.remove(modeled_path)
   
   return(modeled_data)
-  
-  }
+}
+
 
 # stream flow comparison function --> baseflow is subtracted out right now 
 # stream flow comparison function 
@@ -147,8 +174,10 @@ Q_comparison <- function(combined_data, log_transform=FALSE) {
   }
   
   combined_data <- combined_data %>%
-    mutate(date = as.Date(date))
-  
+    mutate(date = as.Date(date),
+           validation_Q = as.numeric(validation_Q))
+
+
   comparison_plot <- ggplot(data=combined_data) +
     geom_line(aes(x=date, y=validation_Q, color='Validation')) +
     geom_line(aes(x=date, y=Q, color='Modeled')) +
@@ -162,6 +191,7 @@ Q_comparison <- function(combined_data, log_transform=FALSE) {
     scale_y_continuous(trans=y_trans,labels = scales::comma) +
     guides(color=guide_legend(title='Streamflow'))
   
+  
   precip_plot <- ggplot(data=combined_data) +
     geom_line(aes(x=date, y=precip_cm, color='Precipitation')) +
     geom_line(aes(x=date, y=rain_cm, color='Rain')) +
@@ -169,12 +199,11 @@ Q_comparison <- function(combined_data, log_transform=FALSE) {
     xlab('Date') +
     ylab('Precipitation, Rain, and Snow') + 
     scale_x_date(date_breaks = "1 year") + 
-    guides(color=guide_legend(title='Precip Type'))+
+    guides(color=guide_legend(title='Precip Type')) +
     scale_y_continuous(labels = scales::comma)
   
   cowplot::plot_grid(comparison_plot, precip_plot, align = "v", ncol = 1, rel_heights = c(0.60, 0.40))
 }
-
 
 # function for plotting important components of SAM
 SAM_check <- function(combined_data, log_transform=FALSE) {
@@ -334,7 +363,7 @@ mass_balance <- function(combined_data, log_transform = FALSE) {
     theme(plot.title = element_text(hjust = 0.5))
 }
 
-# function just for determing if ice.content or liquid.water is contributing to
+# function just for determining if ice.content or liquid.water is contributing to
 # SWE inflation
 swe_debug <- function(combined_data, log_transform = FALSE) {
   
@@ -392,42 +421,6 @@ visualize_map_outputs <- function(map, title) {
   )
   
 }
-
-
-#get_map_outputs <- function(raw_map_dir, version_tracked_map_dir) {
-  
-  #print(paste0("version tracked map path: ", version_tracked_map_dir))
-  
-  #tif_files <- list.files(path = raw_map_dir, pattern = "\\.tif$", full.names = TRUE)
-  
-  #if (length(tif_files) == 0) {
-  #  cat("no .tif files found in raw_map_dir.\n")
-  #  return()
-  #}
-  
-  #for (tif_file in tif_files) {
-  #  success <- file.copy(from = tif_file, to = file.path(version_tracked_map_dir, basename(tif_file)))
-  #  if (!success) {
-  #    cat("failed to copy", tif_file, "to", version_tracked_map_dir, "\n")
-  #  }
-  #}
-  
-  #file.remove(tif_files)
-  
-  #list_of_files <- list.files(version_tracked_map_dir, pattern=".*\\.tif$", full.names=TRUE)
-  #print(list_of_files)
-  
-  #for (file in list_of_files) {
-  #  var_name <- sub("\\.tif$", "", basename(file))
-  #  
-  #  title <- paste0(var_name, " (cm)")
-    
-    #assign(var_name, raster::raster(file))
-    #map <- get(var_name)
-  #  visualize_map_outputs(raster::raster(file), title)
-    
-  #}
-#}
 
 
 get_map_outputs <- function(raw_map_dir, version_tracked_map_dir) {
