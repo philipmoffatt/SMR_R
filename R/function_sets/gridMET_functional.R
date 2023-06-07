@@ -488,7 +488,7 @@ gm_p <- pull_gridMET('Pullman, WA') %>%
   subset_order_columns(desired_columns = desired_columns,
                        renamed_columns = smr_columns)
 
-start_date <- "2018-10-10"
+start_date <- "2018-05-23"
 end_date <- "2022-06-10"
 
 # write big historical
@@ -501,7 +501,7 @@ write_weather_data(
 
 # write mini historical
 mini_start_date <- "2019-10-10"
-mini_end_date <- "2019-10-20"
+mini_end_date <- "2019-11-20"
 
 write_weather_data(
   gridMET = gm_p,

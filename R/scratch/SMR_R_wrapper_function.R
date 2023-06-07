@@ -14,7 +14,7 @@ get_next_output_path <- function(processed_path="processed_data/smr_output") {
   if(!file.exists(SMR_log_file)){
     runID <- "1"
   } else {
-    table_temp <- (read.table(file= SMR_log_file) %>% row.names())
+    table_temp <- (read.table(file=SMR_log_file) %>% row.names())
     runID <- table_temp[length(table_temp)] %>% as.integer() + 1
   }  
   

@@ -23,10 +23,10 @@ if (os == "Linux") {
 
 post_processing_script_path <<- file.path(r_path,"scratch","functional_PP.R")
 source_smr_function_path <<- file.path(r_path,"scratch","source_SMR_function.R")
-perl_script_path <<-file.path(r_path,"scratch","test_mac.pl")
+perl_script_path <<-file.path(r_path,"scratch","smr_multiple_users.pl")
 
 # pulling raw data paths in
-validation_data_path <<- file.path(raw_data_path,"validation_data","WERLdischarge.csv")
+validation_data_path <<- file.path(raw_data_path,"validation_data","mfc_cln_filled.csv")
 mass_balance_path <<- file.path(raw_data_path,"smr_output" , modeled_file_name)
 map_output_path <<- file.path(raw_data_path,'smr_output', map_output_folder_name)
 
