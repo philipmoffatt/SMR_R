@@ -85,7 +85,7 @@ while (my $line = <$WATERSHED>) {
 	
 	if ($wshed_id > 0.0) {
 		$area_{$wshed_id} = $area_cells * $gridsize * $gridsize; #square meters
-		$res_vol_{$wshed_id} = 10;
+		$res_vol_{$wshed_id} = $res_vol;
 		$res_coeff_{$wshed_id} = $res_coeff;
 		$base_flow_{$wshed_id} = 0.0;
 		
