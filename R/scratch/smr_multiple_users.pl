@@ -193,7 +193,7 @@ for my $year (1965..1975) {
 }
 
 # Loop for years 2000 to 2020
-for my $year (2000..2020) {
+for my $year (2000..2022) {
     my $year_str = sprintf("%04d", $year);
 
     `r.mapcalc 'runoff_feb_$year_str = 0.0' --o`;
