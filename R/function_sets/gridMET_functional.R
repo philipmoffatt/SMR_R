@@ -18,8 +18,7 @@ library(elevatr)
 # initialize variables
 lat <- 46.7312700
 lon <- -117.1861
-high_el <- 1433
-low_el <- 784
+
 
 # setting up dictionaries for crop curves
 water_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
@@ -63,7 +62,22 @@ smr_columns <- c("date", "year", "month", "day", "doy", "tmax", "tmin",
                  "l_turb","cloud","cc_water","cc_urban","cc_forest","cc_shrub",
                  "cc_grass","cc_row_crop","rh_snow")
 
-## functions for building weather data
+
+# Purpose: Produce a data frame of gridMET weather data.
+# Parameters: 
+#   site_name: character -- The name of the site to pull data from (e.g., "Pullman, WA")
+# Returns:
+#   A data frame with:
+#     prcp - cm
+#     tmax - C
+#     tmin - C
+#     pet_grass - cm
+#     srad - W/m^2
+#     wind_vel - m/s
+#     vpd - kPa
+# Notes: 
+#   The gridMET data is in mm and the function is hard coded to convert 
+#   values to cm for PERL SMR. 
 pull_gridMET <- function(site_name) {
   
   # establish AOI
@@ -102,6 +116,15 @@ pull_gridMET <- function(site_name) {
   
 }
 
+# Purpose: Make hourly temperatures out of a daily maximum and minimum
+# Packages: 
+#   ChillR
+# Parameters: 
+#   gridMET: The data frame returned by pull_gridMET()
+#   latitude: The latitude of the measurement site (gridMET tile)
+# Returns:
+#   gridMET data frame with hourly temperature columns (24 new columns)
+# Notes:
 get_hourly_temps <- function(gridMET, latitude) {
   
   gridMET_hourly <- gridMET[,c("tmin", "tmax", "year", "month", "day")] %>%
@@ -115,7 +138,10 @@ get_hourly_temps <- function(gridMET, latitude) {
   return(gridMET_hourly)
 }
 
-
+# Purpose:
+# Parameters:
+# Returns:
+# Notes:
 ann_Kc_curve <- function(gridMET, time_params, Kc_params, planting_offset, crop_name) {
   
   total_curve <- c(rep(Kc_params[["Kc_preplant"]], time_params[["preplant_len"]]),
@@ -140,7 +166,10 @@ ann_Kc_curve <- function(gridMET, time_params, Kc_params, planting_offset, crop_
   return(gridMET)
 }
 
-
+# Purpose:
+# Parameters:
+# Returns:
+# Notes:
 lapse_rates <- function(low_site, high_site, low_site_el, high_site_el) {
   
   # calculate elevation difference in meters
@@ -183,7 +212,10 @@ lapse_rates <- function(low_site, high_site, low_site_el, high_site_el) {
                     pet_lm_slope = model_values$coefficients[2]))
 }
 
-# calculate the dew point temperature
+# Purpose:
+# Parameters:
+# Returns:
+# Notes:
 dewpoint_temperature <- function(gridMET) {
   
   # create a new column for dew point temperature
@@ -193,7 +225,10 @@ dewpoint_temperature <- function(gridMET) {
   return(gridMET)
 }
 
-# calculate the cloud fraction
+# Purpose:
+# Parameters:
+# Returns:
+# Notes:
 calculate_cloud_fraction <- function(gridMET, latitude, longitude, timezone) {
   
   # setup sequence of days for potential radiation function
@@ -252,7 +287,10 @@ calculate_cloud_fraction <- function(gridMET, latitude, longitude, timezone) {
   return(gridMET_joined)
 }
 
-## pressure_from_el() function: --> not really needed anymore
+# Purpose:
+# Parameters:
+# Returns:
+# Notes:
 pressure_from_el <- function(gridMET, site_latitude, site_longitude) {
   
   # formatting latitude and longitude inputs to match parameter requirements
@@ -283,7 +321,10 @@ pressure_from_el <- function(gridMET, site_latitude, site_longitude) {
   return(gridMET_updated)
 }
 
-## estimated_wind_speed() function: 
+# Purpose:
+# Parameters:
+# Returns:
+# Notes:
 estimated_wind_speed <- function(
     actual_measurement_height = 2,
     measured_wind_speed,
@@ -304,15 +345,11 @@ estimated_wind_speed <- function(
   return(predicted_wind_speed)
 }
 
-## heat transfer to resistance function
-#  params: 
-#   wind_measurement_height: height of wind speed measurements (m)
-#   temp_measurement_height: height of the air temperature measurements (m)
-#   zero_plane_displacement_height: height of zero-plane displacement (m)
-#   momentum_roughness: the momentum roughness parameter
-#   heat_vapor_roughness: the heat and vapor roughness parameter
-#   von_karman: von Karman's constant (0.41)
-#   wind_speed: measured wind speed (m/s)
+
+# Purpose:
+# Parameters:
+# Returns:
+# Notes:
 heat_transfer_resistance <- 
   function(
     wind_measurement_height, 
@@ -332,7 +369,10 @@ heat_transfer_resistance <-
   return(rh)
   }
 
-
+# Purpose:
+# Parameters:
+# Returns:
+# Notes:
 land_cover_rh <- 
   function(
     land_cover_height, 
@@ -389,7 +429,10 @@ land_cover_rh <-
     return(rh_value)
   }
 
-
+# Purpose:
+# Parameters:
+# Returns:
+# Notes:
 land_cover_rh_wrapper <- 
   function(
     gridMET,
@@ -424,6 +467,10 @@ land_cover_rh_wrapper <-
     return(gridMET)
   }
 
+# Purpose:
+# Parameters:
+# Returns:
+# Notes:
 rename_columns <- function(gridMET, renamed_columns) {
   
   colnames(gridMET) <- renamed_columns
@@ -511,8 +558,8 @@ write_weather_data(
 )
 
 # write mini historical
-medium_start_date <- "2000-10-01"
-medium_end_date <- "2001-10-01"
+medium_start_date <- "2019-10-01"
+medium_end_date <- "2020-10-01"
 
 write_weather_data(
   gridMET = gm_p,
