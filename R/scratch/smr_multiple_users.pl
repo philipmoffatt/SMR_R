@@ -410,7 +410,7 @@ print `r.mapcalc "pet = (pet_data - $pet) * ($low_site_el - el)/($high_site_el -
 print `r.mapcalc 'canopy_storage_amt = canopy_storage_amt + rain' --o`;
 print `r.mapcalc 'throughfall = if(canopy_storage_amt>max_canopy_storage_amt,canopy_storage_amt-max_canopy_storage_amt,0.0)' --o`;
 print `r.mapcalc 'canopy_storage_amt = canopy_storage_amt-throughfall' --o`;
-print `r.mapcalc 'canopy_evap = max(0,if(rain>0.0,min(canopy_storage_amt,pet),min(canopy_storage_amt,pet)))' --o`;
+print `r.mapcalc 'canopy_evap = if(rain>0.0,min(canopy_storage_amt,pet),min(canopy_storage_amt,pet))' --o`;
 print `r.mapcalc 'pet = max(0.0,pet-canopy_evap)' --o`;
 print `r.mapcalc 'canopy_storage_amt = canopy_storage_amt-canopy_evap' --o`;
 
