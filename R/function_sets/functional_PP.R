@@ -1,0 +1,463 @@
+# import libraries
+library(tidyverse)
+library(dplyr)
+library(lubridate)
+library(hydroGOF)
+library(ggplot2)
+library(RColorBrewer)
+library(gridExtra)
+library(grid)
+library(cowplot)
+library(raster)
+library(mapview)
+
+# data pre-processing and alignment function
+version_tracker <- function(modeled_path, simulation_note = "") {
+  outputDir <- dirname(modeled_path) %>% gsub(., pattern = "raw_data", replacement = "processed_data")
+  
+  if(!dir.exists(outputDir)) {
+    dir.create(outputDir)
+  }
+  
+  SMR_log_file <- file.path(outputDir, "SMR_run_log.txt")
+  
+  if(simulation_note == "") {
+    simulation_note <- readline(prompt="Simulation description: ")
+  }
+  
+  if(!file.exists(SMR_log_file)){
+    runID <- "1"
+  } else {
+    table_temp <- (read.table(file= SMR_log_file) %>% row.names())
+    runID <- table_temp[length(table_temp)] %>% as.integer() + 1
+  }  
+  
+  runID <- paste0("MFC_", rep(0,(3-nchar(runID))) %>% paste0(., collapse = ""), runID)
+  
+  log_entry <- list(runID, Sys.Date(), simulation_note %>% as.character())
+  
+  write.table(x = log_entry, file = SMR_log_file, append = TRUE, quote = TRUE, col.names = FALSE,
+              row.names = FALSE)
+  
+  
+  out_path <- file.path(outputDir, paste0(runID, "_", Sys.Date()))
+  
+  if(!dir.exists(out_path)) {
+    dir.create(out_path)
+  }
+  
+  map_path <- file.path(out_path, "maps") 
+  #map_path <- file.path(out_path, paste0("maps_", Sys.info()[["user"]])) # trying to make things user dependent so multiple runs can happen at once
+  print(paste0("new user dependent map path name: ", map_path))
+  
+  if(!dir.exists(map_path)) {
+    dir.create(map_path)
+  }
+  
+  return(out_path)
+  
+}
+
+# allows for dynamic text based on model outputs in the markdown
+get_run_dates <- function(weather_data_path) {
+  
+  weather_data <- read.csv(data_path)
+  min_date <- min(weather_data$date)
+  max_date <- max(weather_data$date)
+  date_range <- c(as.character(min_date), as.character(max_date))
+    
+}
+
+get_print_out_line <- function(perl_script_path) {
+  # Read entire Perl script into a character vector of lines
+  perl_script_lines <- readLines(perl_script_path)
+  
+  # find index of line containing print OUT statement
+  print_out_line_index <- grep('print\\s+OUT', perl_script_lines)
+  
+  if (length(print_out_line_index) > 0) {
+    # get full line containing print OUT statement
+    full_line <- perl_script_lines[print_out_line_index]
+    
+    # extract part of line starting after "print OUT" and remove ' \n";'
+    partial_line <- gsub('^.*?print\\s+OUT\\s+"', '', full_line)
+    cleaned_line_1 <- gsub('\\s*\\\\n\";$', '', partial_line)
+    
+    # remove "\\" before "$wshed_id" and remove "_{$wshed_id}" from each word in the line
+    cleaned_line_2 <- gsub('\\\\\\$', '', cleaned_line_1)
+    final_cleaned_string <- gsub('_\\{\\$wshed_id\\}', '', cleaned_line_2)
+    
+    # split final_cleaned_string on space to obtain a list of variables, removing the "$" before each variable name
+    variable_list <- strsplit(final_cleaned_string, ' ')[[1]] %>% 
+      gsub('\\$', '', .)
+    
+    return(variable_list)
+    
+  } else {
+    stop("No matching print OUT line was found.")
+  }
+}
+
+read_dynamic_csv <- function(file_path) {
+  # Read the first line of the file
+  first_line <- readLines(file_path, n = 1)
+  
+  # Check if the first line contains commas
+  if (grepl(",", first_line)) {
+    # If commas are found, use comma as the separator
+    df <- read.csv(file_path, sep = ",")
+  } else {
+    # If no commas are found, use space as the separator
+    df <- read.csv(file_path, sep = " ")
+  }
+  
+  return(df)
+}
+
+preprocessing <- function(
+    validation_path, 
+    modeled_path, 
+    modeled_headers,
+    version_tracked_outpath
+) {
+  
+  #validation_data <- read.csv(validation_path) %>% 
+  #  mutate(
+  #    mean_discharge_cms = as.numeric(mean_discharge_cms), # Convert mean_discharge_cms to numeric
+  #    date = as.Date(date, "%m/%d/%Y")
+  #  )
+  
+  validation_data <- read_dynamic_csv(validation_path) %>%
+    mutate(
+      mean_discharge_cms = as.numeric(mean_discharge_cms),
+      date = as.Date(date)#, "%m/%d/%Y") --> removed because the new validation data is in the yyyy-mm-dd format
+    ) %>%
+    fill(date, mean_discharge_cms)
+  print(lapply(validation_data, class))
+  validation_data <- validation_data[order(validation_data$date), ]
+  
+
+  modeled_data <- read.csv(modeled_path, sep=' ', header = FALSE, col.names = modeled_headers) %>% 
+    mutate(date = as.Date(date))
+  
+
+  common_start <- max(min(validation_data$date), min(modeled_data$date))
+  print(common_start)
+  common_end <- min(max(validation_data$date), max(modeled_data$date))
+  print(common_end)
+
+  validation_data <- validation_data[validation_data$date >= common_start & validation_data$date <= common_end, ]
+  modeled_data <- modeled_data[modeled_data$date >= common_start & modeled_data$date <= common_end, ]
+  
+  validation_data <- validation_data[, c('date', 'mean_discharge_cms')] %>%
+    rename(validation_Q = mean_discharge_cms)
+  
+  modeled_data <- merge(modeled_data, validation_data)
+  
+  out_path <- file.path(version_tracked_outpath, 'mfc_mb.csv')
+  write.csv(x = modeled_data, file = out_path)
+  
+  file.remove(modeled_path)
+  
+  return(modeled_data)
+}
+
+
+# stream flow comparison function --> baseflow is subtracted out right now 
+# stream flow comparison function 
+Q_comparison <- function(combined_data, log_transform=FALSE) {
+  
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
+  
+  combined_data <- combined_data %>%
+    mutate(date = as.Date(date),
+           validation_Q = as.numeric(validation_Q))
+
+
+  comparison_plot <- ggplot(data=combined_data) +
+    geom_line(aes(x=date, y=validation_Q, color='Validation')) +
+    geom_line(aes(x=date, y=Q, color='Modeled')) +
+    ggtitle('Observed Versus Simulated Streamflow') +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    theme(axis.title.x=element_blank()) +
+    theme(axis.text.x=element_blank()) +
+    ylab(expression(paste(
+      "Streamflow (",m^3, "/", s,
+      ")", sep=""))) +
+    scale_y_continuous(trans=y_trans,labels = scales::comma) +
+    guides(color=guide_legend(title='Streamflow'))
+  
+  
+  precip_plot <- ggplot(data=combined_data) +
+    geom_line(aes(x=date, y=precip_cm, color='Precipitation')) +
+    geom_line(aes(x=date, y=rain_cm, color='Rain')) +
+    geom_line(aes(x=date, y=snow_cm, color='Snow')) +
+    xlab('Date') +
+    ylab('Precipitation, Rain, and Snow') + 
+    scale_x_date(date_breaks = "1 year") + 
+    guides(color=guide_legend(title='Precip Type')) +
+    scale_y_continuous(labels = scales::comma)
+  
+  cowplot::plot_grid(comparison_plot, precip_plot, align = "v", ncol = 1, rel_heights = c(0.60, 0.40))
+}
+
+# function for plotting important components of SAM
+SAM_check <- function(combined_data, log_transform=FALSE) {
+  
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
+  
+  ggplot(data=combined_data) +
+    geom_line(aes(x=date, y=snow_cm, color='Snow')) +
+    geom_line(aes(x=date, y=swe_cm, color='SWE')) +
+    geom_line(aes(x=date, y=snowmelt_cm, color='Snowmelt')) + 
+    geom_line(aes(x=date, y=condens_cm, color='Condens')) +
+    ggtitle('Relevant Snowmelt and Accumulation Variables') +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    guides(color=guide_legend(title='Precip Type')) + 
+    scale_y_continuous(trans=y_trans)
+  
+}
+
+# NSE function for entire period
+nse_Q <- function(combined_data) {
+  return(NSE(combined_data$Q, combined_data$validation_Q))
+}
+
+# KGE function for entire period
+kge_Q <- function(combined_data) {
+  return(KGE(combined_data$Q, combined_data$validation_Q))
+}
+
+# flux time-series function (looped through in flux_ts_loop())
+flux_ts <- function(combined_data, flux, log_transform = FALSE) {
+  
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
+  
+  flux_series <- combined_data[, flux] / 72678
+  date_series <- combined_data[, 'date']
+  max_date <- max(date_series)
+  min_date <- min(date_series)
+  
+  ggplot() +
+    geom_line(aes(x=date_series, y=flux_series)) +
+    ggtitle(
+      paste0('Basin-Averaged ',paste0(
+        paste0(
+          paste0(
+            paste0(
+              flux, ' from '), min_date), ' to '), max_date))) +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    ylab(paste0(flux, ' (cm)')) +
+    xlab(paste0('Date')) + 
+    scale_y_continuous(trans=y_trans)
+  
+}
+
+# produces individual time series of fluxes by looping the flux_ts() function
+flux_ts_loop <- function(combined_data, fluxes, log_transform=FALSE) {
+  
+  for (flux in fluxes) {
+    print(flux_ts(combined_data, flux, log_transform = log_transform))
+  }
+  
+}
+
+# produces bar plot of the accumulated annual fluxes
+annual_fluxes <- function(combined_data, fluxes, log_transform = FALSE) {
+  
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
+  
+  fluxes <- c(fluxes, 'date', 'year')
+  combined_data <- combined_data[, fluxes] %>% 
+    pivot_longer(cols=-c(date, year), names_to = "variable", values_to = "value") %>%
+    mutate(value = value) %>%
+    group_by(year, variable) %>%
+    summarize(sum_value = sum(value, na.rm=TRUE))
+  
+  ggplot(data = combined_data, aes(x = year, y = sum_value, group = variable, color = variable, fill=variable)) +
+    geom_bar(position='dodge', stat='identity') + 
+    scale_y_continuous(trans=y_trans) +
+    xlab("Year") +
+    ylab("Total Value") +
+    ggtitle("Annual Accumulateed Fluxes") +
+    theme(plot.title = element_text(hjust = 0.5))
+
+}
+
+# produces a time series of the different radiation components
+radiation_ts <- function(combined_data, log_transform = FALSE) {
+  
+  # Set log transform for y-axis scale
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
+  
+  # Divide all values in selected columns by 72678
+  combined_data <- combined_data %>%
+    mutate(
+      srad = srad/72678,
+      latent = latent/72678,
+      sensible = sensible/72678,
+      lw = lw/72678,
+      q_rain_ground_cm
+    )
+  
+  ggplot(data=combined_data) +
+    geom_line(aes(x=date, y=srad, color='Srad')) +
+    geom_line(aes(x=date, y=latent, color='Latent')) +
+    geom_line(aes(x=date, y=sensible, color='Sensible')) + 
+    geom_line(aes(x=date, y=lw, color='Longwave')) +
+    geom_line(aes(x=date, y=q_rain_ground_cm, color='Rain Ground')) +
+    scale_y_continuous(trans=y_trans) + 
+    ggtitle('Components of Radiation Budget') +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    guides(color=guide_legend(title='Precip Type'))
+  
+}
+
+# annual mass balance function
+mass_balance <- function(combined_data, log_transform = FALSE) {
+  
+  # Set log transform for y-axis scale
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
+  
+  annual_combined <- combined_data #%>%
+    #group_by(year) #%>%
+    #select(-c(date, wshed_id)) %>% # seeing if I need this
+    #summarize_all(.funs=sum)
+  
+  view(annual_combined)
+  annual_combined$mass_balance <-
+    annual_combined$rain_cm +
+    annual_combined$snowmelt_cm -
+    annual_combined$actual_ET_daily -
+    annual_combined$runoff_cm -
+    annual_combined$perc_cm
+  
+  ggplot(data=annual_combined) +
+    scale_y_continuous(trans=y_trans) +
+    geom_line(aes(x=date, y=mass_balance)) +
+    ggtitle('Mass Balance') +
+    theme(plot.title = element_text(hjust = 0.5))
+}
+
+# function just for determining if ice.content or liquid.water is contributing to
+# SWE inflation
+swe_debug <- function(combined_data, log_transform = FALSE) {
+  
+  # Set log transform for y-axis scale
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
+  
+  ggplot(data=combined_data) +
+    geom_line(aes(x=date, y=ice_content, color='Ice Content')) +
+    geom_line(aes(x=date, y=liquid_water, color='Liquid Water')) +
+    geom_line(aes(x=date, y=refreeze, color='Refreeze')) +
+    geom_line(aes(x=date, y=snow_cm, color='Snow')) +
+    geom_line(aes(x=date, y=swe_cm, color='SWE')) + 
+    scale_y_continuous(trans=y_trans) + 
+    ggtitle('Snow Water Equivalent and its Components') +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    ylab('cm') + 
+    guides(color=guide_legend(title='SWE Variables'))
+  
+}
+
+# function to confirm that value inflation comes from tiny RH rather than large
+# vap.d.air which is in the numerator
+q.latent_debug <- function(combined_data, log_transform = FALSE) {
+  
+  # Set log transform for y-axis scale
+  if (log_transform) {
+    y_trans <- 'log10'
+  } else {
+    y_trans <- 'identity'
+  }
+  
+  ggplot(data=combined_data) +
+    geom_line(aes(x=date, y=vap_d_air, color='Vap_d_air')) +
+    geom_line(aes(x=date, y=vap_d_snow, color='Vap_d_snow')) +
+    scale_y_continuous(trans=y_trans) + 
+    ggtitle('Size of vap.d.air compared to vap.d.snow') +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    ylab('Vapor Density (kg/m^3)') + 
+    guides(color=guide_legend(title='Vapor Density Variable'))
+  
+}
+
+
+visualize_map_outputs <- function(map, title) {
+
+  par(mar=c(1.8, 1.8, 1.8, 1.8))
+  plot(
+    map, 
+    main=paste0(title),
+    axes=FALSE
+  )
+  
+}
+
+
+get_map_outputs <- function(raw_map_dir, version_tracked_map_dir) {
+  
+  print(paste0("version tracked map path: ", version_tracked_map_dir))
+  
+  tif_files <- list.files(path = raw_map_dir, pattern = "\\.tif$", full.names = TRUE)
+  
+  if (length(tif_files) == 0) {
+    cat("no .tif files found in raw_map_dir.\n")
+    return()
+  }
+  
+  for (tif_file in tif_files) {
+    success <- file.copy(from = tif_file, to = file.path(version_tracked_map_dir, basename(tif_file)))
+    if (!success) {
+      cat("failed to copy", tif_file, "to", version_tracked_map_dir, "\n")
+    } else {
+      var_name <- sub("\\.tif$", "", basename(tif_file))
+      assign(var_name, raster::raster(file.path(version_tracked_map_dir, basename(tif_file))))
+    }
+  }
+  
+  #generic_version_tracked_map_dir <- gsub("/maps_duncanjurayj$", "/maps", version_tracked_map_dir)
+  
+  #file.rename(version_tracked_map_dir, generic_version_tracked_map_dir)
+  
+  for (var_name in ls()) {
+    if (class(get(var_name)) == "RasterLayer") {
+      title <- paste0(var_name, " (cm)")
+      visualize_map_outputs(get(var_name), title)
+    }
+  }
+}
+
+
+
+
+
+
