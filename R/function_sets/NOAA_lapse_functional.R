@@ -8,18 +8,25 @@ library(elevatr)
 library(rnoaa)
 
 
-### Pulling the NOAA data
-## packages:
-## parameters:
-## returns:
-#  id: Character string with the weather station site id
-#  date: Date of the observation
-#  prcp: Precipitation, in tenths of mm
-#  tavg: Average temperature, in degrees Celsius
-#  tmax: Maximum temperature, in degrees Celsius
-#  tmin: Minimum temperature, in degrees Celsius
-#  awnd: Average daily wind speed, in meters / second
-#  wsfg: Peak gust wind speed, in meters / second
+# Purpose: Pull weather data from the NOAA database for a specific weather station
+# Parameters:
+#   site_id: Character string with the site ID of the weather station (e.g., "GHCND:USC00012345")
+#   date_min: Optional parameter specifying the minimum date of the data to retrieve (default: NULL)
+#   date_max: Optional parameter specifying the maximum date of the data to retrieve (default: NULL)
+# Returns:
+#   A data frame with the following columns:
+#     date: Date of the observation
+#     prcp: Precipitation, in tenths of mm
+#     snow: Snowfall, in tenths of mm
+#     snwd: Snow depth, in mm
+#     tmax: Maximum temperature, in degrees Celsius
+#     tmin: Minimum temperature, in degrees Celsius
+#     tobs: Temperature at the time of observation, in degrees Celsius
+# Notes:
+#       If the optional date_min and date_max parameters are not provided, the function retrieves
+#       all available data for the specified weather station. Otherwise, it retrieves data within
+#       the specified date range. Missing values for specific variables are filled using the
+#       preceding non-missing value.
 pull_noaa <- function(site_id, date_min = NULL, date_max = NULL) {
   
   #site_id <- paste0("GHCND:", site_id)
@@ -42,10 +49,9 @@ pull_noaa <- function(site_id, date_min = NULL, date_max = NULL) {
   return(wx)
 }
 
-### Function for finding station elevations
-## packages
-## parameters:
-## returns:
+# Purpose: Finds the elevation of a NOAA station when given the station ID
+# Parameters:
+# Returns:
 get_station_elevation <- function(site_id) {
   
   stations <- ghcnd_stations()
