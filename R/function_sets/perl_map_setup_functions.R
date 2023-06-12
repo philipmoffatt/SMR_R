@@ -9,193 +9,14 @@ library(whitebox)
 library(gridExtra)
 library(ggplot2)
 
-### This set of functions will use the maps that are pulled using R packages 
-##   in the SMR_data_setup.R script and it will convert them to match the format
-##   (units, naming, and extent) of the PERL SMR script.
-
-## Variable Setups:
-imitate_smr_path <- "./processed_data/imitate_smr_setup"
-shape_path <- "./raw_data/template/mfc_no_pullman/layers/globalwatershed.shp"
-basins_path <- "./processed_data/dem/MFC/dem_basins.tif"
-watershed_id <- 84
-dem_breach_path <- "./processed_data/dem/MFC/dem_breached.tif"
-wshed_mask_path <- "./processed_data/imitate_smr_setup/watershed.tif"
-streams_raw_path <- "./processed_data/dem/MFC/dem_streams.tif"
-nlcd_simple_path <- "./processed_data/ASC/MFC/NLCD_simple.asc"
-mfc_folder_path <- "./processed_data/ASC/MFC"
-initial_depth_names <- c("depth_A.asc", "depth_B.asc")
-output_depth_names <- c("soil_depth_A.tif", "soil_depth_B.tif")
-landuse_path <- file.path(imitate_smr_path, "landuse.tif")
-stream_path <- file.path(imitate_smr_path, "strms_30m.tif")
-
-wshed_mask <- read_watershed_mask(shape_path, 
-                                  basins_path, 
-                                  watershed_id, 
-                                  buffer=FALSE,
-                                  buffer_amount=0)
-
-write_watershed_mask(mask = wshed_mask, 
-                     output_folder = imitate_smr_path, 
-                     filename = "watershed")
-
-crop_dem_to_watershed(dem_path = dem_breach_path, 
-                      watershed_mask_path = wshed_mask_path,
-                      output_folder = imitate_smr_path, 
-                      file_name = "el.tif")
-
-calculate_flow_direction(dem_path = file.path(imitate_smr_path, "el.tif"), 
-                         output_folder = imitate_smr_path,
-                         produce_plot = TRUE)
-
-process_streams(raw_streams_path = streams_raw_path, 
-                watershed_mask_path = wshed_mask_path,
-                output_folder = imitate_smr_path, 
-                output_filename = "strms_30m.tif",
-                produce_plots = TRUE
-                )
-
-process_land_use(landuse_path = nlcd_simple_path, 
-                 output_folder = imitate_smr_path,
-                 output_filename = "landuse.tif",
-                 produce_plots = TRUE,
-                 watershed_mask_path = wshed_mask_path)
-
-percent_to_mc(percentage_path = file.path(mfc_folder_path, "/wfifteenbar.r_A.asc"),
-              watershed_mask_path = wshed_mask_path,
-              output_folder = imitate_smr_path,
-              output_filename = "/wiltpt_mc_A.tif",
-              produce_plots = TRUE)
-
-percent_to_mc(percentage_path = file.path(mfc_folder_path, "/wfifteenbar.r_B.asc"),
-              watershed_mask_path = wshed_mask_path,
-              output_folder = imitate_smr_path,
-              output_filename = "/wiltpt_mc_B.tif",
-              produce_plots = TRUE)
-
-percent_to_mc(percentage_path = file.path(mfc_folder_path, "/wthirdbar.r_A.asc"),
-              watershed_mask_path = wshed_mask_path,
-              output_folder = imitate_smr_path,
-              output_filename = "/fieldcap_mc_A.tif",
-              produce_plots = TRUE)
-
-percent_to_mc(percentage_path = file.path(mfc_folder_path, "/wthirdbar.r_B.asc"),
-              watershed_mask_path = wshed_mask_path,
-              output_folder = imitate_smr_path,
-              output_filename = "/fieldcap_mc_B.tif",
-              produce_plots = TRUE)
-
-percent_to_mc(percentage_path = file.path(mfc_folder_path, "/wsatiated.r_A.asc"),
-              watershed_mask_path = wshed_mask_path,
-              output_folder = imitate_smr_path,
-              output_filename = "/sat_mc_A.tif",
-              produce_plots = TRUE)
-
-percent_to_mc(percentage_path = file.path(mfc_folder_path, "/wsatiated.r_B.asc"),
-              watershed_mask_path = wshed_mask_path,
-              output_folder = imitate_smr_path,
-              output_filename = "/sat_mc_B.tif",
-              produce_plots = TRUE)
-
-um_per_second_to_cm_per_day(
-  um_per_second_path = file.path(mfc_folder_path, "/ksat.r_A.asc"),
-  watershed_mask_path = wshed_mask_path,
-  output_folder = imitate_smr_path, output_filename = "/Ksat_matrix_A.tif",
-  produce_plots = TRUE)
-
-um_per_second_to_cm_per_day(
-  um_per_second_path = file.path(mfc_folder_path, "/ksat.r_B.asc"),
-  watershed_mask_path = wshed_mask_path,
-  output_folder = imitate_smr_path, output_filename = "/Ksat_matrix_B.tif",
-  produce_plots = TRUE)
-
-
-calculate_soil_depth(initial_depth_root_path = mfc_folder_path, 
-                     initial_depth_names, 
-                     output_depth_names, 
-                     landuse_path, 
-                     stream_path, 
-                     output_dir = imitate_smr_path,
-                     watershed_mask_path = wshed_mask_path)
-
-combined_saturation_amount(
-  root_folder_path = imitate_smr_path,
-  sat_mc_A_name = "sat_mc_A.tif",
-  sat_mc_B_name = "sat_mc_B.tif",
-  soil_depth_A_name = "soil_depth_A.tif",
-  soil_depth_B_name = "soil_depth_B.tif",
-  sat_combined_name = "sat_amt.tif",
-  watershed_mask_path = wshed_mask_path
-)
-
-combined_wiltpt_amount(
-  root_folder_path = imitate_smr_path,
-  wiltpt_mc_A_name = "wiltpt_mc_A.tif",
-  wiltpt_mc_B_name = "wiltpt_mc_B.tif",
-  soil_depth_A_name = "soil_depth_A.tif",
-  soil_depth_B_name = "soil_depth_B.tif",
-  wiltpt_combined_name = "wiltpt_amt.tif",
-  watershed_mask_path = wshed_mask_path
-)
-
-calculate_fieldcap_amount(
-  root_folder_path = imitate_smr_path,
-  fieldcap_mc_A_name = "fieldcap_mc_A.tif",
-  fieldcap_mc_B_name = "fieldcap_mc_B.tif",
-  soil_depth_A_name = "soil_depth_A.tif",
-  soil_depth_B_name = "soil_depth_B.tif",
-  output_dir = imitate_smr_path,
-  residual_A = 0.02,
-  residual_B = 0.02,
-  watershed_mask_path = wshed_mask_path
-)
-
-
-calculate_Ksubsurface(
-  root_folder_path = imitate_smr_path,
-  Ksat_matrix_A_name = "Ksat_matrix_A.tif",
-  output_name = "Ksubsurface.tif",
-  watershed_mask_path = wshed_mask_path,
-  produce_plots = TRUE
-)
-
-calculate_ETreduction_mc(
-  root_folder_path = imitate_smr_path,
-  fieldcap_amt_name = "fieldcap_amt.tif",
-  soil_depth_name = "soil_depth.tif",
-  output_name = "ETreduction_mc.tif",
-  watershed_mask_path = wshed_mask_path,
-  produce_plots = TRUE
-)
-
-calculate_Ksat_mpores(
-  root_folder_path = imitate_smr_path,
-  Ksat_matrix_A_name = "Ksat_matrix_A.tif",
-  Ksat_matrix_B_name = "Ksat_matrix_B.tif",
-  output_A_name = "Ksat_mpore_A.tif",
-  output_B_name = "Ksat_mpore_B.tif",
-  watershed_mask_path = wshed_mask_path,
-  produce_plots = TRUE
-)
-
-calculate_Kfc(
-  root_folder_path = imitate_smr_path,
-  Ksat_matrix_A_name = "Ksat_matrix_A.tif",
-  Ksat_matrix_B_name = "Ksat_matrix_B.tif",
-  sat_mc_A_name = "sat_mc_A.tif",
-  sat_mc_B_name = "sat_mc_B.tif",
-  fieldcap_amt_A_name = "fieldcap_amt_A.tif",
-  fieldcap_amt_B_name = "fieldcap_amt_B.tif",
-  soil_depth_A_name = "soil_depth_A.tif",
-  soil_depth_B_name = "soil_depth_B.tif",
-  output_A_name = "Kfc_A.tif",
-  output_B_name = "Kfc_B.tif",
-  watershed_mask_path = wshed_mask_path,
-  produce_plots = TRUE
-)
-
+### File Description:
+#     This set of functions will use the maps that are pulled using R packages 
+#     in the SMR_data_setup.R script and it will convert them to match the format
+#     units, naming, and extent) of the PERL SMR script.
+# --------------------------------------------------------------------------- #
 
 ### Watershed Mask(s):
-##   This section reads in the mask, crop it if necessary, and buffer it if
+##   This section reads in the mask, crop it if necessary, and buffers it if
 ##   necessary. Important to do this first and have it be consistent so all 
 ##   future maps align. 
 read_watershed_mask <- function(shapefile_path, basins, watershed_id, buffer=FALSE, buffer_amount = 0) {
@@ -356,7 +177,7 @@ process_land_use <- function(landuse_path, output_folder, output_filename, produ
 }
 
 
-### Percentages to Moisture Contents:
+### Convert Percentages to Moisture Contents:
 percent_to_mc <- function(percentage_path, watershed_mask_path, output_folder, output_filename, produce_plots=TRUE) {
   percentage_raster <- raster(percentage_path)
   
@@ -378,7 +199,7 @@ percent_to_mc <- function(percentage_path, watershed_mask_path, output_folder, o
   return(output_path)
 }
 
-### Conductivity Units:
+### Convert Conductivity Units:
 ##   This section uses the maps related to conductivity (produced in 
 ##   SMR_data_setup.R). The main tasks are to rename the maps, convert units 
 ##   where it is necessary, and crop the maps to the current watershed mask.
@@ -697,6 +518,189 @@ calculate_Kfc <- function(root_folder_path, Ksat_matrix_A_name, Ksat_matrix_B_na
     plot(Kfc_B, main = "Kfc_B")
   }
 }
+
+
+## Variable Setup:
+imitate_smr_path <- "./processed_data/imitate_smr_setup"
+shape_path <- "./raw_data/template/mfc_no_pullman/layers/globalwatershed.shp"
+basins_path <- "./processed_data/dem/MFC/dem_basins.tif"
+watershed_id <- 84
+dem_breach_path <- "./processed_data/dem/MFC/dem_breached.tif"
+wshed_mask_path <- "./processed_data/imitate_smr_setup/watershed.tif"
+streams_raw_path <- "./processed_data/dem/MFC/dem_streams.tif"
+nlcd_simple_path <- "./processed_data/ASC/MFC/NLCD_simple.asc"
+mfc_folder_path <- "./processed_data/ASC/MFC"
+initial_depth_names <- c("depth_A.asc", "depth_B.asc")
+output_depth_names <- c("soil_depth_A.tif", "soil_depth_B.tif")
+landuse_path <- file.path(imitate_smr_path, "landuse.tif")
+stream_path <- file.path(imitate_smr_path, "strms_30m.tif")
+
+## Calling Functions:
+wshed_mask <- read_watershed_mask(shape_path, 
+                                  basins_path, 
+                                  watershed_id, 
+                                  buffer=FALSE,
+                                  buffer_amount=0)
+
+write_watershed_mask(mask = wshed_mask, 
+                     output_folder = imitate_smr_path, 
+                     filename = "watershed")
+
+crop_dem_to_watershed(dem_path = dem_breach_path, 
+                      watershed_mask_path = wshed_mask_path,
+                      output_folder = imitate_smr_path, 
+                      file_name = "el.tif")
+
+calculate_flow_direction(dem_path = file.path(imitate_smr_path, "el.tif"), 
+                         output_folder = imitate_smr_path,
+                         produce_plot = TRUE)
+
+process_streams(raw_streams_path = streams_raw_path, 
+                watershed_mask_path = wshed_mask_path,
+                output_folder = imitate_smr_path, 
+                output_filename = "strms_30m.tif",
+                produce_plots = TRUE
+)
+
+process_land_use(landuse_path = nlcd_simple_path, 
+                 output_folder = imitate_smr_path,
+                 output_filename = "landuse.tif",
+                 produce_plots = TRUE,
+                 watershed_mask_path = wshed_mask_path)
+
+percent_to_mc(percentage_path = file.path(mfc_folder_path, "/wfifteenbar.r_A.asc"),
+              watershed_mask_path = wshed_mask_path,
+              output_folder = imitate_smr_path,
+              output_filename = "/wiltpt_mc_A.tif",
+              produce_plots = TRUE)
+
+percent_to_mc(percentage_path = file.path(mfc_folder_path, "/wfifteenbar.r_B.asc"),
+              watershed_mask_path = wshed_mask_path,
+              output_folder = imitate_smr_path,
+              output_filename = "/wiltpt_mc_B.tif",
+              produce_plots = TRUE)
+
+percent_to_mc(percentage_path = file.path(mfc_folder_path, "/wthirdbar.r_A.asc"),
+              watershed_mask_path = wshed_mask_path,
+              output_folder = imitate_smr_path,
+              output_filename = "/fieldcap_mc_A.tif",
+              produce_plots = TRUE)
+
+percent_to_mc(percentage_path = file.path(mfc_folder_path, "/wthirdbar.r_B.asc"),
+              watershed_mask_path = wshed_mask_path,
+              output_folder = imitate_smr_path,
+              output_filename = "/fieldcap_mc_B.tif",
+              produce_plots = TRUE)
+
+percent_to_mc(percentage_path = file.path(mfc_folder_path, "/wsatiated.r_A.asc"),
+              watershed_mask_path = wshed_mask_path,
+              output_folder = imitate_smr_path,
+              output_filename = "/sat_mc_A.tif",
+              produce_plots = TRUE)
+
+percent_to_mc(percentage_path = file.path(mfc_folder_path, "/wsatiated.r_B.asc"),
+              watershed_mask_path = wshed_mask_path,
+              output_folder = imitate_smr_path,
+              output_filename = "/sat_mc_B.tif",
+              produce_plots = TRUE)
+
+um_per_second_to_cm_per_day(
+  um_per_second_path = file.path(mfc_folder_path, "/ksat.r_A.asc"),
+  watershed_mask_path = wshed_mask_path,
+  output_folder = imitate_smr_path, output_filename = "/Ksat_matrix_A.tif",
+  produce_plots = TRUE)
+
+um_per_second_to_cm_per_day(
+  um_per_second_path = file.path(mfc_folder_path, "/ksat.r_B.asc"),
+  watershed_mask_path = wshed_mask_path,
+  output_folder = imitate_smr_path, output_filename = "/Ksat_matrix_B.tif",
+  produce_plots = TRUE)
+
+
+calculate_soil_depth(initial_depth_root_path = mfc_folder_path, 
+                     initial_depth_names, 
+                     output_depth_names, 
+                     landuse_path, 
+                     stream_path, 
+                     output_dir = imitate_smr_path,
+                     watershed_mask_path = wshed_mask_path)
+
+combined_saturation_amount(
+  root_folder_path = imitate_smr_path,
+  sat_mc_A_name = "sat_mc_A.tif",
+  sat_mc_B_name = "sat_mc_B.tif",
+  soil_depth_A_name = "soil_depth_A.tif",
+  soil_depth_B_name = "soil_depth_B.tif",
+  sat_combined_name = "sat_amt.tif",
+  watershed_mask_path = wshed_mask_path
+)
+
+combined_wiltpt_amount(
+  root_folder_path = imitate_smr_path,
+  wiltpt_mc_A_name = "wiltpt_mc_A.tif",
+  wiltpt_mc_B_name = "wiltpt_mc_B.tif",
+  soil_depth_A_name = "soil_depth_A.tif",
+  soil_depth_B_name = "soil_depth_B.tif",
+  wiltpt_combined_name = "wiltpt_amt.tif",
+  watershed_mask_path = wshed_mask_path
+)
+
+calculate_fieldcap_amount(
+  root_folder_path = imitate_smr_path,
+  fieldcap_mc_A_name = "fieldcap_mc_A.tif",
+  fieldcap_mc_B_name = "fieldcap_mc_B.tif",
+  soil_depth_A_name = "soil_depth_A.tif",
+  soil_depth_B_name = "soil_depth_B.tif",
+  output_dir = imitate_smr_path,
+  residual_A = 0.02,
+  residual_B = 0.02,
+  watershed_mask_path = wshed_mask_path
+)
+
+
+calculate_Ksubsurface(
+  root_folder_path = imitate_smr_path,
+  Ksat_matrix_A_name = "Ksat_matrix_A.tif",
+  output_name = "Ksubsurface.tif",
+  watershed_mask_path = wshed_mask_path,
+  produce_plots = TRUE
+)
+
+calculate_ETreduction_mc(
+  root_folder_path = imitate_smr_path,
+  fieldcap_amt_name = "fieldcap_amt.tif",
+  soil_depth_name = "soil_depth.tif",
+  output_name = "ETreduction_mc.tif",
+  watershed_mask_path = wshed_mask_path,
+  produce_plots = TRUE
+)
+
+calculate_Ksat_mpores(
+  root_folder_path = imitate_smr_path,
+  Ksat_matrix_A_name = "Ksat_matrix_A.tif",
+  Ksat_matrix_B_name = "Ksat_matrix_B.tif",
+  output_A_name = "Ksat_mpore_A.tif",
+  output_B_name = "Ksat_mpore_B.tif",
+  watershed_mask_path = wshed_mask_path,
+  produce_plots = TRUE
+)
+
+calculate_Kfc(
+  root_folder_path = imitate_smr_path,
+  Ksat_matrix_A_name = "Ksat_matrix_A.tif",
+  Ksat_matrix_B_name = "Ksat_matrix_B.tif",
+  sat_mc_A_name = "sat_mc_A.tif",
+  sat_mc_B_name = "sat_mc_B.tif",
+  fieldcap_amt_A_name = "fieldcap_amt_A.tif",
+  fieldcap_amt_B_name = "fieldcap_amt_B.tif",
+  soil_depth_A_name = "soil_depth_A.tif",
+  soil_depth_B_name = "soil_depth_B.tif",
+  output_A_name = "Kfc_A.tif",
+  output_B_name = "Kfc_B.tif",
+  watershed_mask_path = wshed_mask_path,
+  produce_plots = TRUE
+)
+
 
 
 
