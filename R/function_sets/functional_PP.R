@@ -11,7 +11,29 @@ library(cowplot)
 library(raster)
 library(mapview)
 
-# data pre-processing and alignment function
+### File Description:
+#     This file provides functions that organize and manage multiple model
+#     over time and functions for plotting model outputs (both tabulated and spatial),
+#     debugging certain variables in the SMR model, and conducting simple evaluations
+#     of the SMR model's performance against validation data.
+# --------------------------------------------------------------------------- #
+
+
+# Purpose: This function handles the version tracking portion of multiple SMR
+#          runs. This involves creating a new folder based on the current date
+#          and the ID number of the run. Additionally, this function takes in
+#          in a simulation note that allows the user to record any changes to the
+#          model for this run. 
+# Parameters:
+#   modeled_path: A character class file path to the raw modeled output data. 
+#                 This will go to the raw_data/smr_outputs folder. 
+#   simulation_note: A character class written note describing the changes that
+#                    were made to the model. 
+# Returns:
+#   The file path to the new version-tracked folder that will contain modeled
+#   and validation data, map outputs, and the markdown report associated with 
+#   that model run.
+# Notes:
 version_tracker <- function(modeled_path, simulation_note = "") {
   outputDir <- dirname(modeled_path) %>% gsub(., pattern = "raw_data", replacement = "processed_data")
   
@@ -58,7 +80,16 @@ version_tracker <- function(modeled_path, simulation_note = "") {
   
 }
 
-# allows for dynamic text based on model outputs in the markdown
+# Purpose: Find the first and last date in a csv file of weather data. 
+# Parameters: 
+#   weather_data_path: The file path to the input weather data being used in the
+#                      model run. 
+# Returns: 
+#   A vector of two date objects: the earliest date from the input weather file
+#   and the latest date from the input weather file. 
+# Notes: 
+#   THIS FUNCTION IS NOT BEING USED!! -- In the end it didn't seem worth adding
+#   this automation. 
 get_run_dates <- function(weather_data_path) {
   
   weather_data <- read.csv(data_path)
@@ -66,8 +97,19 @@ get_run_dates <- function(weather_data_path) {
   max_date <- max(weather_data$date)
   date_range <- c(as.character(min_date), as.character(max_date))
     
+  return(date_range)
+  
 }
 
+# Purpose: Uses the SMR model PERL file to determine which variables the model 
+#          writing out to the output CSV. 
+# Parameters: 
+#   perl_script_path: The file path to the PERL script being used in the model run
+# Returns:
+#   a vector of character class objects that are the names of the variables that 
+#   the SMR model is writing out. This output is then used in the preprocessing()
+#   function to assign names to the columns in the modeled output CSV.
+# Notes:
 get_print_out_line <- function(perl_script_path) {
   # Read entire Perl script into a character vector of lines
   perl_script_lines <- readLines(perl_script_path)
@@ -98,6 +140,17 @@ get_print_out_line <- function(perl_script_path) {
   }
 }
 
+# Purpose: Reads in a CSV file and uses the first line to determine if the file
+#          should be read in with sep = " " or sep = ","
+# Parameters:
+#   file_path: A file path to a CSV file to be read in. 
+# Returns:
+#   The CSV file associated with the file path. Read in with spaces or commas
+#   as the separator.
+# Notes:
+#   This was a recent addition to this function-set but in the testing different
+#   validation data sets and doing analysis in R AND Excel it gives some useful
+#   flexibility to the input format of the validation data. 
 read_dynamic_csv <- function(file_path) {
   # Read the first line of the file
   first_line <- readLines(file_path, n = 1)
@@ -114,6 +167,23 @@ read_dynamic_csv <- function(file_path) {
   return(df)
 }
 
+# Purpose: Combines the modeled output data with the validation data, adds column
+#          names to make analysis possible, and moves the raw_data/smr_output
+#          generic modeled output data to the processed_data/smr_output folder
+#          into its correct version-tracked output folder. 
+# Parameters: 
+#   validation_path: A file path to the validation data. Likely in raw_data/validation_data
+#   modeled_path: A file path to the modeled data. Likely in raw_data/smr_output
+#   modeled_headers: A character vector of variable names in the order that they appear 
+#                    in the output line of the PERL SMR model. This is produced
+#                    get_print_out_line() function in this function-set. 
+#   version_tracked_outpath: A file path to the new version-tracked folder in
+#                            processed_data/smr_output. This will be produced with 
+#                            the version_tracker() function in this function-set.
+# Returns:
+#   A data frame object with the modeled data and validation data combined and with 
+#   column names added to the data.
+# Notes: 
 preprocessing <- function(
     validation_path, 
     modeled_path, 
@@ -163,8 +233,19 @@ preprocessing <- function(
 }
 
 
-# stream flow comparison function --> baseflow is subtracted out right now 
-# stream flow comparison function 
+# Purpose: Produces a two pane plot. The upper pane compares modeled vs validation 
+#          stream flow. The lower pane plots the associated precipitation, snow, and rain. 
+# Parameters:
+#   combined_data: The data frame returned by the preprocessing() function in this
+#                  function-set. 
+#   log_transform: A Boolean determining whether or not to transform the y-axis
+#                  of the graph with a logarithmic function. Defaults to FALSE.
+# Returns:
+#   No returns. Produces a plot.
+# Notes:
+#   There variable names like "Q", "date", "precip_cm", "rain_cm", and "snow_cm"
+#   hard coded into this function. If those ever need to be changed it is a 
+#   simple fix but be aware of that. 
 Q_comparison <- function(combined_data, log_transform=FALSE) {
   
   if (log_transform) {
@@ -205,7 +286,19 @@ Q_comparison <- function(combined_data, log_transform=FALSE) {
   cowplot::plot_grid(comparison_plot, precip_plot, align = "v", ncol = 1, rel_heights = c(0.60, 0.40))
 }
 
-# function for plotting important components of SAM
+# Purpose: Plots the main variables in the SAM component of the SMR model.
+# Parameters:
+#   combined_data: The data frame returned by the preprocessing() function in this
+#                  function-set. 
+#   log_transform: A Boolean determining whether or not to transform the y-axis
+#                  of the graph with a logarithmic function. Defaults to FALSE.
+# Returns:
+#   No returns. Produces a plot.
+# Notes:
+#   There are hard coded variables in this function. If you are going to change 
+#   the names of variable outputs in the PERL script know that the new names will
+#   change the get_print_out_line() function names, which will change the combined_data
+#   names, which will break the function. 
 SAM_check <- function(combined_data, log_transform=FALSE) {
   
   if (log_transform) {
@@ -226,17 +319,52 @@ SAM_check <- function(combined_data, log_transform=FALSE) {
   
 }
 
-# NSE function for entire period
+# Purpose: Calculates the Nash-Sutcliffe Efficiency (NSE) based on modeled and validation
+#          stream flow using the hydroGOF package.
+# Parameters:
+#   combined_data: The data frame returned by the preprocessing() function in this
+#                  function-set. 
+# Returns:
+#   A numeric class number representing the NSE value for the model run over the 
+#   entire period.
+# Notes:
+#   Right now this doesn't remove the first year from consideration. It may make 
+#   more sense to add a filter that removes the first year as those modeled values
+#   are generally not as good. 
 nse_Q <- function(combined_data) {
   return(NSE(combined_data$Q, combined_data$validation_Q))
 }
 
-# KGE function for entire period
+# Purpose: Calculates the Kling-Gupta Efficiency (KGE) based on modeled and validation
+#          stream flow using the hydroGOF package.
+# Parameters:
+#   combined_data: The data frame returned by the preprocessing() function in this
+#                  function-set. 
+# Returns: 
+#   A numeric class number representing the KGE value for the model run over the 
+#   entire period.
+# Notes:
+#   Right now this doesn't remove the first year from consideration. It may make 
+#   more sense to add a filter that removes the first year as those modeled values
+#   are generally not as good. 
 kge_Q <- function(combined_data) {
   return(KGE(combined_data$Q, combined_data$validation_Q))
 }
 
-# flux time-series function (looped through in flux_ts_loop())
+# Purpose: Produces a single plot of a single flux over the entire modeled period
+#          in the combined_data data frame. 
+# Parameters:
+#   combined_data: The data frame returned by the preprocessing() function in this
+#                  function-set. 
+#   flux: A character class name of the variable to plot.
+#   log_transform: A Boolean determining whether or not to transform the y-axis
+#                  of the graph with a logarithmic function. Defaults to FALSE.
+# Returns:
+#   No returns. Produces a plot.
+# Notes:
+#   You can use this function in isolation but it was designed to be used as a helper 
+#   function in the flux_ts_loop() function. This allows multiple variables
+#   to be plotted individually  without needing to call flux_ts() many times.
 flux_ts <- function(combined_data, flux, log_transform = FALSE) {
   
   if (log_transform) {
@@ -265,7 +393,17 @@ flux_ts <- function(combined_data, flux, log_transform = FALSE) {
   
 }
 
-# produces individual time series of fluxes by looping the flux_ts() function
+# Purpose: Loops over the flux_ts() function for a vector of variables to be plotted.
+# Parameters:
+#   log_transform: A Boolean determining whether or not to transform the y-axis
+#                  of the graph with a logarithmic function. Defaults to FALSE.
+# Returns: 
+#   combined_data: The data frame returned by the preprocessing() function in this
+#                  function-set.
+#   fluxes: A character vector of variable names for plotting
+#   log_transform: A Boolean determining whether or not to transform the y-axis
+#                  of the graph with a logarithmic function. Defaults to FALSE.
+# Notes:
 flux_ts_loop <- function(combined_data, fluxes, log_transform=FALSE) {
   
   for (flux in fluxes) {
@@ -274,7 +412,17 @@ flux_ts_loop <- function(combined_data, fluxes, log_transform=FALSE) {
   
 }
 
-# produces bar plot of the accumulated annual fluxes
+# Purpose: Produces a bar plot of annual accumulated fluxes for a set of variables
+#          recorded by the model. 
+# Parameters
+#   combined_data: The data frame returned by the preprocessing() function in this
+#                  function-set.
+#   fluxes: A character vector of the variables to include in the plot.
+#   log_transform: A Boolean determining whether or not to transform the y-axis
+#                  of the graph with a logarithmic function. Defaults to FALSE.
+# Returns:
+#   No returns. Produces a plot.
+# Notes: 
 annual_fluxes <- function(combined_data, fluxes, log_transform = FALSE) {
   
   if (log_transform) {
@@ -295,12 +443,25 @@ annual_fluxes <- function(combined_data, fluxes, log_transform = FALSE) {
     scale_y_continuous(trans=y_trans) +
     xlab("Year") +
     ylab("Total Value") +
-    ggtitle("Annual Accumulateed Fluxes") +
+    ggtitle("Annual Accumulated Fluxes") +
     theme(plot.title = element_text(hjust = 0.5))
 
 }
 
-# produces a time series of the different radiation components
+# Purpose: Produces a plot of the variables relevant to the radiation balance of the 
+#          surface: srad, latent, sensible, long wave, and q_rain_ground
+# Parameters:
+#   combined_data: The data frame returned by the preprocessing() function in this
+#                  function-set. 
+#   log_transform: A Boolean determining whether or not to transform the y-axis
+#                  of the graph with a logarithmic function. Defaults to FALSE.
+# Returns:
+#   No returns. Produces a plot.
+# Notes:
+#   There are hard coded variables in this function. If you are going to change 
+#   the names of variable outputs in the PERL script know that the new names will
+#   change the get_print_out_line() function names, which will change the combined_data
+#   names, which will break the function. 
 radiation_ts <- function(combined_data, log_transform = FALSE) {
   
   # Set log transform for y-axis scale
@@ -333,7 +494,15 @@ radiation_ts <- function(combined_data, log_transform = FALSE) {
   
 }
 
-# annual mass balance function
+# Purpose: Produces a plot of the mass balance of the model. 
+# Parameters:
+#   combined_data: The data frame returned by the preprocessing() function in this
+#                  function-set. 
+#   log_transform: A Boolean determining whether or not to transform the y-axis
+#                  of the graph with a logarithmic function. Defaults to FALSE.
+# Returns:
+#   No returns. Produces a plot.
+# Notes:
 mass_balance <- function(combined_data, log_transform = FALSE) {
   
   # Set log transform for y-axis scale
@@ -350,8 +519,7 @@ mass_balance <- function(combined_data, log_transform = FALSE) {
   
   view(annual_combined)
   annual_combined$mass_balance <-
-    annual_combined$rain_cm +
-    annual_combined$snowmelt_cm -
+    annual_combined$precip_cm +
     annual_combined$actual_ET_daily -
     annual_combined$runoff_cm -
     annual_combined$perc_cm
@@ -363,8 +531,21 @@ mass_balance <- function(combined_data, log_transform = FALSE) {
     theme(plot.title = element_text(hjust = 0.5))
 }
 
-# function just for determining if ice.content or liquid.water is contributing to
-# SWE inflation
+# Purpose: Produces a plot of the variables that make up the snow water equivalent 
+#          variable. This was an especially sensitive variable so being to study its
+#          components each time can be useful. 
+# Parameters:
+#   combined_data: The data frame returned by the preprocessing() function in this
+#                  function-set. 
+#   log_transform: A Boolean determining whether or not to transform the y-axis
+#                  of the graph with a logarithmic function. Defaults to FALSE.
+# Returns:
+#   No returns. Produces a plot. 
+# Notes:
+#   There are hard coded variables in this function. If you are going to change 
+#   the names of variable outputs in the PERL script know that the new names will
+#   change the get_print_out_line() function names, which will change the combined_data
+#   names, which will break the function. 
 swe_debug <- function(combined_data, log_transform = FALSE) {
   
   # Set log transform for y-axis scale
@@ -388,8 +569,20 @@ swe_debug <- function(combined_data, log_transform = FALSE) {
   
 }
 
-# function to confirm that value inflation comes from tiny RH rather than large
-# vap.d.air which is in the numerator
+# Purpose: Produces a plot of the two variables that directly make up the latent 
+#          heat component of the SMR-SAM surface radiation budget. 
+# Parameters:
+#   combined_data: The data frame returned by the preprocessing() function in this
+#                  function-set. 
+#   log_transform: A Boolean determining whether or not to transform the y-axis
+#                  of the graph with a logarithmic function. Defaults to FALSE.
+# Returns:
+#   No returns. Produces a plot.
+# Notes:
+#   There are hard coded variables in this function. If you are going to change 
+#   the names of variable outputs in the PERL script know that the new names will
+#   change the get_print_out_line() function names, which will change the combined_data
+#   names, which will break the function. 
 q.latent_debug <- function(combined_data, log_transform = FALSE) {
   
   # Set log transform for y-axis scale
@@ -410,7 +603,16 @@ q.latent_debug <- function(combined_data, log_transform = FALSE) {
   
 }
 
-
+# Purpose: Produces a simple plot of a single raster file.
+# Parameters:
+#   map: A raster() object or really any spatial object.
+#   title: A character for the title of the plot.
+# Returns:
+#   No returns. Produces a plot.
+# Notes:
+#   You can use this function individually, it is used in the modeling workflow as 
+#   helper function to the get_map_outputs() function which loops through a folder
+#   of maps and calls this function on each map.
 visualize_map_outputs <- function(map, title) {
 
   par(mar=c(1.8, 1.8, 1.8, 1.8))
@@ -422,7 +624,16 @@ visualize_map_outputs <- function(map, title) {
   
 }
 
-
+# Purpose: Produces plots for all the raster files in a folder.
+# Parameters:
+#   raw_map_dir: A file path to the folder containing all the maps from the most
+#                recent model run. Likely this will be something like: raw_data/smr_output/maps_[user]
+# Returns:
+#   No returns. Produces multiple plots.
+# Notes:
+#   This function names the map plots just based on the name of the file it finds. 
+#   this means that if you want different plot titles you need to change the output
+#   map names in the PERL SMR script itself.
 get_map_outputs <- function(raw_map_dir, version_tracked_map_dir) {
   
   print(paste0("version tracked map path: ", version_tracked_map_dir))
