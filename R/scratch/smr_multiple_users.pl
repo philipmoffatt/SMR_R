@@ -363,7 +363,7 @@ for my $year (2000..2022) {
 print "\n|----- READING Weather -----|\n";
 
 #  This set of commands splits a tab delimited array using a while loop; it runs until line 1013
-open ($WEATHER, '<', "/$home_dir_name/$user/Dropbox/SMR_R/raw_data/weather/gridMET_mini.csv") || die "Can't open weather file\n"; 
+open ($WEATHER, '<', "/$home_dir_name/$user/Dropbox/SMR_R/raw_data/weather/gridMET_large.csv") || die "Can't open weather file\n"; 
 
 while (<$WEATHER>) {
 	chop($_);

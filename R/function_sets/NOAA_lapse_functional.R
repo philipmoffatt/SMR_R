@@ -7,8 +7,14 @@ library(mapview)
 library(elevatr)
 library(rnoaa)
 
+### File Description:
+#     This function-set provides functions for downloading NOAA weather data,
+#     finding the elevation of NOAA weather stations, and calculating lapse
+#     rates between NOAA weather stations with two different methods.
+# --------------------------------------------------------------------------- #
 
-# Purpose: Pull weather data from the NOAA database for a specific weather station
+
+# Purpose: Pull weather data from the NOAA database for a specific weather station.
 # Parameters:
 #   site_id: Character string with the site ID of the weather station (e.g., "GHCND:USC00012345")
 #   date_min: Optional parameter specifying the minimum date of the data to retrieve (default: NULL)
@@ -49,9 +55,16 @@ pull_noaa <- function(site_id, date_min = NULL, date_max = NULL) {
   return(wx)
 }
 
-# Purpose: Finds the elevation of a NOAA station when given the station ID
+# Purpose: Gets the elevation of a specific NOAA weather station.
 # Parameters:
+#   site_id: the ID number of the NOAA weather station of interest
 # Returns:
+#   If one station is found with the ID, the elevation of that one station. If 
+#   more than one station is found, the mean of all the station elevations. 
+# Notes:
+#   The 'more than one station' case is just a back up. I noticed this happened
+#   but it seems like the same station can appear multiple times with the same
+#   elevation. Taking an average seemed safe.
 get_station_elevation <- function(site_id) {
   
   stations <- ghcnd_stations()
@@ -69,11 +82,24 @@ get_station_elevation <- function(site_id) {
   }
 }
  
-### NOAA linear model lapse rate
-##  packages
-#   parameters:
-#     units: 'mm/10', 'mm', 'cm'
-# returns
+# Purpose: Produces a linear model with a coefficient and intercept for the 
+#          lapse rate of a variable with elevation.
+# Parameters:
+#   low_df: A data frame containing relevant weather data at the low elevation.
+#   high_df: A data frame containing relevant weather data at the low elevation.
+#   low_elev: A numeric elevation of the measurement site associated with low_df.
+#   high_elev: A numeric elevation of the measurement site associated with high_df.
+#   variable_name: A character class name of the variable for which the lapse rate 
+#                  is being calculated. Used in plotting the lapse rate.
+#   plot: A Boolean determining whether or not the function should produce a plot
+#         of the lapse rate. Default is set to TRUE
+#   units: A character for the units of the lapse rate to be used for conversion
+#          and plotting. Function can take in: "mm/10", "mm", and "cm". Each
+#          will produce a different unit for output. 
+# Returns:
+#   a linear model produced with the lm() function based on the data and elevations.
+# Notes:
+#   Double check that the units for this function make sense. 
 noaa_modeled_lapse <- function(low_df, high_df, low_elev, high_elev, variable_name, plot=TRUE, units="mm/10") {
   
   if (units == "mm/10") {
@@ -88,7 +114,7 @@ noaa_modeled_lapse <- function(low_df, high_df, low_elev, high_elev, variable_na
   
   else if (units == "cm") {
     low_means <- mean(low_df[[variable_name]], na.rm = TRUE) / 100
-    high_means <- mean(high_df[[variable_name]], na.rm = TRUE) / 10
+    high_means <- mean(high_df[[variable_name]], na.rm = TRUE) / 100
   }
   
   if (plot) {
@@ -108,8 +134,24 @@ noaa_modeled_lapse <- function(low_df, high_df, low_elev, high_elev, variable_na
   return(lm_model)
 }
 
-## NOAA simple difference lapse rate
-#  NOTE: this is identical to the modeled output so can probably be removed
+# Purpose: Produces a lapse rate based on a simple 'difference' method.
+# Parameters:
+#   low_df:  A data frame containing relevant weather data at the low elevation.
+#   high_df: A data frame containing relevant weather data at the low elevation.
+#   low_elev: A numeric elevation of the measurement site associated with low_df.
+#   high_elev: A numeric elevation of the measurement site associated with high_df.
+#   variable_name: A character class name of the variable for which the lapse rate 
+#                  is being calculated. Used in plotting the lapse rate.
+#   plot: A Boolean determining whether or not the function should produce a plot
+#         of the lapse rate. Default is set to TRUE
+#   units: A character for the units of the lapse rate to be used for conversion
+#          and plotting. Function can take in: "mm/10", "mm", and "cm". Each
+#          will produce a different unit for output. 
+# Returns:
+#   A numeric class number representing the rate (in an assumed unit based on the 'units' parameter)
+#   at which the variable being used changes with each meter of elevation. 
+# Notes:
+#   This is basically identical when using just two points. 
 noaa_difference_lapse <- function(low_df, high_df, low_elev, high_elev, variable_name, plot = TRUE, units="mm/10") {
   
   if (units == "mm/10") {
@@ -142,7 +184,6 @@ noaa_difference_lapse <- function(low_df, high_df, low_elev, high_elev, variable
   
   return(lapse_rate)
 }
-
 
 
 
