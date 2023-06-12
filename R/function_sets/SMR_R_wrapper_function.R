@@ -1,9 +1,17 @@
-# this function will take readline inputs for location and mapset and 
-# pass them as parameters to an rmarkdown which will then run the model, produce
-# the outputs, and write a pdf to the correct directory
 library(rmarkdown)
 library(dplyr)
 
+### File Description:
+#     This file contains functions that are designed to facilitate the 
+#     knitting of a markdown report which in turn triggers the running of the 
+#     SMR model using the source_SMR_function.R function-set file.
+# --------------------------------------------------------------------------- #
+
+
+# Purpose: 
+# Parameters:
+# Returns:
+# Notes:
 get_next_output_path <- function(processed_path="processed_data/smr_output") {
   
   outputDir <- processed_path
@@ -28,6 +36,18 @@ get_next_output_path <- function(processed_path="processed_data/smr_output") {
   
 }
 
+# Purpose: Find the path to the grassdata folder that contains the locations
+#          and the mapsets for GRASS GIS.
+# Parameters:
+#   no parameters
+# Returns:
+#   The full file path to the "grassdata" folder containing the maps for 
+#   GRASS GIS.
+# Notes:
+#   This function is designed to work for windows, max, and linux, but for
+#   the windows case it is hard coded to Philip Moffat's windows path. The 
+#   primary assumption of this function is that maps for GRASS GIS are held in 
+#   a folder called "grassdata"
 get_grassdata_dir <- function() {
   os <- Sys.info()["sysname"]
   grass_data_glob <- "grassdata"
@@ -43,6 +63,16 @@ get_grassdata_dir <- function() {
   return(grass_data_dir)
 }
 
+# Purpose: Find the full path to the GRASS GIS application and navigates to the
+#          "Resources" folder within it.
+# Parameters:
+#   no parameters
+# Returns:
+#   The full file path to the GRASS application Resources folder.
+# Notes:
+#   This function is designed to work for windows, mac, and linux operating 
+#   systems. That being said, the windows case is currently hard coded and 
+#   assume GRASS GIS 8.2. For Linux and Darwin it is more flexible. 
 get_grass_app_path <- function() {
   os <- Sys.info()["sysname"]
   
@@ -58,6 +88,25 @@ get_grass_app_path <- function() {
   return(grass_path)
 }
 
+# Purpose: Knits a markdown report and passes parameters to the report that 
+#          facilitate the running of a specified SMR PERL model in a specified 
+#          Location and Mapset inside GRASS GIS. 
+# Parameters:
+#   location: A character class name of the folder to use for location in the GRASS GIS database. Defaults to NULL.
+#   mapset: A character class name of the folder to use for the mapset in the GRASS GIS database. Defaults to NULL.
+#   perl_script: A character class name of the perl script to run SMR from in SMR_R/R/function_sets. Defaults to NULL.
+#   simulation_note: A character class sentence describing the changes to the model for the current run. Defaults to NULL.
+#   markdown_generic_outpath: A file path to the processed_data/smr_output location. Defaults to "processed_data/smr_output".
+#   run_start_date: A character class yyyy-mm-dd object specifying the first day of the input data.
+#   run_end_date: A character class yyyy-mm-dd object specifying the last day of the input data.
+# Returns:
+#   No returns. This function knits an R Markdown report resulting in an SMR 
+#   model run. 
+# Notes:
+#   You can have the function written out with parameters set-up statically
+#   if you think you will only be changing the internal setup of the model in PERL
+#   for a while. Additionally, the function can be called with no parameters and 
+#   it will prompt you for everything it needs. 
 smr_wrapper <- 
   function(location = NULL, 
            mapset = NULL, 
@@ -120,7 +169,7 @@ smr_wrapper <-
   output_path <- get_next_output_path(processed_path = markdown_generic_outpath)
   print(paste0("output_path: ", output_path))
   
-  report_folder <- "R/scratch" # could be made more flexible
+  report_folder <- "R/function_sets" # could be made more flexible
   
   report_path <- file.path(report_folder, "model_report_v2.Rmd") # changed this but it should be made a parameter
   print(paste0("report path: ", report_path))
