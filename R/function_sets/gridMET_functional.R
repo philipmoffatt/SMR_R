@@ -13,57 +13,14 @@ library(sf)
 library(FAO56)
 library(elevatr)
 
-
-## constant setup:
-# initialize variables
-lat <- 46.7312700
-lon <- -117.1861
-
-
-# setting up dictionaries for crop curves
-water_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
-water_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.6525, 'Kc_mid'=0.6525, 'Kc_end'=0.6525, 'Kc_post_harv'=0.30)
-
-urban_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
-urban_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.30, 'Kc_end'=0.30, 'Kc_post_harv'=0.30)
-
-# using FAO conifer values for now meaning it's static but that can change
-forest_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
-forest_Kc <- list('Kc_preplant'=1, 'Kc_init'=1, 'Kc_mid'=1, 'Kc_end'=1, 'Kc_post_harv'=1)
-
-# using deciduous orchard
-shrub_time <- list('preplant_len'=60, 'init_len'=20, 'dev_len'=70, 'mid_len'=90, 'late_len'=30, 'post_len'=95)
-shrub_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.45, 'Kc_mid'=0.95, 'Kc_end'=0.70, 'Kc_post_harv'=0.30)
-
-#relied on frost dates from AgWeatherNet: Pullman station: frost on --> May 1st, frost off --> September 19th --> splitting resiudal (125) in half for now
-grass_time <- list('preplant_len'=113, 'init_len'=10, 'dev_len'=20, 'mid_len'=64, 'late_len'=62, 'post_len'=96)
-grass_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.75, 'Kc_end'=0.75, 'Kc_post_harv'=0.30)
-
-# using spring wheat values for now
-#row_crop_time <- list('preplant_len'=75, 'init_len'=20, 'dev_len'=25, 'mid_len'=60, 'late_len'=30, 'post_len'=155)
-row_crop_time <- list('preplant_len'=0, 'init_len'=160, 'dev_len'=75, 'mid_len'=75, 'late_len'=25, 'post_len'=30)
-row_crop_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.7, 'Kc_mid'=1.15, 'Kc_end'=0.35, 'Kc_post_harv'=0.30)
-
-#land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
-#land_cover_heights <- c(0.01, 4, 11, 0.3, 0.9, 0.9)
-land_cover_names <- c('snow')
-land_cover_heights <- c(0.01)
+### File Description:
+#     This file provides functions for downloading gridMET data, producing all the 
+#     daily inputs required for running the SMR model, and formatting a CSV file
+#     to be used by the SMR model in PERL. 
+# --------------------------------------------------------------------------- #
 
 
-# column names
-desired_columns <- c("date", "year", "month", "day", "doy", "tmax", "tmin",
-                     "tavg", "tdew", "prcp","pet_grass","Hour_1","Hour_6","Hour_12","Hour_18",
-                     "l_turb","cloud","Kc_water","Kc_urban","Kc_forest","Kc_shrub",
-                     "Kc_grass", "Kc_row_crop","rh_snow")
-
-
-smr_columns <- c("date", "year", "month", "day", "doy", "tmax", "tmin",
-                 "tavg", "tdew", "precip","pet","hour_1","hour_6","hour_12","hour_18",
-                 "l_turb","cloud","cc_water","cc_urban","cc_forest","cc_shrub",
-                 "cc_grass","cc_row_crop","rh_snow")
-
-
-# Purpose: Produce a data frame of gridMET weather data.
+# Purpose: Produce a data frame of gridMET weather data using the climateR package.
 # Parameters: 
 #   site_name: character -- The name of the site to pull data from (e.g., "Pullman, WA")
 # Returns:
@@ -116,14 +73,12 @@ pull_gridMET <- function(site_name) {
   
 }
 
-# Purpose: Make hourly temperatures out of a daily maximum and minimum
-# Packages: 
-#   ChillR
+# Purpose: Makes 24 hourly temperatures out of a daily maximum and minimum temperatures using the chillR package.
 # Parameters: 
-#   gridMET: The data frame returned by pull_gridMET()
-#   latitude: The latitude of the measurement site (gridMET tile)
+#   gridMET: The data frame returned by pull_gridMET().
+#   latitude: The latitude of the measurement site (gridMET tile).
 # Returns:
-#   gridMET data frame with hourly temperature columns (24 new columns)
+#   gridMET data frame with hourly temperature columns (24 new columns). 
 # Notes:
 get_hourly_temps <- function(gridMET, latitude) {
   
@@ -138,10 +93,21 @@ get_hourly_temps <- function(gridMET, latitude) {
   return(gridMET_hourly)
 }
 
-# Purpose:
+# Purpose: Produces a crop coefficient curve. 
 # Parameters:
+#   gridMET: The gridMET data frame.
+#   time_params: A list containing every growth stage as the name and every corresponding growth length as the value.
+#   Kc_params: A list containing every growth stage as the name and every corresponding crop coefficient as the value.
+#   planting_offset: A numeric that causes the crop coefficient curve to be shifted to a different time of year. 
+#                    generally this is set to 0. 
+#   crop_name: A character for the name of the crop. This will determine the column name (e.g. "Wheat" --> Kc_Wheat)
 # Returns:
+#   The gridMET data frame with a crop coefficient curve added to it. The new columns 
+#   will be named based on the crop_name.
 # Notes:
+#   The offset parameter should usually be set to 0. It has only been used so far 
+#   for making the winter wheat curve where planting and growth occurs at a 
+#   significantly different time of year. 
 ann_Kc_curve <- function(gridMET, time_params, Kc_params, planting_offset, crop_name) {
   
   total_curve <- c(rep(Kc_params[["Kc_preplant"]], time_params[["preplant_len"]]),
@@ -166,56 +132,14 @@ ann_Kc_curve <- function(gridMET, time_params, Kc_params, planting_offset, crop_
   return(gridMET)
 }
 
-# Purpose:
+# Purpose: Calculates the daily dew point temperature.
 # Parameters:
+#   gridMET: A data frame with daily weather data from gridMET.
 # Returns:
+#   The updated gridMET data frame with a column called "tdew".
 # Notes:
-lapse_rates <- function(low_site, high_site, low_site_el, high_site_el) {
-  
-  # calculate elevation difference in meters
-  elevation_diff <- low_site_el - high_site_el
-  
-  # calculate precipitation lapse rate
-  pullman_mean_prcp <- mean(low_site$prcp, na.rm = TRUE)
-  moscow_mean_prcp <- mean(high_site$prcp, na.rm = TRUE)
-  prcp_lapse_rate <- ((pullman_mean_prcp - moscow_mean_prcp) / elevation_diff) * 1000
-  
-  # calculate temperature lapse rate
-  pullman_mean_tavg <- mean(low_site$tavg, na.rm = TRUE)
-  moscow_mean_tavg <- mean(high_site$tavg, na.rm = TRUE)
-  tavg_lapse_rate <- ((pullman_mean_tavg - moscow_mean_tavg) / elevation_diff) * 1000
-  
-  # calculate PET (grass) lapse rate
-  pullman_mean_pet <- mean(low_site$pet_grass, na.rm = TRUE)
-  moscow_mean_pet <- mean(high_site$pet_grass, na.rm = TRUE)
-  pet_grass_lapse_rate <- ((pullman_mean_pet - moscow_mean_pet) / elevation_diff) * 1000
-  
-  # produce a linear model for PET based on site elevations and PET
-  # setup variables for elevation and PET
-  moscow_mountain_el <- high_site_el
-  moscow_mountain_pet <- moscow_mean_pet
-  
-  pullman_el <- low_site_el
-  pullman_pet <- pullman_mean_pet
-  
-  # create data frame with xy values
-  pet_lm_data <- data.frame(x = c(pullman_pet,pullman_el), y = c(moscow_mountain_pet,moscow_mountain_el))
-  
-  # fit linear model
-  model_values <- summary(lm(y ~ x, data = pet_lm_data))
-  
-  # return data frame with lapse rates and PET linear model values
-  return(data.frame(precip_lapse_rate = prcp_lapse_rate,
-                    temp_lapse_rate = tavg_lapse_rate,
-                    pet_grass_lapse_rate = pet_grass_lapse_rate,
-                    pet_lm_intercept = model_values$coefficients[1],
-                    pet_lm_slope = model_values$coefficients[2]))
-}
-
-# Purpose:
-# Parameters:
-# Returns:
-# Notes:
+#   This function assumes the following columns exist in the gridMET data frame:
+#   tmin.
 dewpoint_temperature <- function(gridMET) {
   
   # create a new column for dew point temperature
@@ -225,9 +149,14 @@ dewpoint_temperature <- function(gridMET) {
   return(gridMET)
 }
 
-# Purpose:
+# Purpose: Calculates the daily cloud fraction and adds it to the gridMET data frame.
 # Parameters:
+#   gridMET: A data frame with daily weather data from gridMET.
+#   latitude: A numeric class with the latitude for the location of the gridMET data.
+#   longitude: A numeric class with the longitude for the location of the gridMET data.
+#   timezone: A numeric value representing the timezone offset in hours from Greenwich (I think but worth double checking)
 # Returns:
+#   the gridMET data frame with a new "cloud" column containing daily cloud fraction values.
 # Notes:
 calculate_cloud_fraction <- function(gridMET, latitude, longitude, timezone) {
   
@@ -287,10 +216,15 @@ calculate_cloud_fraction <- function(gridMET, latitude, longitude, timezone) {
   return(gridMET_joined)
 }
 
-# Purpose:
+# Purpose: Produces a daily atmospheric pressure value using the bigleaf package.
 # Parameters:
+#   gridMET: A data frame with daily weather data from gridMET. 
+#   site_latitude: A numeric value specifying the latitude of the gridMET data.
+#   site_longitude: A numeric values specifying the longitude of the gridMET data.
 # Returns:
+#   The gridMET data frame with a new column called "atmospheric pressure".
 # Notes:
+#   This didn't actually get used in the end but I'm leaving it in the code. 
 pressure_from_el <- function(gridMET, site_latitude, site_longitude) {
   
   # formatting latitude and longitude inputs to match parameter requirements
@@ -321,10 +255,17 @@ pressure_from_el <- function(gridMET, site_latitude, site_longitude) {
   return(gridMET_updated)
 }
 
-# Purpose:
-# Parameters:
+# Purpose: Estimates daily wind speed at a specified height based on the measured wind speed at a different height.
+# Parameters: 
+#   actual_measurement_height: The actual measurement height of the gridMET wind speed data.
+#   measured_wind_speed: Daily measured wind speed data.
+#   measured_land_cover_height: The height of the land cover from Hansen 1993.
+#   predicted_land_cover_height: The height of the new land cover.
 # Returns:
+#   The gridMET data frame with 
 # Notes:
+#   Didn't end up getting used but leaving it in for now. This is a helper 
+#   function in land_cover_rh_wrapper() function in this file.
 estimated_wind_speed <- function(
     actual_measurement_height = 2,
     measured_wind_speed,
@@ -346,10 +287,20 @@ estimated_wind_speed <- function(
 }
 
 
-# Purpose:
+# Purpose: Calculates daily heat transfer to resistance (rh) values.
 # Parameters:
+#   wind_measurement_height: A numeric value specifying the height of the wind measurement in meters.
+#   temp_measurement_height: A numeric value specifying the height of the temperature measurement in meters.
+#   von_karman: Von Karman's constant.
+#   zero_plane_displacement_height: A numeric value specifying the zero plane displacemnet height of the land cover.
+#   momentum_roughness: A numeric value specifying the momentum roughness parameter of the land cover.
+#   heat_vapor_roughness: A numeric value specifying the heat vapor roughness of the land cover. 
+#   wind_speed: A numeric value for the daily wind speed in meters per second. 
 # Returns:
+#    A single resitance to heat transfer value to be placed in a row in the new rh column.
 # Notes:
+#   This is a helper function used in the land_cover_rh() function and 
+#   it is applied to an entire wind speed column in the land_cover_rh_wrapper() function.
 heat_transfer_resistance <- 
   function(
     wind_measurement_height, 
@@ -369,9 +320,15 @@ heat_transfer_resistance <-
   return(rh)
   }
 
-# Purpose:
+# Purpose: Calculates RH values for a specific land cover.
 # Parameters:
+#   land_cover_height: A numeric specifying the height in meters of the land cover.
+#   wind_measurement_height: A numeric specifying the height in meters of the wind measurement.
+#   temp_measurement_height: A numeric specifying the height in meters 
+#   von_karman: A numeric specifying the Von Karman constant. 
+#   wind_speed: A numeric specifying the wind speed in meters per second.
 # Returns:
+#   A single RH value.
 # Notes:
 land_cover_rh <- 
   function(
@@ -429,9 +386,17 @@ land_cover_rh <-
     return(rh_value)
   }
 
-# Purpose:
+# Purpose: Produces a new column in the gridMET data frame containing daily RH 
+#   values for each land cover of interest.
 # Parameters:
+#   gridMET: A data frame containing daily weather data and SMR input data from gridMET.
+#   land_cover_names: A character vector of land cover names.
+#   land_cover_heights: A numeric vector of land cover heights in the same order as the land cover names.
+#   wind_measurement_height: A numeric specifying the height of the wind measurement speed.
+#   temp_measurement_height: A numeric specifying the height of the temperature measurement speed.
+#   von_karman: A numeric specifying the Von Karman constant.
 # Returns:
+#   The gridMET data frame with 1-n new daily rh columns for each land cover.
 # Notes:
 land_cover_rh_wrapper <- 
   function(
@@ -467,10 +432,15 @@ land_cover_rh_wrapper <-
     return(gridMET)
   }
 
-# Purpose:
+# Purpose: Renames the columns of the gridMET data frame.
 # Parameters:
+#   gridMET: A data frame containing daily weather data and SMR input data from gridMET.
+#   renamed_columns: A character vector containing the new names for the gridMET data frame. 
+#                    Names should be in the same order as the current gridMET columns.
 # Returns:
+#   The gridMET data frame with new column names.
 # Notes:
+#   This is a helper function to the subset_order_columns() function. 
 rename_columns <- function(gridMET, renamed_columns) {
   
   colnames(gridMET) <- renamed_columns
@@ -479,6 +449,19 @@ rename_columns <- function(gridMET, renamed_columns) {
   
 }
 
+# Purpose: Subset the gridMET data frame to only contain a specified set of columns and renames 
+#          existing columns.
+# Parameters:
+#   gridMET: A data frame containing daily weather data and input SMR data from gridMET.
+#   desired_columns: A character vector of the columns from the gridMET data frame to keep.
+#   renamed_columns: A character vector of the new names for the subset of columns to keep.
+# Returns:
+#   The gridMET data fame with filtered, ordered, and renamed columns to match the PERL SMR format.
+# Notes:
+#   The sub-setting occurs BEFORE the renaming.  This means your renamed_columns
+#   vector should only contain new names corresponding to the desired_columns vector.
+#   The point of renaming is to ensure that the input data matches the expected names
+#   in the PERL SMR script and that columns are in the correct order.
 subset_order_columns <- function(gridMET, desired_columns, renamed_columns) {
   gridMET_subset <- gridMET %>%
     dplyr::select(all_of(desired_columns)) %>%
@@ -487,7 +470,18 @@ subset_order_columns <- function(gridMET, desired_columns, renamed_columns) {
 }
 
 
-# write weather data out to correct location -- probably needs some work
+# Purpose: Writes out the gridMET for a specific period to the raw_data/weather folder.
+# Parameters:
+#   gridMET: A data frame containing daily weather data from gridMET and other daily input data to SMR.
+#   start_date: A character class date in the yyyy-mm-dd format for the beginning of the modeling period.
+#   end_date: A character class date in the yyyy-mm-dd format for the end of the modeling period.
+#   location: A character class of the name of the location (e.g. "Pullman", "Moscow", etc.)
+#             to make uniquely named output CSV files.
+# Returns:
+#   No returns. Writes out data.
+# Notes:
+#   I have been using the location parameter to make different sizes of input data be named 
+#   based on their size. For example location = "large", location = "medium", location = "small"
 write_weather_data <- function(gridMET, start_date, end_date, location) {
   
   gridMET <- gridMET[order(gridMET$date), ]
@@ -513,8 +507,56 @@ write_weather_data <- function(gridMET, start_date, end_date, location) {
 }
 
 
+## constant setup:
+#initialize variables
+lat <- 46.7312700
+lon <- -117.1861
 
-# calling functions
+
+# setting up dictionaries for crop curves
+water_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
+water_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.6525, 'Kc_mid'=0.6525, 'Kc_end'=0.6525, 'Kc_post_harv'=0.30)
+
+urban_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
+urban_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.30, 'Kc_end'=0.30, 'Kc_post_harv'=0.30)
+
+# using FAO conifer values for now meaning it's static but that can change
+forest_time <- list('preplant_len'=60, 'init_len'=60, 'dev_len'=60, 'mid_len'=60, 'late_len'=60, 'post_len'=65)
+forest_Kc <- list('Kc_preplant'=1, 'Kc_init'=1, 'Kc_mid'=1, 'Kc_end'=1, 'Kc_post_harv'=1)
+
+# using deciduous orchard
+shrub_time <- list('preplant_len'=60, 'init_len'=20, 'dev_len'=70, 'mid_len'=90, 'late_len'=30, 'post_len'=95)
+shrub_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.45, 'Kc_mid'=0.95, 'Kc_end'=0.70, 'Kc_post_harv'=0.30)
+
+#relied on frost dates from AgWeatherNet: Pullman station: frost on --> May 1st, frost off --> September 19th --> splitting resiudal (125) in half for now
+grass_time <- list('preplant_len'=113, 'init_len'=10, 'dev_len'=20, 'mid_len'=64, 'late_len'=62, 'post_len'=96)
+grass_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.30, 'Kc_mid'=0.75, 'Kc_end'=0.75, 'Kc_post_harv'=0.30)
+
+# using spring wheat values for now
+#row_crop_time <- list('preplant_len'=75, 'init_len'=20, 'dev_len'=25, 'mid_len'=60, 'late_len'=30, 'post_len'=155)
+row_crop_time <- list('preplant_len'=0, 'init_len'=160, 'dev_len'=75, 'mid_len'=75, 'late_len'=25, 'post_len'=30)
+row_crop_Kc <- list('Kc_preplant'=0.30, 'Kc_init'=0.7, 'Kc_mid'=1.15, 'Kc_end'=0.35, 'Kc_post_harv'=0.30)
+
+#land_cover_names <- c('water', 'urban', 'forest', 'shrub', 'grass', 'row_crop')
+#land_cover_heights <- c(0.01, 4, 11, 0.3, 0.9, 0.9)
+land_cover_names <- c('snow')
+land_cover_heights <- c(0.01)
+
+
+# column names
+desired_columns <- c("date", "year", "month", "day", "doy", "tmax", "tmin",
+                     "tavg", "tdew", "prcp","pet_grass","Hour_1","Hour_6","Hour_12","Hour_18",
+                     "l_turb","cloud","Kc_water","Kc_urban","Kc_forest","Kc_shrub",
+                     "Kc_grass", "Kc_row_crop","rh_snow")
+
+
+smr_columns <- c("date", "year", "month", "day", "doy", "tmax", "tmin",
+                 "tavg", "tdew", "precip","pet","hour_1","hour_6","hour_12","hour_18",
+                 "l_turb","cloud","cc_water","cc_urban","cc_forest","cc_shrub",
+                 "cc_grass","cc_row_crop","rh_snow")
+
+
+## calling functions
 gm_m <- pull_gridMET('Moscow, ID') 
 gm_p <- pull_gridMET('Pullman, WA') %>%
   pressure_from_el(site_latitude = lat, site_longitude = lon) %>%
@@ -526,7 +568,7 @@ gm_p <- pull_gridMET('Pullman, WA') %>%
   ann_Kc_curve(grass_time, grass_Kc, 0, 'grass') %>%
   ann_Kc_curve(row_crop_time, row_crop_Kc, 274, 'row_crop') %>%
   dewpoint_temperature() %>%
-  calculate_cloud_fraction(lat, lon, -8) %>%
+  calculate_cloud_fraction(lat, lon, -7) %>% 
   land_cover_rh_wrapper(land_cover_names = land_cover_names,
                         land_cover_heights = land_cover_heights,
                         wind_measurement_height = 2,
@@ -548,7 +590,7 @@ write_weather_data(
 
 # write mini historical
 mini_start_date <- "2019-10-10"
-mini_end_date <- "2019-11-20"
+mini_end_date <- "2019-10-20"
 
 write_weather_data(
   gridMET = gm_p,
