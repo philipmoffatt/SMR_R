@@ -3,6 +3,7 @@ library(rgrass)
 ### File Description:
 #     This function-set uses the rgrass package to run a PERL script SMR model
 #     from R. It contains two helper functions and 2 main functions.
+# --------------------------------------------------------------------------- #
 
 # Purpose: Find the path to the grassdata folder that contains the locations
 #          and the mapsets for GRASS GIS.
@@ -62,7 +63,7 @@ get_grass_app_path <- function() {
 #   mapset: the mapset to use from the specified location
 #   perl_script: the name of the perl script to use (the SMR model file)
 #   map_outpur_dir: the file path specifying where maps should be written out
-#   to during model runs --> just builds it if it doesn't exist alredy.
+#   to during model runs --> just builds it if it doesn't exist already
 # Returns:
 #   no direct returns.
 # Notes:
@@ -115,7 +116,7 @@ run_SMR <-
   
   execGRASS(cmd = "g.remove", flags = "f", type = "rast", pattern="*")
   print("grass maps removed")
-  smr_subdir <- "R/scratch"
+  smr_subdir <- "R/function_sets"
   current_dir <- file.path(getwd())
   
   if (!grepl(paste0("/", smr_subdir), current_dir, fixed = TRUE)) {
@@ -134,7 +135,7 @@ run_SMR <-
 #          overwrites any existing identical files in the mapset. 
 # Parameters:
 #   import_dir: a file path to a folder containing the maps to import
-#   location (defaults NULL prompts user iput): the GRASS location to use
+#   location (defaults NULL prompts user input): the GRASS location to use
 #   mapset (defaults NULL prompts user input): the GRASS mapset in that location
 #                                              to use
 # Returns:
