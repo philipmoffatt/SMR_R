@@ -1,3 +1,4 @@
+library(yaml)
 library(tidyverse)
 library(mapview)
 library(raster)
@@ -5,18 +6,59 @@ library(FedData)
 library(sf)
 library(terra)
 
-## define MFC ----
-raw_path = "./raw_data"
+## ---- load project config (config.yaml must be in working directory) ----
+cfg        <- yaml::read_yaml("config.yaml")
+setwd(cfg$root_dir)
+wshed_label       <- cfg$watershed$label
+huc_filter_id     <- cfg$watershed$huc12_filter_id
+basin_mask_value  <- cfg$watershed$basin_mask_value
+wshed_id          <- cfg$watershed$wshed_id
+res_vol           <- cfg$watershed$res_vol
+res_coeff         <- cfg$watershed$res_coeff
+depth_a           <- cfg$soil$depth_a_cm
+residual_A        <- cfg$soil$residual_a
+residual_B        <- cfg$soil$residual_b
+stream_thresh     <- cfg$dem$stream_threshold
+isobasin_thresh   <- cfg$dem$isobasin_threshold
+smooth_filter     <- cfg$dem$smooth_filter
+dem_res           <- cfg$dem$resolution_m
+raw_path          <- cfg$data$raw_dir %||% "raw_data"
+processed_path    <- cfg$data$processed_dir %||% "processed_data"
+## -----------------------------------------------------------------------
 
-# grab dummy data with a covering extent: PRW raster. 
-PRW <- st_read(file.path(raw_path, "template", "huc12.shp"))
+raw_path = "raw_data"
+
+# ---- download HUC12 boundary if not already cached ----
+huc_template_path <- file.path(raw_path, "template", "huc12.shp")
+needs_huc <- !file.exists(huc_template_path) ||
+             nrow(sf::st_read(huc_template_path, quiet = TRUE)) == 0
+if (needs_huc) {
+  if (!requireNamespace("nhdplusTools", quietly = TRUE))
+    stop("Run install_dependencies.R first — nhdplusTools is required for HUC12 download.")
+  wshed_lat <- cfg$watershed$lat
+  wshed_lon <- cfg$watershed$lon
+  if (is.null(wshed_lat) || is.null(wshed_lon))
+    stop("Set watershed$lat and watershed$lon in config.yaml before first run.")
+  message("Downloading HUC12 boundary for (", wshed_lat, ", ", wshed_lon, ") ...")
+  point     <- sf::st_sfc(sf::st_point(c(wshed_lon, wshed_lat)), crs = 4326)
+  huc12_dl  <- nhdplusTools::get_huc(AOI = point, type = "huc12")
+  if (nrow(huc12_dl) == 0) stop("nhdplusTools returned 0 features — check lat/lon in config.yaml.")
+  huc12_dl  <- huc12_dl[, "geometry"]   # drop long field names that break Shapefile format
+  huc12_dl$Id <- huc_filter_id
+  dir.create(file.path(raw_path, "template"), recursive = TRUE, showWarnings = FALSE)
+  sf::st_write(huc12_dl, huc_template_path, delete_layer = TRUE)
+  message("Saved to ", huc_template_path)
+}
+
+# grab dummy data with a covering extent: PRW raster.
+PRW <- st_read(huc_template_path)
   #   mapview(PRW)
 
 # get MFC and buffer by 300 m or 10 cells to ensure we 
   #   capture the eatershed divide 
-MFC <- PRW %>% filter(Id == "79")
+MFC <- PRW %>% filter(Id == huc_filter_id)
 
-MFC_buf <- PRW %>% filter(Id == "79") %>% st_buffer(., 300)
+MFC_buf <- PRW %>% filter(Id == huc_filter_id) %>% st_buffer(., 300)
   #   mapview(MFC)
 
 
@@ -66,7 +108,7 @@ outpath="./processed_data/dem"
 if(!dir.exists(outpath)) dir.create(outpath)
 
 # Build wshed specific out path directory 
-dir_path <- file.path(outpath,"MFC")
+dir_path <- file.path(outpath, wshed_label)
   # make directory per site 
 if(!dir.exists(dir_path)) dir.create(dir_path)
   
@@ -95,10 +137,10 @@ plot(basins)
 
 # build a boolean mask of MFC 
 # this needs to be genrallized. 
-mfc_mask = basins == 84
+mfc_mask = basins == basin_mask_value
 mfc_mask[is.na(mfc_mask[])] = 0
 # plot(mfc_rast)
-raster::writeRaster(mfc_rast, paste0(dir_path,"/dem_mfc_mask.tif"))
+raster::writeRaster(mfc_mask, paste0(dir_path,"/dem_mfc_mask.tif"))
 
 
 wbt_d8_flow_accumulation(input = paste0(dir_path,"/dem_breached.tif"),
@@ -248,7 +290,7 @@ res_data <- ssurgo$tabular$corestrictions[
 # # 25  41  46  50  51 100 102 
 # # 2   1   2   2   6   2   4 
 
-depth_a = 30 
+# depth_a comes from cfg$soil$depth_a_cm (set in config block above)
 
 #define parameters to depth weight
 hoz_comp <- c("om.r","dbovendry.r","dbthirdbar.r","ksat.r",
@@ -304,12 +346,13 @@ for(i in unique(hoz_data$cokey)){
     layer_B_temp$hzdepb.r[nrow(layer_B_temp)] <- max_depth
     
     layer_B_temp_2 = depth_weight(layer_B_temp, cols = hoz_comp, layer = "B")
-  }
-  
-  rm(layer_B_temp)
-    
+    rm(layer_B_temp)
     layer = rbind(layer, layer_A_temp_2, layer_B_temp_2)
     rm(layer_A_temp_2, layer_B_temp_2)
+  } else {
+    layer = rbind(layer, layer_A_temp_2)
+    rm(layer_A_temp_2)
+  }
 
       # build weights by thickness, weight bottom layer. (simple or harmonic weights?)
   }
@@ -426,10 +469,7 @@ if(!dir.exists(imitate_smr_setup)) {
 }
 
 # set values for watershed properties
-wshed_id = 79
 area_cells = freq(mfc_mask, value = 1)
-res_vol = 5
-res_coeff = 0.01
 
 # build frame from values
 wshed_frame = data.frame(wshed_id, area_cells, res_vol, res_coeff)
@@ -610,7 +650,7 @@ raster::writeRaster(Kfc_B, paste0(imitate_smr_setup, "/Kfc_B.asc"))
 #    cell.  An elevation difference of one unit for a diagonal cell would
 #    be 1/(square root of 2)=0.707  flow units.
 
-el <- rast("/Users/duncanjurayj/Documents/SMR_R/processed_data/imitate_smr_setup/el.asc")
+el <- rast(file.path(imitate_smr_setup, "el.asc"))
 #el <- rast(el)
 
 # Calculate the differences with the 8-neighbors cells 
