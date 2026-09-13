@@ -5,6 +5,7 @@
 
 use strict;
 use warnings;
+use Time::HiRes qw(time);
 
 my $weather_file = $ARGV[0] or die "Usage: perl smr_buildup.pl <weather_file> <output_file>\n";
 my $output_file  = $ARGV[1] or die "Usage: perl smr_buildup.pl <weather_file> <output_file>\n";
@@ -12,6 +13,8 @@ my $output_mode   = $ENV{SMR_OUTPUT_MODE} // 'full';
 die "SMR_OUTPUT_MODE must be full, daily, or final-only (got '$output_mode')\n"
     unless $output_mode =~ /\A(?:full|daily|final-only)\z/;
 my ($first_date, $last_date, $days_processed);
+my $rsun_nprocs = $ENV{SMR_RSUN_NPROCS} // 4;
+die "SMR_RSUN_NPROCS must be a positive integer (got '$rsun_nprocs')\n" unless $rsun_nprocs =~ /\A[1-9]\d*\z/;
 open(my $WSHED_TEMPLATE, '<', 'wshed_res_properties.ini') or die "Can't open wshed_res_properties.ini: $!";
 my @watershed_records = grep { /\S/ } <$WSHED_TEMPLATE>;
 close($WSHED_TEMPLATE);
@@ -107,6 +110,7 @@ while (<$WEATHER>) {
     $first_date //= $date;
     $last_date = $date;
     $days_processed++;
+    my $day_started = time;
 
     # init annual accumulator maps on first occurrence of each year
     unless ($year_init_done{$year}) {
@@ -147,7 +151,8 @@ while (<$WEATHER>) {
     print `r.mapcalc "expression=t_diff = if($cloud==1.0,0.1,0.75*(1-$cloud)*(1-exp(-0.6*$cloud/((0.75-0.4)*(1-$cloud))))) * watershed" --overwrite`;
     print `r.mapcalc "expression=coefdh = t_diff/0.10" --overwrite`;
     print `r.mapcalc "expression=coefbh = max(0.0,(1-$cloud)-t_diff/0.75)" --overwrite`;
-    print `r.sun elevation=el aspect=aspect slope=slope linke_value=$l_turb albedo=albedo coeff_bh=coefbh coeff_dh=coefdh beam_rad=beam_rad diff_rad=diff_rad refl_rad=refl_rad day=$doy nprocs=4 --overwrite --quiet`;
+    my $radiation_started = time;
+    print `r.sun elevation=el aspect=aspect slope=slope linke_value=$l_turb albedo=albedo coeff_bh=coefbh coeff_dh=coefdh beam_rad=beam_rad diff_rad=diff_rad refl_rad=refl_rad day=$doy nprocs=$rsun_nprocs --overwrite --quiet`;
     print `r.mapcalc "expression=q.srad = (1.0-canopy_cover)*(1.0-albedo)*(beam_rad+diff_rad+refl_rad) * 3600.0/1000.0" --overwrite`;
     print `r.mapcalc "expression=q.lw = 5.67*(10.0^-8.0)*3600.0*24.0/1000.0*(max(0.72,((9.2*(10^-6.0)*(tavg+273.15)^2.0)*(1.0-0.84*$cloud)+0.84*$cloud)*(1-canopy_cover)+0.92*canopy_cover)*(tavg+273.15)^4.0-0.98*(tsnow_surf+273.15)^4.0)" --overwrite`;
 
@@ -184,6 +189,8 @@ while (<$WEATHER>) {
     print `r.mapcalc "expression=perc_daily_flow = 0.0" --overwrite`;
     print `r.mapcalc "expression=runoff_daily_flow = 0.0" --overwrite`;
 
+    my $radiation_seconds = time - $radiation_started;
+    my $soil_started = time;
     # 6-hour sub-step loop
     foreach my $hrly_tmp (@hourly_tmp_array) {
         print `r.mapcalc "expression=temp = $hrly_tmp-($temp_LR/1000)*($low_site_el - el)" --overwrite`;
@@ -257,6 +264,8 @@ while (<$WEATHER>) {
         print `r.out.ascii input=average_feb_runoff_$year output=feb_avg_runoff_$year`;
     }
 
+    my $soil_seconds = time - $soil_started;
+    my $reporting_started = time;
     # Daily reporting is intentionally separate from state evolution.  The
     # final-only path preserves final maps while avoiding all zonal aggregation.
     if ($output_mode ne 'final-only') {
@@ -329,6 +338,12 @@ while (<$WEATHER>) {
         vap.d.snow_sat vap.d.snow vap.d.air condens snowmelt refreeze
     );
     print `g.remove -f type=raster name=@{[join(',', @daily_ephemeral_maps)]} --quiet`;
+    my $timing_file = "$output_file.timing.tsv";
+    my $new_timing = !-e $timing_file;
+    open(my $TIMING, '>>', $timing_file) or die "Cannot write timing file '$timing_file': $!";
+    print $TIMING "date\trsun_nprocs\tradiation_seconds\tsoil_seconds\treporting_seconds\ttotal_seconds\n" if $new_timing;
+    printf $TIMING "%s\t%d\t%.6f\t%.6f\t%.6f\t%.6f\n", $date, $rsun_nprocs, $radiation_seconds, $soil_seconds, time - $reporting_started, time - $day_started;
+    close($TIMING);
 }
 close($WEATHER);
 

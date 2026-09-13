@@ -11,6 +11,8 @@ param(
   [string]$LocationName = "BullRun_utm10",
   [ValidateSet("full", "daily", "final-only")]
   [string]$OutputMode = "full",
+  [ValidateRange(1, 128)]
+  [int]$RSunNProcs = 4,
   [switch]$QuietGrass
 )
 
@@ -37,6 +39,7 @@ $env:SMR_TEMP_DIR = $TempDir
 # must use the matching OSGeo4W database for raster reprojection.
 $env:PROJ_LIB = "C:\OSGeo4W\share\proj"
 $env:SMR_OUTPUT_MODE = $OutputMode
+$env:SMR_RSUN_NPROCS = $RSunNProcs
 if ($GridmetStart) { $env:SMR_GRIDMET_START = $GridmetStart }
 if ($GridmetEnd) { $env:SMR_GRIDMET_END = $GridmetEnd }
 
@@ -54,6 +57,7 @@ function Write-RunManifest([string]$Status, [int]$ExitCode) {
     gridmet_start = $env:SMR_GRIDMET_START
     gridmet_end = $env:SMR_GRIDMET_END
     output_mode = $OutputMode
+    rsun_nprocs = $RSunNProcs
   } | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $manifestDir ((Get-Date -Format "yyyyMMddTHHmmss") + "_$Stage.json"))
 }
 
