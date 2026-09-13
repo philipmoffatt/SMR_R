@@ -1,0 +1,11 @@
+﻿{
+    "timestamp_utc":  "2026-09-13T00:31:28.0770794Z",
+    "stage":  "simulate",
+    "status":  "success",
+    "exit_code":  0,
+    "repo_root":  "C:\\projects\\git\\worktrees\\SMR-FIRST-RUN-01",
+    "runtime_root":  "C:\\projects\\git\\worktrees\\SMR-FIRST-RUN-01\\scratch\\mica-creek-jan2015",
+    "config":  "C:\\projects\\git\\worktrees\\SMR-FIRST-RUN-01\\config.mica-creek.yaml",
+    "gridmet_start":  "2015-01-01",
+    "gridmet_end":  "2015-01-30"
+}
