@@ -24,6 +24,9 @@ the frozen January 2015 JAX target. It hashes the compact replay bundle:
 - `gridmet_weather_2015-01.csv`: the forcing series;
 - `daily_mass_balance_2015-01.csv`: the 30 legacy daily records;
 - `final_state_rasters.zip`: final `saturation` and `storage_amt` rasters;
+- `two_day_internal_trace.zip`: 20 completed daily state/flux maps for each
+  of January 1–2, plus the trace index, replay output/timing, and success
+  manifest;
 - reference configuration and the successful legacy simulation manifest.
 
 The capture excludes raw SSURGO/source downloads and the GRASS workspace: both
@@ -31,10 +34,12 @@ are larger, reconstructible from the captured inputs, and unnecessary to run
 the JAX parity case. The final-state rasters matched the CPU-optimized result
 exactly at 68,121 valid cells.
 
-The completed legacy run did not retain daily internal radiation, snow, soil,
-or lateral-flow rasters. The next verification-preparation task must create a
-short instrumented replay to capture those named daily/substep fixtures; it
-must not substitute newly generated values for the frozen final target.
+The two-day trace replay completed successfully and its two output rows exactly
+match the CPU reference. It captures precipitation, canopy, snow/energy, soil,
+lateral flow, ET, percolation, runoff, and saturation at each completed day.
+Its GeoTIFF exports are a fixture for the first daily JAX flux checks; they do
+not replace the frozen 30-day final target. Substep-level fields remain a later
+capture need if a flux gate requires them.
 
 ## Target package
 

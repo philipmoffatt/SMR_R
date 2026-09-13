@@ -20,6 +20,8 @@
     "legacy_engine_sha256": "b4d118260979e256935b83258e84aef921203c14fd3715bd8fd4aba627d06836",
     "cpu_reference_commit": "cbfaaf0326f6dc0eeb9ee7693c06785914b0a5b6",
     "cpu_engine_sha256": "a320f430c16549be033798bb344aac5a8e2621d76a851b1aecfc2bd0c4976e83",
+    "trace_engine_sha256": "a4d5cf6878cc41acf7eeda264f4a6b334a49b8cb571767209c7e88af2ec845d3",
+    "trace_runner_sha256": "42dff285f72ed6c6a6c56e0bfdf19b09d606c545ccfc05d7ee2054010c7853ac",
     "legacy_simulation_status": "success"
   },
   "artifacts": [
@@ -51,6 +53,22 @@
       "sha256": "221183a7ba076fcc1fb3550f671e3ce1408bdf0338b51603416df4779e79bf5e"
     },
     {
+      "path": "two_day_internal_trace.zip",
+      "kind": "instrumented two-day daily state and flux trace",
+      "entries": 44,
+      "dates": ["2015-01-01", "2015-01-02"],
+      "raster_files": 40,
+      "maps": [
+        "precip", "rain", "snow", "throughfall", "canopy_evap",
+        "swe", "snowmelt", "q.srad", "q.lw", "q.latent", "q.sensible", "q.total",
+        "storage_amt", "storage_amt_A", "storage_amt_B", "lateral_flow",
+        "actualET_daily_flow", "perc_daily_flow", "runoff_daily_flow", "saturation"
+      ],
+      "replay_rows_match_cpu_reference": true,
+      "bytes": 14045038,
+      "sha256": "15df55e8441d5230693d42dc1909e3c855a9915d4511e3625cb517b8032456ca"
+    },
+    {
       "path": "reference_config.yaml",
       "kind": "legacy runtime configuration",
       "bytes": 1030,
@@ -72,7 +90,7 @@
   "excluded": [
     "Raw SSURGO and other source downloads are excluded because model-ready inputs are sufficient for replay.",
     "The GRASS workspace is excluded because it is reconstructible from the bundled inputs.",
-    "Daily internal GRASS flux and state rasters were not retained by the completed legacy run."
+    "Substep-level internal GRASS rasters were not retained; the trace contains completed daily fields."
   ],
   "verification_use": "Verify each artifact SHA-256 before using it as a JAX parity target."
 }

@@ -5,6 +5,7 @@
 
 use strict;
 use warnings;
+use File::Path qw(make_path);
 use Time::HiRes qw(time);
 
 my $weather_file = $ARGV[0] or die "Usage: perl smr_buildup.pl <weather_file> <output_file>\n";
@@ -19,6 +20,21 @@ open(my $WSHED_TEMPLATE, '<', 'wshed_res_properties.ini') or die "Can't open wsh
 my @watershed_records = grep { /\S/ } <$WSHED_TEMPLATE>;
 close($WSHED_TEMPLATE);
 my $single_watershed = @watershed_records == 1;
+my $trace_dir = $ENV{SMR_TRACE_DIR};
+my $trace_enabled = defined($trace_dir) && length($trace_dir);
+my @trace_maps = qw(
+    precip rain snow throughfall canopy_evap
+    swe snowmelt q.srad q.lw q.latent q.sensible q.total
+    storage_amt storage_amt_A storage_amt_B lateral_flow
+    actualET_daily_flow perc_daily_flow runoff_daily_flow saturation
+);
+if ($trace_enabled) {
+    make_path($trace_dir) unless -d $trace_dir;
+    open(my $TRACE_INDEX, '>', "$trace_dir/trace-index.tsv")
+        or die "Cannot write trace index in '$trace_dir': $!";
+    print $TRACE_INDEX "date\tmap\tpath\texport_status\n";
+    close($TRACE_INDEX);
+}
 
 print `g.remove -f type=raster name=MASK`;
 print `g.region rast=watershed`;
@@ -323,6 +339,25 @@ while (<$WEATHER>) {
         }
         close($OUT);
     }
+    }
+
+    # Opt-in JAX parity capture. These are the completed daily values, exported
+    # before ephemeral maps are removed. No trace commands execute by default.
+    if ($trace_enabled) {
+        open(my $TRACE_INDEX, '>>', "$trace_dir/trace-index.tsv")
+            or die "Cannot append trace index in '$trace_dir': $!";
+        for my $map (@trace_maps) {
+            my $safe_map = $map;
+            $safe_map =~ s/\./_/g;
+            my $trace_path = "$trace_dir/$date--$safe_map.tif";
+            my $status = system('r.out.gdal', "input=$map", "output=$trace_path",
+                'format=GTiff', 'createopt=COMPRESS=DEFLATE', '--overwrite');
+            # GDAL can return a nonzero status for a Float64 colour-table notice
+            # after creating a usable file. The trace QC gate validates every
+            # expected file after the run instead of aborting model execution.
+            print $TRACE_INDEX join("\t", $date, $map, $trace_path, $status) . "\n";
+        }
+        close($TRACE_INDEX);
     }
 
     # These maps are daily intermediates: reporting above has consumed every

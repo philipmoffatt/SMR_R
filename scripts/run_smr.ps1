@@ -13,6 +13,7 @@ param(
   [string]$OutputMode = "full",
   [ValidateRange(1, 128)]
   [int]$RSunNProcs = 4,
+  [string]$TraceDirectory,
   [switch]$QuietGrass
 )
 
@@ -40,6 +41,12 @@ $env:SMR_TEMP_DIR = $TempDir
 $env:PROJ_LIB = "C:\OSGeo4W\share\proj"
 $env:SMR_OUTPUT_MODE = $OutputMode
 $env:SMR_RSUN_NPROCS = $RSunNProcs
+if ($TraceDirectory) {
+  New-Item -ItemType Directory -Force -Path $TraceDirectory | Out-Null
+  $env:SMR_TRACE_DIR = [System.IO.Path]::GetFullPath($TraceDirectory)
+} else {
+  Remove-Item Env:SMR_TRACE_DIR -ErrorAction SilentlyContinue
+}
 if ($GridmetStart) { $env:SMR_GRIDMET_START = $GridmetStart }
 if ($GridmetEnd) { $env:SMR_GRIDMET_END = $GridmetEnd }
 
@@ -58,6 +65,7 @@ function Write-RunManifest([string]$Status, [int]$ExitCode) {
     gridmet_end = $env:SMR_GRIDMET_END
     output_mode = $OutputMode
     rsun_nprocs = $RSunNProcs
+    trace_directory = $env:SMR_TRACE_DIR
   } | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $manifestDir ((Get-Date -Format "yyyyMMddTHHmmss") + "_$Stage.json"))
 }
 
