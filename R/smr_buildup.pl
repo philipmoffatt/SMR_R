@@ -12,6 +12,10 @@ my $output_mode   = $ENV{SMR_OUTPUT_MODE} // 'full';
 die "SMR_OUTPUT_MODE must be full, daily, or final-only (got '$output_mode')\n"
     unless $output_mode =~ /\A(?:full|daily|final-only)\z/;
 my ($first_date, $last_date, $days_processed);
+open(my $WSHED_TEMPLATE, '<', 'wshed_res_properties.ini') or die "Can't open wshed_res_properties.ini: $!";
+my @watershed_records = grep { /\S/ } <$WSHED_TEMPLATE>;
+close($WSHED_TEMPLATE);
+my $single_watershed = @watershed_records == 1;
 
 print `g.remove -f type=raster name=MASK`;
 print `g.region rast=watershed`;
@@ -256,10 +260,9 @@ while (<$WEATHER>) {
     # Daily reporting is intentionally separate from state evolution.  The
     # final-only path preserves final maps while avoiding all zonal aggregation.
     if ($output_mode ne 'final-only') {
-    open(my $WSHED, '<', 'wshed_res_properties.ini') or die "Can't open wshed_res_properties.ini: $!";
-    while (<$WSHED>) {
-        chomp;
-        my ($wshed_id, $area_cells, $res_vol, $res_coeff) = split;
+    for my $watershed_record (@watershed_records) {
+        chomp $watershed_record;
+        my ($wshed_id, $area_cells, $res_vol, $res_coeff) = split(' ', $watershed_record);
 
         my %out;
         my @report_vars = $output_mode eq 'full'
@@ -268,11 +271,20 @@ while (<$WEATHER>) {
                  swe condens snow q.srad q.latent q.sensible q.lw q.rain.ground q.total)
             : qw(runoff_daily_flow precip actualET_daily_flow storage_amt perc_daily_flow);
         for my $var (@report_vars) {
-            my $safe = $var; $safe =~ s/\./_/g;  # map name for r.stats.zonal out
-            print `r.stats.zonal base=watershed cover=$var output=tmp_$safe method=sum --overwrite --quiet`;
-            my $val = `r.stats -A -n -N input=tmp_$safe`;
-            chomp $val;
-            $out{$var} = $val * 1;
+            if ($single_watershed) {
+                # The active watershed MASK already limits the map.  Direct
+                # r.univar avoids a temporary zonal raster and second process.
+                my $summary = `r.univar -g map=$var`;
+                my ($sum) = $summary =~ /^sum=([^\r\n]+)/m;
+                die "r.univar returned no sum for $var\n" unless defined $sum;
+                $out{$var} = $sum * 1;
+            } else {
+                my $safe = $var; $safe =~ s/\./_/g;
+                print `r.stats.zonal base=watershed cover=$var output=tmp_$safe method=sum --overwrite --quiet`;
+                my $val = `r.stats -A -n -N input=tmp_$safe`;
+                chomp $val;
+                $out{$var} = $val * 1;
+            }
         }
 
         my $runoff_cms = ($out{runoff_daily_flow} / 100) * ($gridsize * $gridsize) / ($time_step * 3600.0);
@@ -302,7 +314,6 @@ while (<$WEATHER>) {
         }
         close($OUT);
     }
-    close($WSHED);
     }
 }
 close($WEATHER);
