@@ -315,6 +315,20 @@ while (<$WEATHER>) {
         close($OUT);
     }
     }
+
+    # These maps are daily intermediates: reporting above has consumed every
+    # one, and none is a next-day state.  Removing them bounds mapset growth
+    # without changing the ordered state transitions retained below.
+    my @daily_ephemeral_maps = qw(
+        precip rain snow pet_data pet temp temp_sum input storage_amt_A_tmp
+        effK_A effK_B lateral_flow_A lateral_flow_B lateral_flow
+        actualET_flow actualET_daily_flow perc perc_daily_flow runoff_flow runoff_daily_flow
+        canopy_evap throughfall water_input road_runoff
+        rh t_diff coefdh coefbh beam_rad diff_rad refl_rad
+        q.srad q.lw q.latent q.sensible q.rain.ground q.total
+        vap.d.snow_sat vap.d.snow vap.d.air condens snowmelt refreeze
+    );
+    print `g.remove -f type=raster name=@{[join(',', @daily_ephemeral_maps)]} --quiet`;
 }
 close($WEATHER);
 
