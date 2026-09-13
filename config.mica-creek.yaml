@@ -1,0 +1,43 @@
+# Mica Creek, Idaho: isolated January 2015 first-run configuration.
+# The runner supplies the runtime root so this file remains portable.
+root_dir: "C:/path/to/SMR_R/scratch"
+
+watershed:
+  label: "MicaCreek"
+  huc12_filter_id: "170103030403"
+  # Largest contiguous drainage in the 2026-09-12 Stage-1 QA inventory:
+  # ID 37, 75,218 30 m cells (~67.7 km2 including the processing buffer).
+  basin_mask_value: 37
+  wshed_id: 1
+  lat: 47.58888
+  lon: -116.94637
+  res_vol: 0.0
+  res_coeff: 0.05
+
+soil:
+  depth_a_cm: 30
+  residual_a: 0.02
+  residual_b: 0.02
+
+dem:
+  stream_threshold: 1000
+  isobasin_threshold: 1000
+  smooth_filter: 9
+  resolution_m: 30
+  crs_epsg: 32611
+
+weather:
+  site: "Mica Creek, ID"
+  station_id: "USC00456789"
+  gridmet_start: "2015-01-01"
+  gridmet_end: "2015-01-30"
+  historical_start: null
+  historical_end: null
+
+data:
+  raw_dir: "raw_data"
+  processed_dir: "processed_data"
+
+validation:
+  discharge_file: "raw_data/observed/MicaCreek_discharge.csv"
+  smr_output_file: "smr_output/MFC_mass_balance_1.csv"

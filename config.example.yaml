@@ -1,0 +1,40 @@
+# The supplied runner overrides root_dir and keeps generated data in its own
+# ignored scratch directory. Copy this file only for manual runs.
+root_dir: "C:/path/to/SMR_R/scratch"
+
+watershed:
+  label: "BullRun"
+  huc12_filter_id: "170900120402"
+  basin_mask_value: 1
+  wshed_id: 1
+  lat: 45.5247
+  lon: -122.1703
+  res_vol: 0.0
+  res_coeff: 0.05
+
+soil:
+  depth_a_cm: 30
+  residual_a: 0.02
+  residual_b: 0.02
+
+dem:
+  stream_threshold: 1000
+  isobasin_threshold: 1000
+  smooth_filter: 9
+  resolution_m: 30
+
+weather:
+  site: "Bull Run, OR"
+  station_id: "USC00456789"
+  gridmet_start: "2014-10-01"
+  gridmet_end: "2019-09-30"
+  historical_start: null
+  historical_end: null
+
+data:
+  raw_dir: "raw_data"
+  processed_dir: "processed_data"
+
+validation:
+  discharge_file: "raw_data/observed/BullRun_discharge.csv"
+  smr_output_file: "smr_output/MFC_mass_balance_1.csv"

@@ -2,15 +2,17 @@ library(yaml)
 library(tidyverse)
 library(dplyr)
 library(lubridate)
-library(AOI)
 library(climateR)
+library(sf)
 library(chillR)
 library(humidity)
 library(bigleaf)
 
 ## ---- load project config ----
-cfg           <- yaml::read_yaml("config.yaml")
-setwd(cfg$root_dir)
+config_path   <- Sys.getenv("SMR_CONFIG", unset = "config.yaml")
+cfg           <- yaml::read_yaml(config_path)
+root_dir      <- Sys.getenv("SMR_ROOT_DIR", unset = cfg$root_dir)
+setwd(root_dir)
 site          <- cfg$weather$site
 gridmet_start <- cfg$weather$gridmet_start
 gridmet_end   <- cfg$weather$gridmet_end
@@ -19,14 +21,34 @@ wshed_lon     <- cfg$watershed$lon
 raw_path      <- cfg$data$raw_dir
 ## ---------------------------
 
-### GRIDMET pull (modern period only — no historical station data required)
-AOI_site <- AOI::aoi_get(list(lat = wshed_lat, lon = wshed_lon, units = "km", width = 1, height = 1))
+# A bounded interval makes a live API smoke test cheap and reproducible.
+gridmet_start <- Sys.getenv("SMR_GRIDMET_START", unset = gridmet_start)
+gridmet_end   <- Sys.getenv("SMR_GRIDMET_END", unset = gridmet_end)
+if (as.Date(gridmet_end) < as.Date(gridmet_start)) {
+  stop("SMR_GRIDMET_END precedes SMR_GRIDMET_START.")
+}
 
-gridMET_raw <- as.data.frame(
-  climateR::getGridMET(AOI_site,
-                       param     = c("prcp", "tmax", "tmin", "pet_grass", "srad", "wind_vel"),
-                       startDate = gridmet_start,
-                       endDate   = gridmet_end))
+### GRIDMET pull (modern period only — no historical station data required)
+AOI_site <- sf::st_as_sf(
+  data.frame(site = site, lon = wshed_lon, lat = wshed_lat),
+  coords = c("lon", "lat"), crs = 4326
+)
+
+gridmet_variables <- c(
+  prcp = "pr", tmax = "tmmx", tmin = "tmmn",
+  pet_grass = "pet", srad = "srad", wind_vel = "vs"
+)
+gridmet_parts <- lapply(names(gridmet_variables), function(output_name) {
+  source_name <- gridmet_variables[[output_name]]
+  pulled <- as.data.frame(climateR::getGridMET(
+    AOI_site, varname = source_name,
+    startDate = gridmet_start, endDate = gridmet_end
+  ))
+  pulled <- pulled[, c("date", source_name)]
+  names(pulled)[[2]] <- output_name
+  pulled
+})
+gridMET_raw <- Reduce(function(x, y) dplyr::left_join(x, y, by = "date"), gridmet_parts)
 
 gridMET <- gridMET_raw %>%
   mutate(

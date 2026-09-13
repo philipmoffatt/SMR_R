@@ -10,8 +10,10 @@ library(grid)
 library(cowplot)
 
 ## ---- load project config ----
-cfg             <- yaml::read_yaml("config.yaml")
-setwd(cfg$root_dir)
+config_path     <- Sys.getenv("SMR_CONFIG", unset = "config.yaml")
+cfg             <- yaml::read_yaml(config_path)
+root_dir        <- Sys.getenv("SMR_ROOT_DIR", unset = cfg$root_dir)
+setwd(root_dir)
 discharge_file  <- cfg$validation$discharge_file
 smr_output_file <- cfg$validation$smr_output_file
 ## ---------------------------

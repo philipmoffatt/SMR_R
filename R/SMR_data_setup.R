@@ -7,8 +7,19 @@ library(nhdplusTools)
 library(whitebox)
 
 ## ---- load project config ----
-cfg               <- yaml::read_yaml("config.yaml")
-setwd(cfg$root_dir)
+config_path       <- Sys.getenv("SMR_CONFIG", unset = "config.yaml")
+cfg               <- yaml::read_yaml(config_path)
+root_dir          <- Sys.getenv("SMR_ROOT_DIR", unset = cfg$root_dir)
+setwd(root_dir)
+
+# FedData/SSURGO can fail on Windows when its temporary path resolves through
+# an 8.3 user-directory alias. Keep Stage-1 intermediates in an explicit,
+# short path; callers may override it with SMR_TEMP_DIR.
+smr_temp_dir <- Sys.getenv("SMR_TEMP_DIR", unset = "C:/tmp/smr")
+dir.create(smr_temp_dir, recursive = TRUE, showWarnings = FALSE)
+Sys.setenv(TMPDIR = smr_temp_dir, TMP = smr_temp_dir, TEMP = smr_temp_dir)
+message("SMR temporary directory: ", normalizePath(smr_temp_dir, winslash = "/"))
+
 wshed_label       <- cfg$watershed$label
 huc_filter_id     <- cfg$watershed$huc12_filter_id
 basin_mask_value  <- cfg$watershed$basin_mask_value
@@ -22,6 +33,7 @@ stream_thresh     <- cfg$dem$stream_threshold
 isobasin_thresh   <- cfg$dem$isobasin_threshold
 smooth_filter     <- cfg$dem$smooth_filter
 dem_res           <- cfg$dem$resolution_m
+crs_epsg          <- cfg$dem$crs_epsg %||% 32610
 raw_path          <- cfg$data$raw_dir
 processed_path    <- cfg$data$processed_dir
 wshed_lat         <- cfg$watershed$lat
@@ -53,14 +65,56 @@ message("Downloading NED ...")
 NED <- FedData::get_ned(template = MFC_buf, label = wshed_label, res = "1")
 
 message("Downloading SSURGO ...")
-ssurgo <- FedData::get_ssurgo(template = MFC_buf, label = wshed_label)
+# FedData 4.0.5 constructs the USDA cache URL with HTTP, which current USDA
+# endpoints reject. Prime the exact cache files over HTTPS, then let FedData
+# perform its normal extraction and tabular joins from that local cache.
+ssurgo_raw <- file.path(raw_path, "ssurgo")
+ssurgo_extract <- file.path(processed_path, "ssurgo")
+dir.create(ssurgo_raw, recursive = TRUE, showWarnings = FALSE)
+dir.create(ssurgo_extract, recursive = TRUE, showWarnings = FALSE)
+ssurgo_inventory <- FedData:::get_ssurgo_inventory(template = MFC_buf, raw.dir = ssurgo_raw)
+if (!any(ssurgo_inventory$iscomplete == 1)) {
+  stop("No complete SSURGO survey is available for the watershed buffer.")
+}
+for (i in seq_len(nrow(ssurgo_inventory))) {
+  area <- as.character(ssurgo_inventory$areasymbol[[i]])
+  date <- format(as.Date(ssurgo_inventory$saverest[[i]], format = "%m/%d/%Y"), "%Y-%m-%d")
+  archive_name <- paste0("wss_SSA_", area, "_[", date, "].zip")
+  archive_path <- file.path(ssurgo_raw, archive_name)
+  if (!file.exists(archive_path) || file.info(archive_path)$size == 0) {
+    archive_url <- paste0("https://websoilsurvey.sc.egov.usda.gov/DSD/Download/Cache/SSA/", archive_name)
+    message("Downloading SSURGO cache via HTTPS for survey area ", area)
+    curl::curl_download(archive_url, archive_path, quiet = TRUE, mode = "wb")
+  }
+}
+ssurgo <- FedData::get_ssurgo(template = MFC_buf, label = wshed_label,
+                               raw.dir = ssurgo_raw, extraction.dir = ssurgo_extract)
 
 message("Downloading NLCD ...")
-NLCD <- FedData::get_nlcd(template = MFC_buf, label = wshed_label,
-                           year = 2019, dataset = "landcover")
+nlcd_dir <- file.path(processed_path, "NLCD")
+nlcd_cache <- file.path(nlcd_dir, paste0(wshed_label, "_NLCD_2019.tif"))
+if (file.exists(nlcd_cache)) {
+  NLCD <- terra::rast(nlcd_cache)
+} else {
+  NLCD <- tryCatch(
+    FedData::get_nlcd(template = MFC_buf, label = wshed_label,
+                      year = 2019, dataset = "landcover"),
+    error = function(e) {
+      # MRLC's legacy WCS is no longer interoperable with current GDAL builds.
+      # The FedData catalog publishes this equivalent 2019 CONUS COG.
+      message("FedData NLCD WCS failed; using the 2019 NLCD cloud GeoTIFF fallback.")
+      cloud_nlcd <- terra::rast("/vsicurl/https://storage.googleapis.com/feddata-r/nlcd/2019_Land_Cover_L48.tif")
+      aoi <- terra::vect(sf::st_transform(MFC_buf, terra::crs(cloud_nlcd)))
+      terra::crop(cloud_nlcd, aoi, snap = "out", mask = TRUE)
+    }
+  )
+  dir.create(nlcd_dir, recursive = TRUE, showWarnings = FALSE)
+  terra::writeRaster(NLCD, nlcd_cache, overwrite = TRUE)
+  NLCD <- terra::rast(nlcd_cache)
+}
 
 # ---- Reproject NED to UTM Zone 10N at 30 m ----
-NED_utm  <- terra::project(NED, "EPSG:32610", res = dem_res)
+NED_utm  <- terra::project(NED, paste0("EPSG:", crs_epsg), res = dem_res)
 
 ned_dir  <- file.path(processed_path, "NED")
 if (!dir.exists(ned_dir)) dir.create(ned_dir, recursive = TRUE)
@@ -94,9 +148,18 @@ wbt_basins(
   output  = file.path(dir_path, "dem_basins.tif"))
 
 basins <- terra::rast(file.path(dir_path, "dem_basins.tif"))
-plot(basins, main = "Basin IDs — confirm basin_mask_value in config.yaml")
-message("Check basin plot. Current basin_mask_value = ", basin_mask_value,
-        ". Update config.yaml if needed, then re-run from here.")
+basin_ids <- terra::freq(basins)
+if (!basin_mask_value %in% basin_ids$value) {
+  stop("Configured basin_mask_value ", basin_mask_value,
+       " is absent from dem_basins.tif. Inspect the QA artifact and update config.yaml.")
+}
+qa_png <- file.path(dir_path, "dem_basins_qa.png")
+grDevices::png(qa_png, width = 1600, height = 1200, res = 150)
+plot(basins, main = paste0("Basin IDs; selected ID = ", basin_mask_value))
+grDevices::dev.off()
+utils::write.csv(basin_ids, file.path(dir_path, "dem_basins_ids.csv"), row.names = FALSE)
+message("Basin QA: ", qa_png,
+        " | selected basin_mask_value = ", basin_mask_value)
 
 # Build watershed mask (1 = keep, NA = outside)
 mfc_mask_01       <- basins == basin_mask_value
@@ -157,9 +220,9 @@ hoz_comp <- c("om.r","dbovendry.r","dbthirdbar.r","ksat.r",
 depth_weight <- function(data, cols, layer) {
   data <- data %>% dplyr::mutate(
     hzthk.r = hzdepb.r - hzdept.r,
-    weights  = hzthk.r / sum(hzthk.r))
+    weights  = hzthk.r / sum(hzthk.r, na.rm = TRUE))
   (data %>% dplyr::select(dplyr::all_of(cols)) * data$weights) %>%
-    dplyr::summarise_all(sum) %>%
+    dplyr::summarise_all(~ mean(.x, na.rm = TRUE)) %>%
     dplyr::mutate(depth = max(data$hzdepb.r), layer = layer, cokey = unique(data$cokey))
 }
 
@@ -172,18 +235,30 @@ for (i in unique(hoz_data$cokey)) {
 
   layer_A_temp <- temp_hoz %>% dplyr::filter(hzdept.r < depth_a_i) %>% dplyr::arrange(hzdept.r)
   layer_A_temp$hzdepb.r[nrow(layer_A_temp)] <- depth_a_i
+  # SSURGO commonly omits saturated water content for organic horizons. This
+  # is the model's historical fallback, kept explicit for traceability.
+  organic_a <- grepl("O", layer_A_temp$hzname, fixed = TRUE)
+  missing_sat_a <- organic_a & is.na(layer_A_temp$wsatiated.r)
+  layer_A_temp$wsatiated.r[missing_sat_a] <- layer_A_temp$wthirdbar.r[missing_sat_a] * 1.1
   layer_A_out  <- depth_weight(layer_A_temp, hoz_comp, "A")
 
   if (max_depth > depth_a) {
     layer_B_temp <- temp_hoz %>%
       dplyr::filter(hzdepb.r > depth_a_i, hzdept.r <= max_depth) %>% dplyr::arrange(hzdept.r)
-    layer_B_temp$hzdept.r[1] <- depth_a_i
-    layer_B_temp$hzdepb.r[nrow(layer_B_temp)] <- max_depth
-    layer_B_out <- depth_weight(layer_B_temp, hoz_comp, "B")
-    layer <- rbind(layer, layer_A_out, layer_B_out)
+    if (nrow(layer_B_temp) > 0) {
+      layer_B_temp$hzdept.r[1] <- depth_a_i
+      layer_B_temp$hzdepb.r[nrow(layer_B_temp)] <- max_depth
+      layer_B_temp <- layer_B_temp %>% dplyr::filter(!is.na(ksat.r))
+    }
+    layer_B_out <- if (nrow(layer_B_temp) > 0) {
+      depth_weight(layer_B_temp, hoz_comp, "B")
+    } else {
+      dplyr::mutate(layer_A_out, depth = 0.1, layer = "B")
+    }
   } else {
-    layer <- rbind(layer, layer_A_out)
+    layer_B_out <- dplyr::mutate(layer_A_out, depth = 0.1, layer = "B")
   }
+  layer <- rbind(layer, layer_A_out, layer_B_out)
 }
 
 MFC_spatial <- dplyr::left_join(
@@ -195,7 +270,7 @@ soil_cols <- names(MFC_spatial)[8:15]
 for (i in unique(MFC_spatial$layer)) {
   for (j in soil_cols) {
     temp <- terra::rasterize(
-      terra::project(terra::vect(MFC_spatial %>% dplyr::filter(layer == i)), "EPSG:32610"),
+      terra::project(terra::vect(MFC_spatial %>% dplyr::filter(layer == i)), paste0("EPSG:", crs_epsg)),
       NED_utm,
       field = j)
     temp_mfc <- mask_to_wshed(temp)
@@ -233,7 +308,7 @@ copy_to   <- c("el.asc","strms_30m.asc","watershed.asc","landuse.asc")
 for (x in seq_along(copy_from)) {
   src <- file.path(copy_from_path, copy_from[x])
   dst <- file.path(imitate_smr_setup, copy_to[x])
-  if (!file.exists(dst) && file.exists(src)) file.copy(src, dst)
+  if (file.exists(src)) file.copy(src, dst, overwrite = TRUE)
 }
 
 # moisture content: % -> fraction
@@ -245,30 +320,36 @@ mc_files  <- c("wiltpt_mc_A.asc","wiltpt_mc_B.asc",
                "sat_mc_A.asc","sat_mc_B.asc")
 for (x in seq_along(pct_files)) {
   dst <- file.path(imitate_smr_setup, mc_files[x])
-  if (!file.exists(dst))
-    terra::writeRaster(terra::rast(file.path(copy_from_path, pct_files[x])) / 100, dst)
+  terra::writeRaster(terra::rast(file.path(copy_from_path, pct_files[x])) / 100, dst, overwrite = TRUE)
+}
+# Some SSURGO components omit saturated water content entirely. Preserve
+# reported values, and use the model's legacy 1.1 x field-capacity estimate
+# only where saturation is absent so downstream storage state remains defined.
+for (s in c("A", "B")) {
+  sat_path <- file.path(imitate_smr_setup, paste0("sat_mc_", s, ".asc"))
+  fc_path  <- file.path(imitate_smr_setup, paste0("fieldcap_mc_", s, ".asc"))
+  sat_mc   <- terra::rast(sat_path)
+  fc_mc    <- terra::rast(fc_path)
+  terra::writeRaster(terra::ifel(is.na(sat_mc), fc_mc * 1.1, sat_mc), sat_path, overwrite = TRUE)
 }
 
 # Ksat: um/s -> cm/day (*8.64)
 for (s in c("A","B")) {
   dst <- file.path(imitate_smr_setup, paste0("Ksat_matrix_", s, ".asc"))
-  if (!file.exists(dst))
-    terra::writeRaster(terra::rast(file.path(copy_from_path, paste0("ksat.r_", s, ".asc"))) * 8.64, dst)
+  terra::writeRaster(terra::rast(file.path(copy_from_path, paste0("ksat.r_", s, ".asc"))) * 8.64, dst, overwrite = TRUE)
 }
 
 # Soil depths (stream cells capped at 1 cm for layer A)
 soil_depth_fun <- function(streams_v, depth_v) ifelse(streams_v > 0, 1, depth_v)
 for (s in c("A","B")) {
   dst <- file.path(imitate_smr_setup, paste0("soil_depth_", s, ".asc"))
-  if (!file.exists(dst)) {
-    depth_r  <- terra::rast(file.path(copy_from_path, paste0("depth_", s, ".asc")))
-    streams  <- terra::rast(file.path(imitate_smr_setup, "strms_30m.asc"))
-    depth_r[is.na(depth_r)]  <- 0
-    streams[is.na(streams)]  <- 0
-    soil_d   <- terra::lapp(c(streams, depth_r), fun = soil_depth_fun)
-    soil_d[soil_d == 0] <- NA
-    terra::writeRaster(soil_d, dst)
-  }
+  depth_r  <- terra::rast(file.path(copy_from_path, paste0("depth_", s, ".asc")))
+  streams  <- terra::rast(file.path(imitate_smr_setup, "strms_30m.asc"))
+  depth_r[is.na(depth_r)]  <- 0
+  streams[is.na(streams)]  <- 0
+  soil_d   <- terra::lapp(c(streams, depth_r), fun = soil_depth_fun)
+  soil_d[soil_d == 0] <- NA
+  terra::writeRaster(soil_d, dst, overwrite = TRUE)
 }
 
 r <- function(f) terra::rast(file.path(imitate_smr_setup, f))  # shorthand
