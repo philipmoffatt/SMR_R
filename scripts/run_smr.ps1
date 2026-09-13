@@ -9,6 +9,8 @@ param(
   [string]$RuntimeRoot,
   [string]$Epsg = "32610",
   [string]$LocationName = "BullRun_utm10",
+  [ValidateSet("full", "daily", "final-only")]
+  [string]$OutputMode = "full",
   [switch]$QuietGrass
 )
 
@@ -34,6 +36,7 @@ $env:SMR_TEMP_DIR = $TempDir
 # The machine also has PostgreSQL's older PROJ database on PATH.  GDAL/terra
 # must use the matching OSGeo4W database for raster reprojection.
 $env:PROJ_LIB = "C:\OSGeo4W\share\proj"
+$env:SMR_OUTPUT_MODE = $OutputMode
 if ($GridmetStart) { $env:SMR_GRIDMET_START = $GridmetStart }
 if ($GridmetEnd) { $env:SMR_GRIDMET_END = $GridmetEnd }
 
@@ -50,6 +53,7 @@ function Write-RunManifest([string]$Status, [int]$ExitCode) {
     config = $config
     gridmet_start = $env:SMR_GRIDMET_START
     gridmet_end = $env:SMR_GRIDMET_END
+    output_mode = $OutputMode
   } | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $manifestDir ((Get-Date -Format "yyyyMMddTHHmmss") + "_$Stage.json"))
 }
 

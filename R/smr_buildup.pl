@@ -8,6 +8,10 @@ use warnings;
 
 my $weather_file = $ARGV[0] or die "Usage: perl smr_buildup.pl <weather_file> <output_file>\n";
 my $output_file  = $ARGV[1] or die "Usage: perl smr_buildup.pl <weather_file> <output_file>\n";
+my $output_mode   = $ENV{SMR_OUTPUT_MODE} // 'full';
+die "SMR_OUTPUT_MODE must be full, daily, or final-only (got '$output_mode')\n"
+    unless $output_mode =~ /\A(?:full|daily|final-only)\z/;
+my ($first_date, $last_date, $days_processed);
 
 print `g.remove -f type=raster name=MASK`;
 print `g.region rast=watershed`;
@@ -96,6 +100,9 @@ while (<$WEATHER>) {
         $cc_water,$cc_urban,$cc_forest,$cc_shrub,$cc_grass,$cc_row_crop,
         $rh_water,$rh_urban,$rh_forest,$rh_shrub,$rh_grass,$rh_row_crop,
         $output) = split(' ', $_);
+    $first_date //= $date;
+    $last_date = $date;
+    $days_processed++;
 
     # init annual accumulator maps on first occurrence of each year
     unless ($year_init_done{$year}) {
@@ -246,16 +253,21 @@ while (<$WEATHER>) {
         print `r.out.ascii input=average_feb_runoff_$year output=feb_avg_runoff_$year`;
     }
 
-    # Zonal stats and streamflow per watershed
+    # Daily reporting is intentionally separate from state evolution.  The
+    # final-only path preserves final maps while avoiding all zonal aggregation.
+    if ($output_mode ne 'final-only') {
     open(my $WSHED, '<', 'wshed_res_properties.ini') or die "Can't open wshed_res_properties.ini: $!";
     while (<$WSHED>) {
         chomp;
         my ($wshed_id, $area_cells, $res_vol, $res_coeff) = split;
 
         my %out;
-        for my $var (qw(runoff_daily_flow precip rain actualET_daily_flow canopy_evap
-                        snowmelt storage_amt throughfall canopy_storage_amt perc_daily_flow
-                        swe condens snow q.srad q.latent q.sensible q.lw q.rain.ground q.total)) {
+        my @report_vars = $output_mode eq 'full'
+            ? qw(runoff_daily_flow precip rain actualET_daily_flow canopy_evap
+                 snowmelt storage_amt throughfall canopy_storage_amt perc_daily_flow
+                 swe condens snow q.srad q.latent q.sensible q.lw q.rain.ground q.total)
+            : qw(runoff_daily_flow precip actualET_daily_flow storage_amt perc_daily_flow);
+        for my $var (@report_vars) {
             my $safe = $var; $safe =~ s/\./_/g;  # map name for r.stats.zonal out
             print `r.stats.zonal base=watershed cover=$var output=tmp_$safe method=sum --overwrite --quiet`;
             my $val = `r.stats -A -n -N input=tmp_$safe`;
@@ -271,19 +283,37 @@ while (<$WEATHER>) {
         my $Q = $base_flow_{$wshed_id} + $runoff_cms;
 
         open(my $OUT, '>>', $output_file) or die "Cannot open output file '$output_file': $!";
-        print $OUT join(" ",
-            $wshed_id, $date, $year,
-            $out{runoff_daily_flow}, $out{precip}, $out{rain},
-            $out{actualET_daily_flow}, $out{canopy_evap}, $out{snowmelt},
-            $out{storage_amt}, $out{throughfall}, $out{canopy_storage_amt},
-            $out{perc_daily_flow}, $Q,
-            $out{swe}, $out{condens}, $out{snow},
-            $base_flow_{$wshed_id},
-            $out{'q.srad'}, $out{'q.latent'}, $out{'q.sensible'}, $out{'q.lw'},
-            $out{'q.rain.ground'}, $out{'q.total'}
-        ) . "\n";
+        if ($output_mode eq 'full') {
+            print $OUT join(" ",
+                $wshed_id, $date, $year,
+                $out{runoff_daily_flow}, $out{precip}, $out{rain},
+                $out{actualET_daily_flow}, $out{canopy_evap}, $out{snowmelt},
+                $out{storage_amt}, $out{throughfall}, $out{canopy_storage_amt},
+                $out{perc_daily_flow}, $Q,
+                $out{swe}, $out{condens}, $out{snow},
+                $base_flow_{$wshed_id},
+                $out{'q.srad'}, $out{'q.latent'}, $out{'q.sensible'}, $out{'q.lw'},
+                $out{'q.rain.ground'}, $out{'q.total'}
+            ) . "\n";
+        } else {
+            print $OUT join(" ", $wshed_id, $date, $year,
+                $out{runoff_daily_flow}, $out{precip}, $out{actualET_daily_flow},
+                $out{storage_amt}, $out{perc_daily_flow}, $Q) . "\n";
+        }
         close($OUT);
     }
     close($WSHED);
+    }
 }
 close($WEATHER);
+
+if ($output_mode eq 'final-only') {
+    open(my $SUMMARY, '>', "$output_file.summary.txt")
+        or die "Cannot write final-only summary '$output_file.summary.txt': $!";
+    print $SUMMARY "output_mode=final-only\n";
+    print $SUMMARY "days_processed=$days_processed\n";
+    print $SUMMARY "first_date=$first_date\n";
+    print $SUMMARY "last_date=$last_date\n";
+    print $SUMMARY "final_state_maps=storage_amt,saturation\n";
+    close($SUMMARY);
+}
