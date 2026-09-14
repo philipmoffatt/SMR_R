@@ -117,6 +117,41 @@ Diagnostic plots produced:
 
 ---
 
+## JAX Prototype and NVIDIA GPU Setup
+
+`src/smr_jax/` is an experimental, staged JAX translation.  It currently
+contains the verified two-layer state foundation and frozen Mica Creek input
+loader; it does **not** yet replace the GRASS/Perl production simulation.
+
+For an NVIDIA GPU on Windows, use a Linux distribution under WSL2.  The native
+Windows JAX build is CPU-only.  From the WSL checkout, create and activate an
+isolated environment, then install the CUDA 12 JAX extra and this project:
+
+```bash
+python3 -m venv ~/venvs/smr-jax
+source ~/venvs/smr-jax/bin/activate
+python -m pip install --upgrade pip
+python -m pip install --upgrade "jax[cuda12]"
+python -m pip install -e .
+```
+
+Use float64 to match the legacy reference calculations, avoid JAX reserving
+all GPU memory, and confirm that the GPU is visible:
+
+```bash
+export JAX_PLATFORMS=cuda
+export JAX_ENABLE_X64=true
+export XLA_PYTHON_CLIENT_PREALLOCATE=false
+python -c "import jax; print(jax.devices())"
+python -m unittest discover -s tests -p test_jax_foundation.py -v
+```
+
+The expected device listing includes `CudaDevice(id=0)`.  The foundation test
+loads the frozen reference grid and verifies the explicit two-layer initial
+moisture state before any flux module is translated.
+
+---
+
 ## Running the Model
 
 1. **Prepare spatial inputs** — open `R/scratch/SMR_data_setup.R`, set your watershed HUC code and output directory, then source the script. Expect several minutes of download and DEM processing time.
