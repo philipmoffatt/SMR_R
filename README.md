@@ -150,6 +150,19 @@ The expected device listing includes `CudaDevice(id=0)`.  The foundation test
 loads the frozen reference grid and verifies the explicit two-layer initial
 moisture state before any flux module is translated.
 
+The modular engine's first runnable case is intentionally a two-day replay,
+not a radiation replacement:
+
+```bash
+python -m smr_jax.cli --reference-dir reference/mica-creek-jan2015 --days 2
+```
+
+It reads the frozen `q.srad` trace fields while retaining the legacy daily and
+four six-hour-step order. The slope field is a provisional Horn 3x3 JAX
+emulation of GRASS `r.slope.aspect` because the frozen input bundle did not
+retain GRASS's generated slope raster. It remains subject to the lateral-flow
+parity gate. No general JAX radiation or end-to-end parity claim is implied.
+
 ---
 
 ## Running the Model

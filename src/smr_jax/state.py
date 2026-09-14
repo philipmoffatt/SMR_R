@@ -54,3 +54,45 @@ jax.tree_util.register_dataclass(
     data_fields=["total_water_cm", "layer_water_cm", "active_mask"],
     meta_fields=[],
 )
+
+
+@dataclass(frozen=True)
+class SnowState:
+    """Legacy snow stores.  All depth-like values are centimetres."""
+
+    swe_cm: jax.Array
+    previous_swe_cm: jax.Array
+    ice_cm: jax.Array
+    liquid_cm: jax.Array
+    age_days: jax.Array
+    total_energy: jax.Array
+    surface_energy: jax.Array
+    surface_temp_c: jax.Array
+
+
+@dataclass(frozen=True)
+class BasinState:
+    """Per-watershed reservoir volume and its preceding baseflow."""
+
+    reservoir_volume: jax.Array
+    baseflow_cms: jax.Array
+
+
+@dataclass(frozen=True)
+class ModelState:
+    """Complete mutable state; total and A/B soil stores intentionally coexist."""
+
+    soil: TwoLayerState
+    canopy_storage_cm: jax.Array
+    snow: SnowState
+    basin: BasinState
+    annual_runoff_cm: jax.Array
+    annual_saturation_count: jax.Array
+
+
+for _type, _fields in (
+    (SnowState, ["swe_cm", "previous_swe_cm", "ice_cm", "liquid_cm", "age_days", "total_energy", "surface_energy", "surface_temp_c"]),
+    (BasinState, ["reservoir_volume", "baseflow_cms"]),
+    (ModelState, ["soil", "canopy_storage_cm", "snow", "basin", "annual_runoff_cm", "annual_saturation_count"]),
+):
+    jax.tree_util.register_dataclass(_type, data_fields=_fields, meta_fields=[])
