@@ -116,6 +116,17 @@ The four substeps should be a fixed-length `jax.lax.scan` nested inside a daily
 `jax.lax.scan`.  CPU eager, CPU compiled, and GPU runs must call the same flux
 functions and use float64 for the first parity release.
 
+## Deferred space-time scaling contract
+
+The first JAX test target is fixed at two soil layers, 30 m cells, daily
+hydrology, and four six-hour snow substeps.  The foundation nevertheless keeps
+a leading layer axis, explicit grid geometry/cell area, and separate state from
+diagnostic history.  A later 10–100 layer or multi-resolution extension must
+introduce mass-conservative vertical interface fluxes and re-derived routing at
+each grid resolution; it must not repeat the legacy A/B redistribution rule.
+Daily flux history is checkpointed selectively rather than retained as a full
+time-by-flux raster stack.
+
 ## Translation invariants and hazards
 
 The port must reproduce the engine before attempting to improve it.
@@ -186,6 +197,78 @@ boundaries unless an explicit architecture decision is recorded.
    functions on GPU.  Report compilation, host/device transfer, steady-state
    computation, and full workflow time independently.  Only after parity should
    float32, ensembles, calibration, or autodiff be evaluated.
+
+## GPU execution plan: Windows host to WSL2
+
+The available accelerator is an NVIDIA RTX 3070 Ti Laptop GPU with 8 GB VRAM.
+The integrated GPU is not the JAX target. Native Windows remains the CPU
+development/reference environment; GPU JAX will run in an Ubuntu WSL2
+environment because the supported NVIDIA CUDA wheels are Linux-only.
+
+### Readiness sequence
+
+1. **Host and WSL2 readiness.** Confirm the Windows NVIDIA driver exposes the
+   RTX 3070 Ti through `nvidia-smi`, then create or update an Ubuntu WSL2
+   distribution. Inside Ubuntu, `nvidia-smi` must show the same device. Do not
+   install a second Linux display driver in WSL2.
+2. **Linux project checkout.** Use a Linux-home checkout (for example,
+   `~/src/SMR_R`) rather than running large JAX workloads from `/mnt/c`; retain
+   the Windows checkout as the canonical CPU/GRASS reference. Check out the
+   packet commit containing the frozen reference bundle.
+3. **Isolated GPU environment.** Create a Python virtual environment under the
+   Linux checkout. Install the package, then install the CUDA 12 JAX extra.
+   The current Windows driver is adequate for the CUDA 12 route; CUDA 13 should
+   wait for a compatible driver update.
+4. **Device smoke test.** Require `jax.devices()` to show `cuda`, enable JAX
+   float64, load `model_inputs.zip`, and run `test_jax_foundation.py`. Set
+   `JAX_PLATFORMS=cuda` for GPU-only tests so a silent CPU fallback fails.
+5. **Memory policy.** On an 8 GB laptop GPU, begin with
+   `XLA_PYTHON_CLIENT_PREALLOCATE=false`. Keep the two-day trace test small;
+   record peak allocation before attempting a 30-day run, full state history,
+   or autodiff.
+6. **Translation and parity.** Build flux modules once against the frozen
+   bundle, establish CPU parity first, then run the identical two-day and
+   30-day code on GPU. Report compilation, transfer, and steady-state timings
+   separately.
+
+### Commands to run after WSL2 is ready
+
+```bash
+# In Ubuntu WSL2, from the Linux-home checkout
+nvidia-smi
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e .
+python -m pip install --upgrade "jax[cuda12]"
+
+export JAX_PLATFORMS=cuda
+export JAX_ENABLE_X64=true
+export XLA_PYTHON_CLIENT_PREALLOCATE=false
+python -c "import jax; print(jax.devices())"
+python -m unittest tests/test_jax_foundation.py
+```
+
+The CUDA install is accepted only when the device command returns a CUDA device
+and the test passes. A CPU device after setting `JAX_PLATFORMS=cuda` is a failed
+GPU setup, not a successful fallback.
+
+### Operator and Codex responsibilities
+
+| Owner | Responsibilities |
+| --- | --- |
+| You | Enable/install WSL2 and Ubuntu if absent; approve any Windows administrator prompts, NVIDIA driver changes, disk allocation, and reboot. Confirm the intended Linux distribution and that GPU use is acceptable on this laptop. |
+| Codex | Verify the existing Windows adapter/driver; prepare the pinned project dependencies, JAX device smoke check, two-layer tests, and GPU benchmark harness; translate and validate the model once the Linux environment is available. |
+| You + Codex | You approve the networked Python dependency installation and any system-level change; Codex executes reproducible project-local environment setup, inspects the result, and reports exact device/memory/timing evidence. |
+
+### Stop conditions
+
+- WSL2 cannot see the RTX device through `nvidia-smi`.
+- JAX reports CPU after `JAX_PLATFORMS=cuda` is set.
+- The two-layer float64 test exceeds practical GPU memory or diverges from the
+  frozen CPU reference.
+- A required driver, CUDA, or WSL change would affect the host outside the
+  operator-approved scope.
 
 ## Acceptance gates
 
