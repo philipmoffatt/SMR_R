@@ -1,0 +1,52 @@
+packet_id: PKT-SMR-JAX-PLANT-01
+task_id: TASK-SMR-JAX-PLANT
+title: Add bounded external plant water coupling and independent ledgers
+status: active
+execution_tier: judgment
+repository: SMR_R
+base_revision: 4b5733ec1a9da2a86572975f3b1e1564cdbd8616
+integration_base_ref: feature/smr-jax-plant-water
+read_scope:
+  paths:
+    - src/smr_jax/
+    - tests/
+    - R/
+    - reference/
+    - C:/projects/git/plant-game-of-life/
+    - C:/projects/git/worktrees/PKT-SMR-JAX-VERIFY-01/
+write_scope:
+  allowed_paths:
+    - src/smr_jax/plant.py
+    - tests/test_jax_plant.py
+    - examples/plant_water.py
+    - docs/smr-plant-interface.md
+    - docs/packets/PKT-SMR-JAX-PLANT-01.md
+    - docs/packets/PKT-SMR-JAX-PLANT-01.yaml
+  forbidden_paths:
+    - R/
+    - reference/
+    - scripts/
+    - ../../plant-game-of-life/
+    - ../../platform/emdc-platform/
+    - ../../buildBoard/
+    - ../../engineering-os/
+objective: Preserve legacy engine while supplying bounded two-layer external vegetation water coupling with independently measured routing and water budgets.
+implementation_constraints:
+  - Existing reference worktrees and plant repository are read-only.
+  - No merge, push, physiology changes, tuning, or adoption of provisional stand-in soil equations.
+  - Arbitrary layer backend science remains open; reject unsupported layers explicitly.
+acceptance_criteria:
+  - Requested, realized and unmet daily interception and per-layer ET are explicit.
+  - Independent layer, cell and domain ledgers expose transfers, routing and exports.
+  - Synthetic bounds, snow handoff, routing, bottom boundary and layer sensitivity tests pass.
+  - Existing legacy tests and equations remain unchanged.
+validation:
+  - python -m unittest discover -s tests -p test_jax_*.py -v
+  - python examples/plant_water.py
+  - preflight.ps1 PKT-SMR-JAX-PLANT-01
+  - scope.ps1 PKT-SMR-JAX-PLANT-01
+stop_conditions:
+  - Required changes to protected references or a dependent unresolved scientific choice.
+completion_outputs:
+  - docs/smr-plant-interface.md
+  - docs/packets/PKT-SMR-JAX-PLANT-01.md
