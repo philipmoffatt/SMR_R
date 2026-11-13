@@ -29,13 +29,15 @@ def prepare_terrain(bundle, output):
     output = Path(output)
     (output/"inputs").mkdir(parents=True)
     with ZipFile(bundle) as archive:
-        for name in ("el", "watershed"):
+        for name in ("el", "watershed", "landuse"):
             path = output/"inputs"/(name+".asc")
             path.write_bytes(archive.read(name+".asc"))
             gs.run_command("r.in.gdal", flags="o", input=str(path), output=name, quiet=True)
     gs.run_command("g.region", raster="watershed")
     gs.run_command("r.mask", raster="watershed", quiet=True)
     gs.run_command("r.slope.aspect", elevation="el", slope="slope", aspect="aspect", quiet=True)
+    # Albedo NULLs remove terrain from r.sun shadow casting as well as output.
+    gs.mapcalc("unit_albedo = if(isnull(landuse)||isnull(el),null(),1.0)", overwrite=True, quiet=True)
     region = gs.region()
     if region["nsres"] != region["ewres"]:
         raise ValueError("SMR radiation requires square cells")
@@ -57,7 +59,7 @@ def sky_coefficients(cloud):
 def solar_components(doy, linke, *, albedo_map=None):
     if not 1 <= doy <= 365 or not np.isfinite(linke) or linke <= 0:
         raise ValueError("r.sun requires day 1..365 and positive finite Linke turbidity")
-    options = {"albedo": albedo_map} if albedo_map else {"albedo_value": 1.}
+    options = {"albedo": albedo_map} if albedo_map else {"albedo": "unit_albedo"}
     gs.run_command("r.sun", elevation="el", slope="slope", aspect="aspect",
                    day=doy, linke_value=linke, coeff_bh="coefbh", coeff_dh="coefdh",
                    beam_rad="rad_beam", diff_rad="rad_diffuse", refl_rad="rad_reflected",
@@ -87,7 +89,7 @@ def prepare(bundle, weather, output, limit=None):
     arrays = np.asarray(data, dtype=np.float32)
     artifact = output/"components.npz"
     np.savez_compressed(artifact, beam=arrays[:, 0], diffuse=arrays[:, 1], reflected_unit=arrays[:, 2])
-    metadata = {"schema_version": 1, "provider": "grass-rsun-albedo-decomposition", "grid": grid,
+    metadata = {"schema_version": 2, "albedo_support": "finite-landuse-and-elevation", "provider": "grass-rsun-albedo-decomposition", "grid": grid,
                 "units": "Wh/m2/day", "cases": cases, "grass": gs.parse_command("g.version", flags="g"),
                 "projection": gs.parse_command("g.proj", flags="g"),
                 "bundle_sha256": digest(bundle), "weather_sha256": digest(weather),

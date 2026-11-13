@@ -8,7 +8,6 @@ import argparse
 from datetime import datetime, timezone
 import json
 from pathlib import Path
-from zipfile import ZipFile
 
 import numpy as np
 import grass.script as gs
@@ -20,10 +19,10 @@ from prepare_jax_radiation import prepare_terrain, sky_coefficients, solar_compo
 def capture(bundle, source, output):
     grid = prepare_terrain(bundle, output)
     output = Path(output)
-    with ZipFile(bundle) as archive:
-        path = output/"inputs/landuse.asc"
-        path.write_bytes(archive.read("landuse.asc"))
-    gs.run_command("r.in.gdal", flags="o", input=str(path), output="landuse", quiet=True)
+    # Keep this algebraic fixture's original full-region albedo support. The
+    # production cache uses source land-use support and is separately anchored
+    # over all thirty full-domain reference days.
+    gs.mapcalc("fixture_unit_albedo = 1.0", overwrite=True, quiet=True)
     # Use the original source expression as the independent canopy oracle.
     import re
     expressions = re.findall(r'expression=(canopy_cover = [^"\r\n]+)', Path(source).read_text())
@@ -38,7 +37,7 @@ def capture(bundle, source, output):
         for cloud in (0., .5, 1.):
             linke = 3.+2.*cloud
             sky_coefficients(cloud)
-            basis = solar_components(doy, linke)
+            basis = solar_components(doy, linke, albedo_map="fixture_unit_albedo")
             if samples is None:
                 support = np.isfinite(cover) & np.isfinite(basis).all(axis=0)
                 indices = np.flatnonzero(support)
