@@ -153,3 +153,14 @@ preserved in its read-only repository; it is not the current completion evidence
 No global board or registry identity change is needed for this numerical result.
 Soil (VERIFY-02) is the next verification gate; routing/basin, 30-day integration,
 general radiation and GPU remain open. No worktree removal or push is included.
+
+## Integrated initialization follow-up
+
+VERIFY-04 subsequently compared the integrated engine with actual GRASS daily
+states. It found that the original source-only initialization check had treated
+`fieldcap_mc_A - wiltpt_mc_A` as a double operation. Both operands are imported
+FCELL rasters, so GRASS rounds this difference before multiplying by the DCELL
+constant `0.2`. Both initialization entry points and the initialization checker
+now preserve that source arithmetic. The surface/snow gate remains passing.
+See [VERIFY-04](PKT-SMR-JAX-VERIFY-04.md) for the two-day pass and the separate,
+still-open thirty-day strict-parity result. Earlier evidence above is historical.

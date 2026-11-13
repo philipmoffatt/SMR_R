@@ -40,7 +40,7 @@ def snow_energy(state, static, forcing, tavg_c, tdew_c, snow_cm, throughfall_cm,
     q_srad = forcing.replay_shortwave
     cloud = forcing.cloud
     q_lw = 5.67e-8 * 3600.0 * 24.0 / 1000.0 * (
-        jnp.maximum(.72, ((9.2e-6 * (tavg_c + 273.15) ** 2) * (1.0 - .84 * cloud) + .84 * cloud)
+        jnp.maximum(.72, (((9.2 * (10.0 ** -6.0)) * (tavg_c + 273.15) ** 2) * (1.0 - .84 * cloud) + .84 * cloud)
         * (1 - static.canopy_cover) + .92 * static.canopy_cover) * (tavg_c + 273.15) ** 4
         - .98 * (snow.surface_temp_c + 273.15) ** 4)
     vap_sat = jnp.exp((16.78 * snow.surface_temp_c - 116.9) / (snow.surface_temp_c + 237.3)) / (273.15 + snow.surface_temp_c) / .4615
@@ -69,4 +69,4 @@ def snow_energy(state, static, forcing, tavg_c, tdew_c, snow_cm, throughfall_cm,
     return next_snow, {"snowmelt_cm": snowmelt + residual_melt, "swe_cm": swe, "condens_cm": condens,
                        "residual_snowmelt_cm": residual_melt,
                        "q_srad": q_srad, "q_lw": q_lw, "q_latent": q_latent,
-                       "q_sensible": q_sensible, "q_total": q_total, "albedo": albedo}
+                       "q_sensible": q_sensible, "q_total": q_total, "q_rain_ground": q_rain, "albedo": albedo}

@@ -92,8 +92,9 @@ def verify_initialization(static, state):
                                    atol=WATER_ATOL_CM, err_msg=f"initial {name}")
 
     total = np.asarray(static.sat_amt_cm) * .4
-    a = (np.asarray(static.wiltpt_mc_a) + (np.asarray(static.fieldcap_mc_a) -
-         np.asarray(static.wiltpt_mc_a)) * .2) * np.asarray(static.soil_depth_a_cm)
+    moisture_range = (np.asarray(static.fieldcap_mc_a, dtype=np.float32) -
+                      np.asarray(static.wiltpt_mc_a, dtype=np.float32)).astype(np.float64)
+    a = (np.asarray(static.wiltpt_mc_a) + moisture_range * .2) * np.asarray(static.soil_depth_a_cm)
     check("total water", state.soil.total_water_cm, total)
     check("A water", state.soil.layer_water_cm[0], a)
     check("B water", state.soil.layer_water_cm[1], total - a)

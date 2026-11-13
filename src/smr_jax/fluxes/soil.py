@@ -42,7 +42,7 @@ def _effective_conductivity(storage, fieldcap, sat_mc, depth, matrix, mpore, kfc
     value = jnp.where(storage < fieldcap, matrix * jnp.exp((-13.0 / sat_mc) * (sat_mc - storage / safe_depth)),
                       jnp.where(storage >= _fcell(sat_mc * depth), mpore,
                                 conductivity_range * (storage / safe_depth - fc_moisture) / moisture_range + kfc))
-    return value * .25
+    return value * 6.0 / 24.0
 
 
 def lateral_route(soil, static):
@@ -70,11 +70,11 @@ def evapotranspiration(soil, static, forcing, pet_cm):
     coefficient_index = jnp.where(known_landuse, jnp.clip(landuse_index, 1, 6) - 1, 0)
     et_coeff = forcing.et_coeff_by_landuse[coefficient_index]
     threshold = root * static.et_reduction_mc
-    high = jnp.minimum(jnp.maximum(0.0, root_storage - static.wiltpt_amt_cm), pet_cm * et_coeff * .25)
+    high = jnp.minimum(jnp.maximum(0.0, root_storage - static.wiltpt_amt_cm), pet_cm * et_coeff * 6.0 / 24.0)
     reduction_denominator = static.et_reduction_mc - static.wiltpt_amt_cm / safe_root
     safe_reduction_denominator = jnp.where(reduction_denominator == 0.0, 1.0, reduction_denominator)
     reduction = (root_storage / safe_root - static.wiltpt_amt_cm / safe_root) / safe_reduction_denominator
-    low = jnp.minimum(jnp.maximum(0.0, root_storage - static.wiltpt_amt_cm), jnp.maximum(0.0, pet_cm * reduction * et_coeff * .25))
+    low = jnp.minimum(jnp.maximum(0.0, root_storage - static.wiltpt_amt_cm), jnp.maximum(0.0, pet_cm * reduction * et_coeff * 6.0 / 24.0))
     # GRASS selects the high-storage arm even when root_zone is zero. Protect
     # the unselected ratios without suppressing that legacy ET flux.
     et = jnp.where(root_storage > threshold, high, jnp.where(root_storage > static.wiltpt_amt_cm, low, 0.0))

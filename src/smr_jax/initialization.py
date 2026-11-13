@@ -17,11 +17,10 @@ def initialize_two_layer_reference_state(inputs: TwoLayerLegacyInputs) -> TwoLay
 
     sat_amt = jnp.asarray(inputs.sat_amt_cm, dtype=jnp.float64)
     total = sat_amt * 0.4
-    layer_a = jnp.asarray(
-        (inputs.wiltpt_mc_a + (inputs.fieldcap_mc_a - inputs.wiltpt_mc_a) * 0.2)
-        * inputs.soil_depth_a_cm,
-        dtype=jnp.float64,
-    )
+    wilt = jnp.asarray(inputs.wiltpt_mc_a, dtype=jnp.float64)
+    fieldcap = jnp.asarray(inputs.fieldcap_mc_a, dtype=jnp.float64)
+    moisture_range = (fieldcap-wilt).astype(jnp.float32).astype(jnp.float64)
+    layer_a = (wilt+moisture_range*.2)*jnp.asarray(inputs.soil_depth_a_cm, dtype=jnp.float64)
     layer_b = total - layer_a
     mask = jnp.isfinite(sat_amt)
     return TwoLayerState(
@@ -34,7 +33,10 @@ def initialize_two_layer_reference_state(inputs: TwoLayerLegacyInputs) -> TwoLay
 def initialize_legacy_state(static: StaticInputs) -> ModelState:
     """All mutable maps initialized in the order and values in ``smr_buildup.pl``."""
     total = static.sat_amt_cm * .4
-    a = (static.wiltpt_mc_a + (static.fieldcap_mc_a - static.wiltpt_mc_a) * .2) * static.soil_depth_a_cm
+    # The inner difference has two imported FCELL operands. GRASS rounds it
+    # before the decimal 0.2 promotes the enclosing expression to DCELL.
+    moisture_range = (static.fieldcap_mc_a - static.wiltpt_mc_a).astype(jnp.float32).astype(jnp.float64)
+    a = (static.wiltpt_mc_a + moisture_range * .2) * static.soil_depth_a_cm
     soil = TwoLayerState(total, jnp.stack((a, total - a)), static.active_mask)
     zero = jnp.zeros_like(total)
     snow = SnowState(zero, zero, zero, zero, jnp.ones_like(total),
