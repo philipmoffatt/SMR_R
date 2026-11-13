@@ -7,7 +7,8 @@ last_reviewed: 2026-11-12
 
 # PKT-SMR-JAX-SNOW-01
 
-Implemented in the isolated packet worktree, pending feature integration.
+Implemented in the isolated packet worktree; the operator accepted landing
+into the JAX feature on 2026-11-12.
 Base: `400765e47d270354cbadd77463181f130f06b4f8`, the current
 `feature/smr-jax-plant-water` tip. The original VERIFY worktree remains intact.
 Its committed trace reader/reporting tools from `35312bd` were merged only
@@ -123,8 +124,15 @@ Live toolkit create/preflight passed with no preflight warnings before edits.
 The imported VERIFY tooling and the new implementation are covered by the
 adjacent YAML, identical to the controller copy under
 `worktrees/packet-controls/smr-snow-20261112/`. Final report-only scope has ten
-in-scope paths and no violations. The default/feature branch tips and all
-reference worktrees remain unchanged by this packet. No merges into a feature
-or default branch, pushes, worktree removal or global board edits were made.
-The packet is implementation-complete and awaits review/integration; its YAML
-stays active until that reconciliation. No follow-up is inferred as complete.
+in-scope paths and no violations. At implementation handoff, the default and
+feature tips and all reference worktrees were unchanged. No push, worktree
+removal or global board edit is part of this packet.
+
+On 2026-11-12 the operator accepted feature integration. The packet definition
+now records its completed implementation; the operational EOS run record
+records the actual landing commit in `feature/smr-jax-plant-water`. The 41-test
+result and exact legacy-output check above cover the unchanged implementation.
+The landing also carries the preserved trace tools into the feature. This is
+explicit tooling integration; VERIFY-01 numerical acceptance remains open.
+Default-branch publication and global reconciliation after a future JAX PR
+are deferred. No broader verification gate or follow-up is marked complete.

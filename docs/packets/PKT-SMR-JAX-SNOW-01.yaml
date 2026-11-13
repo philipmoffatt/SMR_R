@@ -1,7 +1,7 @@
 packet_id: PKT-SMR-JAX-SNOW-01
 task_id: TASK-SMR-JAX-VERIFY
 title: Release small residual snow as next-day melt
-status: active
+status: completed
 execution_tier: judgment
 repository: SMR_R
 base_revision: 400765e47d270354cbadd77463181f130f06b4f8

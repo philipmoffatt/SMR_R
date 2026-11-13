@@ -51,3 +51,12 @@ from the finished JAX feature landing until its gate is resolved or an explicit
 tooling-only integration is separately accepted. No claim is made about soil,
 routing, reservoir, 30-day, general radiation or GPU parity. No plant files,
 frozen inputs or other worktrees were edited by this preservation pass.
+
+## Integration update — 2026-11-12
+
+The operator accepted the `PKT-SMR-JAX-SNOW-01` feature landing, which carries
+these preserved trace tools alongside the explicit next-day residual-melt
+policy. The earlier exclusion statement describes the preservation handoff;
+tooling integration is now explicitly accepted through that packet. The
+surface/snow numerical verification gate remains open, including comparison
+under the agreed convention. This note does not declare legacy parity.
