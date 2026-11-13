@@ -22,6 +22,9 @@ def legacy_receive_gather(lateral_flow, routing_weights, active_mask):
     Border/NULL neighbour flow is zero before multiplication, exactly as each
     ``if(isnull(...), 0.0, ...)`` term in ``smr_buildup.pl``.
     """
-    gathered = sum(_neighbor(lateral_flow, dr, dc) * routing_weights[k]
+    # GRASS MASK excludes donors as well as receivers. A finite backing-array
+    # value outside support must not leak into an active neighboring cell.
+    masked_flow = jnp.where(active_mask, lateral_flow, jnp.nan)
+    gathered = sum(_neighbor(masked_flow, dr, dc) * routing_weights[k]
                    for k, (dr, dc) in enumerate(_OFFSETS))
     return jnp.where(active_mask, gathered, 0.0)
