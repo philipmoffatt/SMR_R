@@ -1,9 +1,11 @@
-﻿packet_id: PKT-SMR-JAX-VERIFY-06
+packet_id: PKT-SMR-JAX-VERIFY-06
 task_id: TASK-SMR-JAX-VERIFY
 title: Verify float64 GPU parity and benchmark execution
-status: active
-verification_result: gpu-execution-and-synthetic-pass-strict-month-parity-open
-verified_revision: df6586086b2f20313ad2cf36e85807a28bf19245
+status: completed
+acceptance_profile: practical
+strict_gpu_parity_passed: false
+verification_result: practical-gpu-acceptance-pass-strict-diagnostic-fails
+verified_revision: 089c1eea1b0183aabf2ba59fbe00c5fbee859e62
 execution_tier: judgment
 repository: SMR_R
 base_revision: 2ef23616b15b20b24c7cb9a993bcdd2cf3a9c42b
@@ -39,7 +41,7 @@ implementation_constraints:
   - Reuse the existing WSL smr-jax environment without dependency or host-system changes; preserve the older Linux checkout and uncommitted work.
   - Canonical edits stay in this packet worktree. Linux-home execution uses a new exact-commit source snapshot with file hashes and a copied prepared radiation cache, not edits to an existing checkout.
   - Require a real CUDA device and float64 arrays; no silent CPU fallback, native math FFI, Python callback or float32 model variant.
-  - Use the existing strict unit-specific comparison budgets and report every failure; do not fit cross-device tolerances to observed mismatches.
+  - "Operator amendment 2026-11-13 (strict parity is too strict): use an explicit practical active-watershed acceptance profile; retain strict full-array diagnostics and unchanged exact masks/counters/footprints and independent conservation checks."
   - Preserve exact masks and counters and report snow-presence disagreements; pre-existing strict Windows legacy parity remains deferred, not passed.
   - Benchmark the same complete run_days output contract on both devices, synchronize timing and separate data loading, transfer, lowering/compilation, first execution, warmed execution and output download.
   - Run the two-day case and record GPU peak memory before attempting thirty days. Only parity-qualified timings may be presented as a validated GPU speedup.

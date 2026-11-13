@@ -1,13 +1,105 @@
 # VERIFY-06 - CUDA float64 verification and benchmark audit
 
-## Status and boundary
+## Accepted result
 
-GPU execution and the synthetic verification cases pass on the actual RTX
-device. Strict complete-array watershed parity remains **open**. The checker
+VERIFY-06 is complete under the operator-authorized practical profile.
+Both two-day and thirty-day CUDA runs pass, alongside both strict synthetic
+full-model cases and all ten strict plant-water/independent ledger cases.
+The original strict diagnostic still fails; strict arithmetic parity is not
+claimed. The existing selected `<=0.001 cm` next-day snow-release policy and
+explicit precision-preserving compiler settings define this accepted run.
+
+Maximum active month water difference is `0.00017706047951770998 cm`, or
+17.7% of the declared `0.001 cm` practical limit. No active cell, day, terminal
+field or basin scalar is omitted. Masks, counters and finite footprints match.
+
+| Accepted practical benchmark | Two-day CPU | Two-day GPU | Month CPU | Month GPU |
+|---|---:|---:|---:|---:|
+| Median of five synchronized resident executions, seconds | 0.13194 | 0.04248 | 2.02236 | 0.48445 |
+| Measured prepared-input workflow including full download, seconds | 1.02299 | 0.94154 | 3.29849 | 2.59985 |
+
+Observed resident compute ratios are 3.11x for two days and 4.17x for the
+month; the measured month workflow ratio is 1.27x. These are qualified by
+practical active-watershed acceptance, not strict parity. Full histories are
+still downloaded. GPU allocator peaks remain 270,532,608 and 1,608,254,720
+bytes. Timing variation and environment limitations from the original audit
+still apply; these measurements do not predict other hardware or workloads.
+
+The final 17 harness tests pass on Windows CPU and in the existing CUDA-enabled
+WSL environment; CUDA-only foundation tests also pass (3). Acceptance tests
+explicitly reject water errors above the limit, counter changes (including
+outside the numeric domain), required NaNs and every unit's excessive error.
+The original strict comparer and independent conservation checks are unchanged.
+
+Accepted executed source: `089c1eea1b0183aabf2ba59fbe00c5fbee859e62`.
+Source archive SHA-256:
+`f519dd738e86701bec563048b8ca64aadfb18114d8b2a4852f45b6bf9250e47b`.
+The report is `C:\projects\git\worktrees\smr-verify06-snapshot-089c1ee\verify06.json`,
+SHA-256 `a5e75a072627b8a2f163a6535f994558c97a121a490bf90aac3f20cd76ee9366`.
+The Linux runtime evidence is under
+`/home/c829439661/src/smr-jax-verify-06-089c1ee-run1/runtime/`.
+It records `passed: true`, `strict_passed: false` and
+`qualification: practical-acceptance-passed` for both benchmarks. The CLI exits 0.
+
+Reproduce from that bounded exact-commit snapshot using the same radiation
+cache and environment described below:
+
+```bash
+python -B -m smr_jax.verify_gpu --radiation-dir runtime/radiation \
+  --snapshot-manifest snapshot.json --days 2 30 --repeats 5 \
+  --acceptance-profile practical --melt-small-snow-next-day \
+  --report-path runtime/verify06.json
+```
+
+## Acceptance amendment - 2026-11-13
+
+The operator explicitly rejected strict parity as the release gate: "the strict
+parity is too strict". Practical acceptance now checks every active watershed
+cell, every simulated day, the actual terminal state and every basin scalar.
+The original full-array strict result is retained separately as
+`strict_comparison`/`strict_passed`, including extra-domain snow differences.
+It does not block practical acceptance. This changes verification policy;
+model physics, compiler precision settings and snow-release behavior are unchanged.
+
+The practical profile uses absolute engineering limits, with no relative
+allowance, averaging, percentiles or exclusion of difficult active cells:
+
+| Quantity | Absolute CPU/GPU difference limit |
+|---|---:|
+| Water stores and flux depths | 0.001 cm (0.01 mm) |
+| Energy quantities | 0.001 in the model's energy units |
+| Temperature / saturation | 0.001 C / percentage points |
+| Discharge / baseflow | 1e-10 cms |
+| Legacy reservoir carry | 1e-9 in its retained legacy units |
+| Albedo | 1e-6 |
+
+The water limit adopts the existing operator-selected 0.001 cm resolution for
+insignificant water residues. These are explicit prototype engineering
+acceptance choices, not a claimed literature-derived uncertainty bound or
+calibration to a newly fitted parameter. They are declared in the verifier
+and checked against the complete output maxima. Larger errors still fail.
+
+Masks, types, shapes, counters and complete finite footprints retain their
+original exact checks, including outside the active numeric domain. Missing
+or nonfinite required values fail. External plant-water comparisons and
+independent conservation checks retain their original strict limits. Raw
+snow-presence disagreements remain visible. Unknown units fail explicitly.
+
+`--acceptance-profile practical` is the default for watershed runs;
+`--acceptance-profile strict` retains the original strict gate. Synthetic
+full-model and plant-water cases still have to pass their strict checks.
+Timing qualification explicitly names the profile, so practical acceptance
+never establishes strict arithmetic identity or default-JIT compatibility.
+
+## Original strict audit and boundary
+
+The original audit below records GPU execution and synthetic cases passing
+on the actual RTX device. Strict complete-array watershed parity failed. Its checker
 returns a nonzero exit for failed comparisons and does not publish a validated
 speedup for them. VERIFY-04's separate Windows/default-JAX legacy deferral is
-unchanged. This packet is retained on its packet branch pending acceptance;
-the feature branch and default branch are not advanced by this audit.
+unchanged. At that audit, the packet remained on its packet branch pending
+acceptance. The acceptance amendment above supersedes strict-only blocking;
+the historical numbers and rejected comparisons below remain unchanged.
 
 The same `run_days` and external plant-water functions run on CPU and CUDA in
 the same existing WSL Python environment. No physics, native FFI, callbacks,
@@ -130,9 +222,10 @@ both two and thirty days, with up to `0.08458120608596698 cm` snow difference
 and `2.028215874817433 C` temperature difference. Those results are retained;
 selected-policy results do not establish literal-legacy GPU parity.
 
-Closing strict VERIFY-06 requires resolving the month soil difference and
+Closing strict arithmetic parity would require resolving the month soil difference and
 the extra-domain full-array snow differences, or an explicit operator decision
-to accept a narrower/toleranced boundary. Neither is silently marked passed.
+to accept a narrower/toleranced boundary. The operator subsequently chose
+practical acceptance above; strict diagnostics are never silently marked passed.
 
 ## Timing method and limitations
 
@@ -183,7 +276,7 @@ bytes. The faster resident GPU execution is substantially offset by moving
 the full history back to the host. Neither timing column establishes an
 accepted speedup while full-array parity fails.
 
-## Reproduction and evidence
+## Original strict-audit reproduction and evidence
 
 ```powershell
 python -B tools/package_jax_gpu_snapshot.py --revision df6586086b2f20313ad2cf36e85807a28bf19245 --output <NEW-directory>
@@ -206,7 +299,7 @@ Omit `--melt-small-snow-next-day` to audit the literal legacy policy. Without
 A real CUDA device is mandatory; CPU fallback fails. Report paths and snapshot
 directories must be new. Neither command installs anything.
 
-Final executed source: `df6586086b2f20313ad2cf36e85807a28bf19245`.
+Strict-audit executed source: `df6586086b2f20313ad2cf36e85807a28bf19245`.
 Source archive SHA-256:
 `338b6916aecd3c3ddb6c67d4bec85ae7ee7567db5a4651dcc70453b277534cc7`.
 Prepared radiation archive SHA-256:
