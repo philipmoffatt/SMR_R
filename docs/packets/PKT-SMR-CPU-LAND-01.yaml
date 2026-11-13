@@ -1,0 +1,38 @@
+packet_id: PKT-SMR-CPU-LAND-01
+task_id: TASK-SMR-LANDING
+title: Record CPU reference integration and pull request evidence
+status: active
+execution_tier: narrow
+repository: SMR_R
+base_revision: 6af1a5e
+integration_base_ref: feature/smr-cpu-reference
+read_scope:
+  paths:
+    - R/
+    - scripts/
+    - tests/
+    - docs/packets/
+    - reference/mica-creek-jan2015/
+write_scope:
+  allowed_paths:
+    - docs/packets/PKT-SMR-CPU-LAND-01.md
+    - docs/packets/PKT-SMR-CPU-LAND-01.yaml
+  forbidden_paths:
+    - R/
+    - scripts/
+    - tests/
+    - reference/
+    - scratch/
+    - ../../platform/emdc-platform/
+    - ../../buildBoard/
+objective: Consolidate the completed CPU history through frozen two-day trace capture, validate its existing checks, and publish a CPU-only feature PR to the actual default branch master.
+implementation_constraints:
+  - Preserve original commits and uncommitted work; no default-branch merge or worktree removal.
+  - JAX foundation and engine commits remain on the JAX feature.
+validation:
+  - Run the five existing tests/test_*.ps1 CPU checks.
+  - Verify frozen manifest file hashes.
+  - preflight.ps1 PKT-SMR-CPU-LAND-01
+  - scope.ps1 PKT-SMR-CPU-LAND-01
+completion_outputs:
+  - docs/packets/PKT-SMR-CPU-LAND-01.md

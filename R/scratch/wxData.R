@@ -5,8 +5,9 @@
 # for controlling output maps - output	
 # 6-hr temp data disaggregated using tempdisagg - t0	t1	t2	t3	t4
 
+library(yaml)
 library(tidyverse)
-library(dplyr) 
+library(dplyr)
 library(lubridate)
 library(AOI)
 library(climateR)
@@ -15,10 +16,18 @@ library(chillR)
 library(humidity)
 library(bigleaf)
 
-### ----- PULLING DATA FROM NOAA AND GRIDMET ----- ###
+## ---- load project config ----
+cfg        <- yaml::read_yaml("config.yaml")
+setwd(cfg$root_dir)
+site            <- cfg$weather$site
+station_id      <- cfg$weather$station_id
+gridmet_start   <- cfg$weather$gridmet_start
+gridmet_end     <- cfg$weather$gridmet_end
+hist_start      <- cfg$weather$historical_start
+hist_end        <- cfg$weather$historical_end
+## -----------------------------
 
-# establish AOI
-site <- 'Pullman'
+### ----- PULLING DATA FROM NOAA AND GRIDMET ----- ###
 
 AOI::aoi_get(site) %>% 
   AOI::aoi_map(returnMap = TRUE)

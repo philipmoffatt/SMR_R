@@ -1,4 +1,5 @@
 # import libraries
+library(yaml)
 library(tidyverse)
 library(dplyr)
 library(lubridate)
@@ -9,6 +10,12 @@ library(gridExtra)
 library(grid)
 library(cowplot)
 
+## ---- load project config ----
+cfg             <- yaml::read_yaml("config.yaml")
+setwd(cfg$root_dir)
+discharge_file  <- cfg$validation$discharge_file
+smr_output_file <- cfg$validation$smr_output_file
+## -----------------------------
 
 # data pre-processing and alignment function
 preprocessing <- function(
@@ -210,8 +217,8 @@ flux_vector <- c('runoff_cm', 'precip_cm', 'rain_cm',
                  'snow_cm', 'baseflow')
 
 VaM_data <- preprocessing(
-  "./raw_data/discharge_historical/USGSdischarge.csv",
-  "./raw_data/smr_output/MFC_mass_balance_79_1.csv",
+  discharge_file,
+  smr_output_file,
   "1965-10-01",
   "1970-10-01",
   c('wshed_id', 'date', 'year', 'runoff_cm', 'precip_cm', 'rain_cm', 'actualET_flow_cm', 'canopy_evap_cm', 'snowmelt_cm', 'storage_amt_cm', 'throughfall_cm', 'canopy_storage_amt_cm', 'perc_cm', 'Q', 'swe_cm', 'condens_cm', 'snow_cm', 'baseflow', 'srad', 'latent', 'sensible', 'lw', 'q_rain_ground', 'q_total')

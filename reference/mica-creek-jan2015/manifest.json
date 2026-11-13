@@ -1,0 +1,96 @@
+{
+  "schema_version": "1.0",
+  "reference_id": "mica-creek-jan2015-v1",
+  "status": "frozen",
+  "created_at_utc": "2026-09-13T18:42:20.4691292Z",
+  "model": {
+    "name": "SMR",
+    "basin": "Mica Creek",
+    "grid_resolution_m": 30,
+    "time_step_hours": 24,
+    "snow_substep_hours": 6
+  },
+  "date_window": {
+    "start": "2015-01-01",
+    "end": "2015-01-30",
+    "daily_records": 30
+  },
+  "source_provenance": {
+    "legacy_reference_commit": "4f6bbea05536d5aa89edcbf1a8ba280148b8fb66",
+    "legacy_engine_sha256": "b4d118260979e256935b83258e84aef921203c14fd3715bd8fd4aba627d06836",
+    "cpu_reference_commit": "cbfaaf0326f6dc0eeb9ee7693c06785914b0a5b6",
+    "cpu_engine_sha256": "a320f430c16549be033798bb344aac5a8e2621d76a851b1aecfc2bd0c4976e83",
+    "trace_engine_sha256": "a4d5cf6878cc41acf7eeda264f4a6b334a49b8cb571767209c7e88af2ec845d3",
+    "trace_runner_sha256": "42dff285f72ed6c6a6c56e0bfdf19b09d606c545ccfc05d7ee2054010c7853ac",
+    "legacy_simulation_status": "success"
+  },
+  "artifacts": [
+    {
+      "path": "model_inputs.zip",
+      "kind": "model-ready raster inputs",
+      "entries": 86,
+      "bytes": 4569162,
+      "sha256": "7c1bcc05e247191e3f546e747184d12b3634ab677abc0649badd7e32617130a5"
+    },
+    {
+      "path": "gridmet_weather_2015-01.csv",
+      "kind": "weather forcing",
+      "bytes": 9575,
+      "sha256": "dc204acefbfe3529b7bb63bea602e7860fe201efe4a2ca08a54d8318430c575c"
+    },
+    {
+      "path": "daily_mass_balance_2015-01.csv",
+      "kind": "legacy daily output",
+      "bytes": 7640,
+      "sha256": "d8af159dd261ea6169cb53fd737a2007ea4e64d2778ec41daa62bf14106f600d"
+    },
+    {
+      "path": "final_state_rasters.zip",
+      "kind": "final GRASS state rasters",
+      "entries": 2,
+      "maps": ["saturation", "storage_amt"],
+      "bytes": 919305,
+      "sha256": "221183a7ba076fcc1fb3550f671e3ce1408bdf0338b51603416df4779e79bf5e"
+    },
+    {
+      "path": "two_day_internal_trace.zip",
+      "kind": "instrumented two-day daily state and flux trace",
+      "entries": 44,
+      "dates": ["2015-01-01", "2015-01-02"],
+      "raster_files": 40,
+      "maps": [
+        "precip", "rain", "snow", "throughfall", "canopy_evap",
+        "swe", "snowmelt", "q.srad", "q.lw", "q.latent", "q.sensible", "q.total",
+        "storage_amt", "storage_amt_A", "storage_amt_B", "lateral_flow",
+        "actualET_daily_flow", "perc_daily_flow", "runoff_daily_flow", "saturation"
+      ],
+      "replay_rows_match_cpu_reference": true,
+      "bytes": 14045038,
+      "sha256": "15df55e8441d5230693d42dc1909e3c855a9915d4511e3625cb517b8032456ca"
+    },
+    {
+      "path": "reference_config.yaml",
+      "kind": "legacy runtime configuration",
+      "bytes": 1030,
+      "sha256": "be65309bb70b01b8e799ea03fcf4d4c14fb83f0af3e089d66f231771f74b8e7d"
+    },
+    {
+      "path": "legacy_simulate_manifest.json",
+      "kind": "legacy execution manifest",
+      "bytes": 471,
+      "sha256": "62553de71a145f710bb9f5db56565ba5e92cb9067631e6e6b17f21f9000815d3"
+    }
+  ],
+  "parity_evidence": {
+    "comparison": "CPU-optimized final saturation and storage_amt matched the legacy reference exactly",
+    "common_valid_cells": 68121,
+    "saturation_difference_rmse": 0,
+    "storage_amt_difference_rmse": 0
+  },
+  "excluded": [
+    "Raw SSURGO and other source downloads are excluded because model-ready inputs are sufficient for replay.",
+    "The GRASS workspace is excluded because it is reconstructible from the bundled inputs.",
+    "Substep-level internal GRASS rasters were not retained; the trace contains completed daily fields."
+  ],
+  "verification_use": "Verify each artifact SHA-256 before using it as a JAX parity target."
+}
