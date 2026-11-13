@@ -1,0 +1,65 @@
+packet_id: PKT-SMR-JAX-VERIFY-05
+task_id: TASK-SMR-JAX-VERIFY
+title: Verify dynamic albedo general radiation
+status: completed
+verification_result: radiation-components-pass-strict-integrated-parity-deferred
+execution_tier: judgment
+repository: SMR_R
+base_revision: d29e14cd9f0fcf44f28127530eae8b34b5dccce3
+integration_base_ref: feature/smr-jax-plant-water
+read_scope:
+  paths:
+    - src/smr_jax/
+    - tests/
+    - tools/
+    - R/smr_buildup.pl
+    - reference/mica-creek-jan2015/
+    - docs/packets/
+write_scope:
+  allowed_paths:
+    - src/smr_jax/contracts.py
+    - src/smr_jax/radiation.py
+    - src/smr_jax/io.py
+    - src/smr_jax/cli.py
+    - src/smr_jax/fluxes/snow.py
+    - src/smr_jax/verify_radiation.py
+    - tests/test_jax_radiation.py
+    - tests/fixtures/jax_verify05_radiation.json
+    - tests/fixtures/jax_verify05_radiation.npz
+    - tools/prepare_jax_radiation.py
+    - tools/capture_jax_radiation_reference.py
+    - docs/packets/PKT-SMR-JAX-VERIFY-04.md
+    - docs/packets/PKT-SMR-JAX-VERIFY-04.yaml
+    - docs/packets/PKT-SMR-JAX-VERIFY-05.md
+    - docs/packets/PKT-SMR-JAX-VERIFY-05.yaml
+  forbidden_paths:
+    - R/
+    - reference/
+    - src/smr_jax/plant.py
+    - src/smr_jax/legacy_cpu_math.py
+    - src/smr_jax/legacy_exp.cc
+    - ../../plant-game-of-life/
+    - ../../platform/emdc-platform/
+    - ../../buildBoard/
+objective: Record operator-authorized deferral of tiny strict VERIFY-04 differences and implement and verify a reusable radiation decomposition that responds to evolving JAX snow albedo without prescribing completed q.srad maps.
+implementation_constraints:
+  - Keep the pure-JAX model default and replay provider available; no native FFI or Python callback is required by the new provider.
+  - Use GRASS only to prepare terrain/date/weather components outside model evolution; preserve scientific r.sun and legacy cloud conventions.
+  - Keep references and original Perl unchanged; captures use new disposable GRASS projects and new output directories outside Git.
+  - Derive radiation error bounds from source FCELL precision before comparison; never fit thresholds to failed observations.
+  - Keep strict VERIFY-04 failures visible and deferred, not passed, under the operator's explicit instruction to move on.
+acceptance_criteria:
+  - New shortwave uses the actual evolving model albedo inside the JAX scan, with explicit incident and reflected components and source units.
+  - GRASS comparisons cover changing albedo, date and sky conditions; missing support, forcing mismatch and corrupt preparation artifacts fail.
+  - End-to-end two-day and thirty-day runs use no completed shortwave replay and report state and flux differences honestly against the captured reference.
+  - JIT and synthetic snow/albedo feedback and existing JAX regressions pass.
+validation:
+  - python -m unittest discover -s tests -p test_jax_*.py -q
+  - python -m smr_jax.verify_radiation
+  - preflight.ps1 PKT-SMR-JAX-VERIFY-05
+  - scope.ps1 PKT-SMR-JAX-VERIFY-05
+completion_outputs:
+  - docs/packets/PKT-SMR-JAX-VERIFY-05.md
+stop_conditions:
+  - A required out-of-scope edit, a scientific approximation beyond declared FCELL decomposition error, or changed interface semantics is necessary.
+

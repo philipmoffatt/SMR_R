@@ -50,6 +50,19 @@ class StaticInputs:
 
 
 @dataclass(frozen=True)
+class RadiationComponents:
+    """Albedo-independent daily r.sun components, in Wh/m2/day.
+
+    Reflected irradiation is prepared at unit ground albedo. The evolving
+    albedo is applied inside the model, after snow age has been updated.
+    """
+
+    beam: jax.Array
+    diffuse: jax.Array
+    reflected_unit: jax.Array
+
+
+@dataclass(frozen=True)
 class DailyForcing:
     """One legacy weather row. Temperatures are four 6-hour station values."""
 
@@ -66,8 +79,10 @@ class DailyForcing:
     roughness_urban: jax.Array
     roughness_crop: jax.Array
     et_coeff_by_landuse: jax.Array  # landuse 1..6
-    replay_shortwave: jax.Array
+    replay_shortwave: jax.Array | None
+    radiation_components: RadiationComponents | None = None
 
 
 jax.tree_util.register_dataclass(StaticInputs, data_fields=[f for f in StaticInputs.__dataclass_fields__ if f != "grid"], meta_fields=["grid"])
+jax.tree_util.register_dataclass(RadiationComponents, data_fields=list(RadiationComponents.__dataclass_fields__), meta_fields=[])
 jax.tree_util.register_dataclass(DailyForcing, data_fields=list(DailyForcing.__dataclass_fields__), meta_fields=[])

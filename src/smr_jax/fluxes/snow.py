@@ -4,6 +4,7 @@ from dataclasses import replace
 import jax.numpy as jnp
 
 from ..state import SnowState
+from ..radiation import shortwave_from_components
 
 
 SNOW_RESIDUE_CM = 1e-3  # Operator-selected convention, not a fitted tolerance.
@@ -37,7 +38,15 @@ def snow_energy(state, static, forcing, tavg_c, tdew_c, snow_cm, throughfall_cm,
     age = jnp.where((snow_cm > 0.0) & (throughfall_cm == 0.0), 1.0, snow.age_days + 1.0)
     albedo = jnp.where(snow.previous_swe_cm + snow_cm > 0.0,
                        jnp.minimum(.95, .7383 * age ** (-.1908)), .2)
-    q_srad = forcing.replay_shortwave
+    components = getattr(forcing, "radiation_components", None)
+    if components is None:
+        if forcing.replay_shortwave is None:
+            raise ValueError("provide replay shortwave or prepared radiation components")
+        q_srad = forcing.replay_shortwave
+    else:
+        if forcing.replay_shortwave is not None:
+            raise ValueError("choose one radiation provider; replay and components cannot be mixed")
+        q_srad = shortwave_from_components(components, albedo, static.canopy_cover)
     cloud = forcing.cloud
     q_lw = 5.67e-8 * 3600.0 * 24.0 / 1000.0 * (
         jnp.maximum(.72, (((9.2 * (10.0 ** -6.0)) * (tavg_c + 273.15) ** 2) * (1.0 - .84 * cloud) + .84 * cloud)

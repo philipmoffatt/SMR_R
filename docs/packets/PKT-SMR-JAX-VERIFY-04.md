@@ -1,6 +1,15 @@
 # PKT-SMR-JAX-VERIFY-04 — Integrated CPU verification
 
-## Result: OPEN - default pure-JAX month parity still fails
+## Result: strict default pure-JAX month parity deferred by operator
+
+**Operator decision, 2026-11-13:** "THRESHOLDS ARE TINY MOVE ON" authorizes
+proceeding to VERIFY-05 while deferring strict VERIFY-04 closure. The measured
+default-JAX maximum differences are `2.2823668732740998e-8 cm` in soil storage
+and `4.427795019523728e-8 cm` in percolation, below `4.5e-7 mm` of water.
+The 167 failing strict checks remain recorded. Existing budgets and nonzero
+strict-gate failure exits are unchanged; neither default JAX nor native FFI is
+relabelled as a default-JAX strict pass. This explicit sequencing decision
+replaces the requirement to hold VERIFY-05 pending strict closure below.
 
 **Status correction, 2026-11-13, PKT-SMR-JAX-VERIFY-04A:** the completion claim
 landed in `0c0152e` was incorrect. The requested default pure-JAX engine has not

@@ -2,7 +2,8 @@ packet_id: PKT-SMR-JAX-VERIFY-04
 task_id: TASK-SMR-JAX-VERIFY
 title: Verify integrated two and thirty day CPU parity
 status: active
-verification_result: two-day-pass-default-pure-jax-thirty-day-strict-fail
+verification_result: strict-default-pure-jax-month-parity-deferred-by-operator
+sequencing_decision: operator-authorizes-VERIFY-05-on-2026-11-13
 native_math_diagnostic_result: two-and-thirty-day-pass-not-acceptance
 execution_tier: judgment
 repository: SMR_R

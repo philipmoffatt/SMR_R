@@ -10,6 +10,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from .contracts import DailyForcing
+from .radiation import PreparedRadiationProvider
 from .state import GridSpec
 
 
@@ -86,7 +87,8 @@ def _weather_rows(path: str | Path):
             yield line.split()
 
 
-def load_daily_forcings(weather_path: str | Path, radiation: ReplayRadiationProvider, limit: int | None = None) -> DailyForcing:
+def load_daily_forcings(weather_path: str | Path, radiation: ReplayRadiationProvider | PreparedRadiationProvider,
+                       limit: int | None = None) -> DailyForcing:
     """Convert the space-delimited frozen GridMET forcing into stacked JAX input."""
     days = []
     for number, row in enumerate(_weather_rows(weather_path)):
@@ -95,10 +97,18 @@ def load_daily_forcings(weather_path: str | Path, radiation: ReplayRadiationProv
         date = row[0]
         scalar = lambda index: jnp.asarray(float(row[index]), dtype=jnp.float64)
         coeff = jnp.asarray([float(row[i]) for i in (17, 18, 19, 20, 21, 22)], dtype=jnp.float64)
+        components = None
+        if isinstance(radiation, PreparedRadiationProvider):
+            components = radiation.components(date, cloud=float(row[16]), linke=float(row[15]), doy=int(row[4]))
+            replay = None
+        else:
+            replay = jnp.asarray(radiation.shortwave(date), dtype=jnp.float64)
         days.append(DailyForcing(scalar(1), scalar(2), scalar(3), scalar(4), scalar(7), scalar(8), scalar(9), scalar(10),
                                  jnp.asarray([float(row[i]) for i in (11, 12, 13, 14)], dtype=jnp.float64),
                                  scalar(16), scalar(24), scalar(28), coeff,
-                                 jnp.asarray(radiation.shortwave(date), dtype=jnp.float64)))
+                                 replay, components))
     if not days:
         raise ValueError("No forcing rows were loaded")
+    if limit is not None and len(days) != limit:
+        raise ValueError(f"requested {limit} forcing days but found {len(days)}")
     return jax.tree_util.tree_map(lambda *parts: jnp.stack(parts), *days)
