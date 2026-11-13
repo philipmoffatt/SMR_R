@@ -1,0 +1,61 @@
+packet_id: PKT-SMR-JAX-VERIFY-01A
+task_id: TASK-SMR-JAX-VERIFY
+title: Close initialization and surface snow verification with strict comparisons
+status: completed
+closes: PKT-SMR-JAX-VERIFY-01
+execution_tier: judgment
+repository: SMR_R
+base_revision: 722151c3c38b14d0e961e20695e2da34102f1dcd
+integration_base_ref: feature/smr-jax-plant-water
+read_scope:
+  paths:
+    - src/smr_jax/
+    - tests/
+    - R/smr_buildup.pl
+    - reference/mica-creek-jan2015/
+    - docs/packets/
+write_scope:
+  allowed_paths:
+    - src/smr_jax/fluxes/surface.py
+    - src/smr_jax/fluxes/snow.py
+    - src/smr_jax/fluxes/legacy_math.py
+    - src/smr_jax/initialization.py
+    - src/smr_jax/io.py
+    - src/smr_jax/verify_surface.py
+    - tests/test_jax_trace_contract.py
+    - tests/test_jax_surface_parity.py
+    - docs/packets/PKT-SMR-JAX-VERIFY-01.md
+    - docs/packets/PKT-SMR-JAX-VERIFY-01A.md
+    - docs/packets/PKT-SMR-JAX-VERIFY-01A.yaml
+  forbidden_paths:
+    - R/
+    - reference/
+    - scripts/
+    - scratch/
+    - src/smr_jax/fluxes/soil.py
+    - src/smr_jax/fluxes/routing.py
+    - src/smr_jax/plant.py
+    - ../../plant-game-of-life/
+    - ../../platform/emdc-platform/
+    - ../../buildBoard/
+objective: Establish a strict initialization/surface/snow legacy parity gate with justified numerical tolerances, exact required cell support, and independently tested legacy arithmetic; preserve the separately selected residue-melt convention.
+implementation_constraints:
+  - Do not replace actual model states or branch masks with reference outputs.
+  - Replay shortwave remains the only injected frozen surface flux.
+  - No tolerance fitting to failures, cell dropping, expected-output rewriting, new physics or claims about later verification gates.
+  - Legacy and next-day residue policy are distinct acceptance targets; do not falsely claim the latter exactly matches the unmodified legacy run.
+acceptance_criteria:
+  - Both days and all named surface/snow fields pass strict checks on the full required active support.
+  - Initialization properties and state have explicit checks.
+  - Missing, nonfinite, misaligned and wrong-support comparisons fail.
+  - The CLI returns nonzero on verification failure; report-only output is explicitly selected.
+  - Existing tests and selected snow-policy tests pass.
+validation:
+  - python -m unittest discover -s tests -p test_jax_*.py -v
+  - python -m smr_jax.verify_surface
+  - preflight.ps1 PKT-SMR-JAX-VERIFY-01A
+  - scope.ps1 PKT-SMR-JAX-VERIFY-01A
+completion_outputs:
+  - docs/packets/PKT-SMR-JAX-VERIFY-01A.md
+stop_conditions:
+  - A required out-of-scope edit or unresolved scientific choice prevents a valid gate.

@@ -60,3 +60,20 @@ policy. The earlier exclusion statement describes the preservation handoff;
 tooling integration is now explicitly accepted through that packet. The
 surface/snow numerical verification gate remains open, including comparison
 under the agreed convention. This note does not declare legacy parity.
+
+## Numerical gate closure — 2026-11-12
+
+`PKT-SMR-JAX-VERIFY-01A` establishes passing initialization and all 24 named
+daily surface/snow comparisons on the full 68,121-cell support, using an
+explicit strict float64 CPU compilation profile. It resolves the day-one
+rounding/branch mismatch without modifying equations or the frozen reference.
+The source of the discrepancy and per-field errors are recorded in
+`PKT-SMR-JAX-VERIFY-01A.md`; all 57 tests pass.
+
+This closes the numerical VERIFY-01 gate for the frozen legacy two-day CPU
+target on that packet branch, pending feature integration. It does not accept
+the ordinary optimized profile or claim bitwise equality for every energy
+operation. The selected next-day residue-melt convention remains separately
+tested and explicitly report-only against the unchanged legacy trace.
+Subsequent soil, routing/reservoir, 30-day, radiation and GPU gates remain open.
+Earlier open-gate statements above describe the preserved history.
