@@ -13,19 +13,19 @@ from .contracts import DailyForcing
 from .state import GridSpec
 
 
-class ReplayRadiationProvider:
-    """Read completed legacy ``q.srad`` maps; this is deliberately not general radiation."""
+class FrozenTraceProvider:
+    """Read completed legacy trace maps and align their exported extent to the model grid."""
 
     def __init__(self, trace_zip: str | Path, target_grid: GridSpec):
         self.archive_path = Path(trace_zip)
         self.target_grid = target_grid
 
-    def shortwave(self, date: str) -> np.ndarray:
+    def raster(self, date: str, map_name: str) -> np.ndarray:
         try:
             import tifffile
         except ImportError as exc:  # pragma: no cover - environment diagnosis
             raise RuntimeError("Replay radiation requires the project dependency tifffile") from exc
-        member = f"trace/{date}--q_srad.tif"
+        member = f"trace/{date}--{map_name.replace('.', '_')}.tif"
         with ZipFile(self.archive_path) as archive:
             try:
                 # The frozen archive was built on Windows. zip members can
@@ -50,7 +50,14 @@ class ReplayRadiationProvider:
                 aligned[row:row + values.shape[0], col:col + values.shape[1]] = values
                 return aligned
             except KeyError as exc:
-                raise KeyError(f"No replay q.srad field for {date}; general radiation is not implemented") from exc
+                raise KeyError(f"No frozen trace field for {map_name} on {date}") from exc
+
+
+class ReplayRadiationProvider(FrozenTraceProvider):
+    """Read completed legacy ``q.srad`` maps; this is deliberately not general radiation."""
+
+    def shortwave(self, date: str) -> np.ndarray:
+        return self.raster(date, "q.srad")
 
 
 def _weather_rows(path: str | Path):

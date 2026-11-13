@@ -6,9 +6,32 @@ import jax.numpy as jnp
 from ..state import SnowState
 
 
-def snow_energy(state, static, forcing, tavg_c, tdew_c, snow_cm, throughfall_cm):
-    """Run one daily SAM update; shortwave comes only from the replay provider."""
+SNOW_RESIDUE_CM = 1e-3  # Operator-selected convention, not a fitted tolerance.
+
+
+def snow_energy(state, static, forcing, tavg_c, tdew_c, snow_cm, throughfall_cm, *,
+                melt_small_snow_next_day=False):
+    """Daily SAM update with an optional, explicit next-day residue convention.
+
+    The default preserves legacy behavior. In the selected mode, positive
+    start-of-day SWE <= 1e-3 cm is released as melt before snow-presence
+    decisions. Yesterday's water remains stored overnight; today's newly
+    formed residue is left in the returned state until tomorrow. No canopy or
+    litter store is involved. Thermal state is retained because it also
+    represents the underlying surface, including when snow is absent.
+
+    This forced small-water release is an operator-authorized approximation,
+    not an energy-conserving phase-change calculation. The mode is static
+    when used under JIT. Shortwave still comes from the replay provider.
+    """
     snow = state.snow
+    residual_melt = jnp.zeros_like(snow.swe_cm)
+    if melt_small_snow_next_day:
+        release = static.active_mask & (snow.swe_cm > 0.0) & (snow.swe_cm <= SNOW_RESIDUE_CM)
+        residual_melt = jnp.where(release, snow.swe_cm, 0.0)
+        clear = lambda value: jnp.where(release, 0.0, value)
+        snow = replace(snow, swe_cm=clear(snow.swe_cm), previous_swe_cm=clear(snow.previous_swe_cm),
+                       ice_cm=clear(snow.ice_cm), liquid_cm=clear(snow.liquid_cm))
     rh = jnp.where(snow.swe_cm > 0.0, forcing.roughness_urban / (1.0 - static.canopy_cover / 3.0),
                    forcing.roughness_crop / (1.0 - static.canopy_cover / 3.0))
     age = jnp.where((snow_cm > 0.0) & (throughfall_cm == 0.0), 1.0, snow.age_days + 1.0)
@@ -43,6 +66,7 @@ def snow_energy(state, static, forcing, tavg_c, tdew_c, snow_cm, throughfall_cm)
     temp = surface_energy / denominator
     next_snow = replace(snow, swe_cm=swe, previous_swe_cm=swe, ice_cm=ice, liquid_cm=liquid,
                         age_days=age, total_energy=total_energy, surface_energy=surface_energy, surface_temp_c=temp)
-    return next_snow, {"snowmelt_cm": snowmelt, "swe_cm": swe, "condens_cm": condens,
+    return next_snow, {"snowmelt_cm": snowmelt + residual_melt, "swe_cm": swe, "condens_cm": condens,
+                       "residual_snowmelt_cm": residual_melt,
                        "q_srad": q_srad, "q_lw": q_lw, "q_latent": q_latent,
                        "q_sensible": q_sensible, "q_total": q_total, "albedo": albedo}
