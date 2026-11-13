@@ -117,6 +117,85 @@ Diagnostic plots produced:
 
 ---
 
+## JAX Prototype and NVIDIA GPU Setup
+
+`src/smr_jax/` provides a float64 two-layer hydrology engine, an explicit
+plant-water interface, prepared terrain/weather radiation and CPU/CUDA
+verification. The agreed SMR-side prototype feature is complete under
+[practical GPU acceptance](docs/packets/PKT-SMR-JAX-VERIFY-06.md).
+The GRASS/Perl production path remains available; field validation, plant-side
+adoption, arbitrary soil layers and Richards physics are separate work.
+
+See the [plant-water interface](docs/smr-plant-interface.md) for requested,
+realized and unmet extraction, independently checked water ledgers, adaptive
+soil transport substeps and the [synthetic example](examples/plant_water.py).
+The [feature closure](docs/packets/PKT-SMR-JAX-LAND-01.md) records acceptance
+and deliberate deferrals. No plant repository changes are included.
+
+For an NVIDIA GPU on Windows, use a Linux distribution under WSL2.  The native
+Windows JAX build is CPU-only.  From the WSL checkout, create and activate an
+isolated environment, then install the CUDA 12 JAX extra and this project:
+
+```bash
+python3 -m venv ~/venvs/smr-jax
+source ~/venvs/smr-jax/bin/activate
+python -m pip install --upgrade pip
+python -m pip install --upgrade "jax[cuda12]"
+python -m pip install -e .
+```
+
+Use float64 to match the legacy reference calculations, avoid JAX reserving
+all GPU memory, and confirm that the GPU is visible:
+
+```bash
+export JAX_PLATFORMS=cuda
+export JAX_ENABLE_X64=true
+export XLA_PYTHON_CLIENT_PREALLOCATE=false
+python -c "import jax; print(jax.devices())"
+python -m unittest discover -s tests -p test_jax_foundation.py -v
+```
+
+The expected device listing includes `CudaDevice(id=0)`. The foundation test
+loads the frozen reference grid and checks the explicit two-layer initial
+moisture state. Flux and integrated checks are in the remaining JAX tests.
+
+The modular engine's first runnable case is intentionally a two-day replay,
+not a radiation replacement:
+
+```bash
+python -m smr_jax.cli --reference-dir reference/mica-creek-jan2015 --days 2
+```
+
+This diagnostic reads frozen `q.srad` trace fields while retaining the legacy
+daily and four six-hour-step order. The Horn slope and receiver-weighted
+routing have passed the independent Mica Creek source checks; that evidence
+does not establish general terrain equivalence.
+
+For simulation with evolving snow albedo, use the
+[prepared radiation provider](docs/packets/PKT-SMR-JAX-VERIFY-05.md). GRASS
+computes terrain/weather components during preparation; the JAX daily scan
+applies the simulated albedo. An already prepared model run needs no GRASS
+subprocess or completed shortwave replay. After preparing the requested dates:
+
+```bash
+python -m smr_jax.cli --days 30 --radiation-dir <prepared-directory> \
+  --melt-small-snow-next-day --summary <summary.json>
+
+JAX_PLATFORMS=cuda,cpu python -m smr_jax.verify_gpu \
+  --radiation-dir <prepared-directory> --days 2 30 \
+  --melt-small-snow-next-day --acceptance-profile practical \
+  --report-path <new-report.json>
+```
+
+The optional snow policy releases positive start-of-day SWE <=0.001 cm as
+melt on the next day. Practical GPU acceptance checks all active cells and
+basin scalars at declared tolerances, retaining strict parity as a diagnostic.
+The verifier explicitly preserves FCELL roundings during compilation; these
+GPU results do not qualify an arbitrary default JIT configuration. Independent
+conservation, exact masks/counters and required finite values remain checked.
+
+---
+
 ## Running the Model
 
 1. **Prepare spatial inputs** — open `R/scratch/SMR_data_setup.R`, set your watershed HUC code and output directory, then source the script. Expect several minutes of download and DEM processing time.

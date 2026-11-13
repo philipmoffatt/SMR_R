@@ -1,0 +1,39 @@
+packet_id: PKT-SMR-JAX-VERIFY-04A
+task_id: TASK-SMR-JAX-VERIFY
+title: Correct integrated JAX verification acceptance status
+status: completed
+execution_tier: judgment
+repository: SMR_R
+base_revision: 0c0152eab2cdc0b6cb1ff576560f34f31bbad75f
+integration_base_ref: feature/smr-jax-plant-water
+read_scope:
+  paths:
+    - docs/packets/
+    - src/smr_jax/verify_integrated.py
+write_scope:
+  allowed_paths:
+    - docs/packets/PKT-SMR-JAX-VERIFY-04.md
+    - docs/packets/PKT-SMR-JAX-VERIFY-04.yaml
+    - docs/packets/PKT-SMR-JAX-VERIFY-04A.md
+    - docs/packets/PKT-SMR-JAX-VERIFY-04A.yaml
+  forbidden_paths:
+    - src/
+    - tests/
+    - tools/
+    - R/
+    - reference/
+    - ../../plant-game-of-life/
+    - ../../platform/emdc-platform/
+    - ../../buildBoard/
+objective: Correct the overstated VERIFY-04 completion claim; preserve the native CPU result as diagnostic evidence while reopening the unmet default pure-JAX month acceptance.
+acceptance_criteria:
+  - VERIFY-04 is active and records that the default pure-JAX month gate still fails.
+  - Native CPU FFI success is explicitly diagnostic and does not close default JAX acceptance.
+  - VERIFY-05 does not advance on this completion claim.
+  - Existing code, numerical budgets, references and historical commits are preserved.
+validation:
+  - git diff --check
+  - scope.ps1 PKT-SMR-JAX-VERIFY-04A
+completion_outputs:
+  - docs/packets/PKT-SMR-JAX-VERIFY-04A.md
+

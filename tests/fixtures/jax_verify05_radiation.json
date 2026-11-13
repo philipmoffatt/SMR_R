@@ -1,0 +1,390 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-11-13T09:05:31.864753+00:00",
+  "grid": {
+    "nrows": 311,
+    "ncols": 381,
+    "cellsize_m": 30.0,
+    "xllcorner": 498892.08238158,
+    "yllcorner": 5266359.16212011
+  },
+  "cases": [
+    {
+      "doy": 1,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.0
+    },
+    {
+      "doy": 1,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.2
+    },
+    {
+      "doy": 1,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.7383
+    },
+    {
+      "doy": 1,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.95
+    },
+    {
+      "doy": 1,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 1.0
+    },
+    {
+      "doy": 1,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.0
+    },
+    {
+      "doy": 1,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.2
+    },
+    {
+      "doy": 1,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.7383
+    },
+    {
+      "doy": 1,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.95
+    },
+    {
+      "doy": 1,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 1.0
+    },
+    {
+      "doy": 1,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.0
+    },
+    {
+      "doy": 1,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.2
+    },
+    {
+      "doy": 1,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.7383
+    },
+    {
+      "doy": 1,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.95
+    },
+    {
+      "doy": 1,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 1.0
+    },
+    {
+      "doy": 80,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.0
+    },
+    {
+      "doy": 80,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.2
+    },
+    {
+      "doy": 80,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.7383
+    },
+    {
+      "doy": 80,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.95
+    },
+    {
+      "doy": 80,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 1.0
+    },
+    {
+      "doy": 80,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.0
+    },
+    {
+      "doy": 80,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.2
+    },
+    {
+      "doy": 80,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.7383
+    },
+    {
+      "doy": 80,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.95
+    },
+    {
+      "doy": 80,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 1.0
+    },
+    {
+      "doy": 80,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.0
+    },
+    {
+      "doy": 80,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.2
+    },
+    {
+      "doy": 80,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.7383
+    },
+    {
+      "doy": 80,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.95
+    },
+    {
+      "doy": 80,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 1.0
+    },
+    {
+      "doy": 172,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.0
+    },
+    {
+      "doy": 172,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.2
+    },
+    {
+      "doy": 172,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.7383
+    },
+    {
+      "doy": 172,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.95
+    },
+    {
+      "doy": 172,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 1.0
+    },
+    {
+      "doy": 172,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.0
+    },
+    {
+      "doy": 172,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.2
+    },
+    {
+      "doy": 172,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.7383
+    },
+    {
+      "doy": 172,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.95
+    },
+    {
+      "doy": 172,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 1.0
+    },
+    {
+      "doy": 172,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.0
+    },
+    {
+      "doy": 172,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.2
+    },
+    {
+      "doy": 172,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.7383
+    },
+    {
+      "doy": 172,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.95
+    },
+    {
+      "doy": 172,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 1.0
+    },
+    {
+      "doy": 355,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.0
+    },
+    {
+      "doy": 355,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.2
+    },
+    {
+      "doy": 355,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.7383
+    },
+    {
+      "doy": 355,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 0.95
+    },
+    {
+      "doy": 355,
+      "cloud": 0.0,
+      "linke": 3.0,
+      "albedo": 1.0
+    },
+    {
+      "doy": 355,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.0
+    },
+    {
+      "doy": 355,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.2
+    },
+    {
+      "doy": 355,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.7383
+    },
+    {
+      "doy": 355,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 0.95
+    },
+    {
+      "doy": 355,
+      "cloud": 0.5,
+      "linke": 4.0,
+      "albedo": 1.0
+    },
+    {
+      "doy": 355,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.0
+    },
+    {
+      "doy": 355,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.2
+    },
+    {
+      "doy": 355,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.7383
+    },
+    {
+      "doy": 355,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 0.95
+    },
+    {
+      "doy": 355,
+      "cloud": 1.0,
+      "linke": 5.0,
+      "albedo": 1.0
+    }
+  ],
+  "representatives": 128,
+  "units": "Wh/m2/day; q in kJ/m2/day",
+  "grass": {
+    "version": "8.5.0",
+    "date": "2026",
+    "revision": "exported",
+    "build_date": "2026-06-12",
+    "build_platform": "x86_64-w64-mingw32",
+    "build_off_t_size": "8"
+  },
+  "bundle_sha256": "7c1bcc05e247191e3f546e747184d12b3634ab677abc0649badd7e32617130a5",
+  "source_sha256": "a4d5cf6878cc41acf7eeda264f4a6b334a49b8cb571767209c7e88af2ec845d3",
+  "capture_script_sha256": "956ab46c541842c7921cba8cb75592835fb0798a915523c34022a86d718662ec",
+  "preparation_script_sha256": "8ecd06dc6def1b5b43387cd788d3e0ba37010d1b9131e28fc27c69f44f1043ab",
+  "artifact_sha256": "856ebe15dc74cbca8fe4db2263cc1f24e6f5e912c6dea46f22eb463643af5d94",
+  "artifact_bytes": 83969,
+  "note": "Independent full r.sun at each albedo; basis contains only unit-albedo components."
+}

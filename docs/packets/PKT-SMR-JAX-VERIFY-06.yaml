@@ -1,0 +1,62 @@
+packet_id: PKT-SMR-JAX-VERIFY-06
+task_id: TASK-SMR-JAX-VERIFY
+title: Verify float64 GPU parity and benchmark execution
+status: completed
+acceptance_profile: practical
+strict_gpu_parity_passed: false
+verification_result: practical-gpu-acceptance-pass-strict-diagnostic-fails
+verified_revision: 089c1eea1b0183aabf2ba59fbe00c5fbee859e62
+execution_tier: judgment
+repository: SMR_R
+base_revision: 2ef23616b15b20b24c7cb9a993bcdd2cf3a9c42b
+integration_base_ref: feature/smr-jax-plant-water
+read_scope:
+  paths:
+    - src/smr_jax/
+    - tests/
+    - examples/
+    - reference/mica-creek-jan2015/
+    - docs/packets/
+    - tools/
+write_scope:
+  allowed_paths:
+    - src/smr_jax/verify_gpu.py
+    - tests/test_jax_gpu.py
+    - tools/package_jax_gpu_snapshot.py
+    - docs/packets/PKT-SMR-JAX-VERIFY-06.md
+    - docs/packets/PKT-SMR-JAX-VERIFY-06.yaml
+  forbidden_paths:
+    - R/
+    - reference/
+    - src/smr_jax/plant.py
+    - src/smr_jax/engine.py
+    - src/smr_jax/fluxes/
+    - src/smr_jax/legacy_cpu_math.py
+    - src/smr_jax/legacy_exp.cc
+    - ../../plant-game-of-life/
+    - ../../platform/emdc-platform/
+    - ../../buildBoard/
+objective: Verify the identical float64 JAX functions on WSL CPU and CUDA GPU, then benchmark compilation, transfers, synchronized execution and prepared-input end-to-end workflow without changing model physics or existing deferral decisions.
+implementation_constraints:
+  - Reuse the existing WSL smr-jax environment without dependency or host-system changes; preserve the older Linux checkout and uncommitted work.
+  - Canonical edits stay in this packet worktree. Linux-home execution uses a new exact-commit source snapshot with file hashes and a copied prepared radiation cache, not edits to an existing checkout.
+  - Require a real CUDA device and float64 arrays; no silent CPU fallback, native math FFI, Python callback or float32 model variant.
+  - "Operator amendment 2026-11-13 (strict parity is too strict): use an explicit practical active-watershed acceptance profile; retain strict full-array diagnostics and unchanged exact masks/counters/footprints and independent conservation checks."
+  - Preserve exact masks and counters and report snow-presence disagreements; pre-existing strict Windows legacy parity remains deferred, not passed.
+  - Benchmark the same complete run_days output contract on both devices, synchronize timing and separate data loading, transfer, lowering/compilation, first execution, warmed execution and output download.
+  - Run the two-day case and record GPU peak memory before attempting thirty days. Only parity-qualified timings may be presented as a validated GPU speedup.
+acceptance_criteria:
+  - NVIDIA CUDA float64 smoke and foundation tests run on the actual RTX device.
+  - Synthetic dry/wet, snow/melt/refreeze, land-cover, zero-flow and boundary cases compare complete CPU/GPU outputs under predeclared unit budgets.
+  - External plant-water kernels pass independent layer/cell/domain water-ledger checks on both devices.
+  - Two-day then thirty-day prepared-radiation histories and actual terminal state compare on all required cells; failures remain explicit and cause a nonzero verification exit.
+  - Timings identify hardware, JAX/library versions, source and data hashes, GPU memory and measurement boundaries.
+validation:
+  - python -m unittest discover -s tests -p test_jax_gpu.py -q
+  - python -m smr_jax.verify_gpu
+  - preflight.ps1 PKT-SMR-JAX-VERIFY-06
+  - scope.ps1 PKT-SMR-JAX-VERIFY-06
+completion_outputs:
+  - docs/packets/PKT-SMR-JAX-VERIFY-06.md
+stop_conditions:
+  - Missing CUDA visibility, failed float64 readiness, out-of-scope physics edits, unresolved scientific divergence, or any host driver/system/dependency change requiring separate authorization.

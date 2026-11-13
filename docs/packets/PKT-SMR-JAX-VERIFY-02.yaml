@@ -1,0 +1,58 @@
+packet_id: PKT-SMR-JAX-VERIFY-02
+task_id: TASK-SMR-JAX-VERIFY
+title: Verify legacy soil vertical fluxes against source expressions
+status: completed
+execution_tier: judgment
+repository: SMR_R
+base_revision: 62b36a8b6258c2e96652730099a5668d74a7ceae
+integration_base_ref: feature/smr-jax-plant-water
+read_scope:
+  paths:
+    - src/smr_jax/
+    - tests/
+    - examples/plant_water.py
+    - R/smr_buildup.pl
+    - reference/mica-creek-jan2015/
+    - docs/packets/
+write_scope:
+  allowed_paths:
+    - src/smr_jax/verify_soil.py
+    - src/smr_jax/fluxes/soil.py
+    - src/smr_jax/fluxes/surface.py
+    - src/smr_jax/legacy.py
+    - tests/test_jax_soil_parity.py
+    - tests/test_jax_soil_safety.py
+    - docs/packets/PKT-SMR-JAX-VERIFY-02.md
+    - docs/packets/PKT-SMR-JAX-VERIFY-02.yaml
+  forbidden_paths:
+    - R/
+    - reference/
+    - scripts/
+    - scratch/
+    - src/smr_jax/engine.py
+    - src/smr_jax/fluxes/routing.py
+    - src/smr_jax/plant.py
+    - ../../plant-game-of-life/
+    - ../../platform/emdc-platform/
+    - ../../buildBoard/
+objective: Close the fixed six-hour legacy allocation, ET, percolation, saturation runoff and road runoff gate using independent source-expression checks, threshold cases, representative frozen cells and water ledgers.
+implementation_constraints:
+  - Preserve four six-hour steps; do not introduce adaptive stepping or new infiltration physics.
+  - Correct only demonstrated source-parity defects within the declared soil and static-loader boundary.
+  - Do not inject expected outputs into the model, rewrite frozen fixtures, relax tolerances to fit errors or drop required finite support.
+  - Lateral routing, basin recurrence, integrated parity and GPU acceptance remain separate gates.
+acceptance_criteria:
+  - Original Perl scalar expressions independently agree with actual JAX stages for synthetic threshold cases and representative frozen cells.
+  - ET land-cover inputs match original source construction for all six classes.
+  - Stage and complete-column water ledgers pass, including runoff and road source partitioning.
+  - Missing or nonfinite comparisons and numerical disagreements cause nonzero CLI exit.
+  - Existing surface and snow policy checks remain passing.
+validation:
+  - python -m unittest discover -s tests -p test_jax_*.py -v
+  - python -m smr_jax.verify_soil
+  - preflight.ps1 PKT-SMR-JAX-VERIFY-02
+  - scope.ps1 PKT-SMR-JAX-VERIFY-02
+completion_outputs:
+  - docs/packets/PKT-SMR-JAX-VERIFY-02.md
+stop_conditions:
+  - A required out-of-scope edit, unresolved scientific decision or published-interface break prevents valid verification.

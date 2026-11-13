@@ -1,0 +1,37 @@
+{
+  "reservoir_ini": "1 75218 0 0.05\r\n",
+  "raster_types": {
+    "el": "FCELL",
+    "slope": "FCELL",
+    "root_zone": "DCELL",
+    "wiltpt_amt": "DCELL",
+    "ETreduction_mc": "DCELL"
+  },
+  "schema_version": 1,
+  "captured_at": "2026-11-13T06:31:03.445545+00:00",
+  "grass": {
+    "version": "8.5.0",
+    "date": "2026",
+    "revision": "exported",
+    "build_date": "2026-06-12",
+    "build_platform": "x86_64-w64-mingw32",
+    "build_off_t_size": "8"
+  },
+  "projection": "EPSG:32611",
+  "source_sha256": "a4d5cf6878cc41acf7eeda264f4a6b334a49b8cb571767209c7e88af2ec845d3",
+  "capture_script_sha256": "1fe67dad6ceeb65ec9c3a1b62bce4d547e55e52c0822113e9887cfc3745cc4fa",
+  "frozen_artifacts": {
+    "model_inputs.zip": "7c1bcc05e247191e3f546e747184d12b3634ab677abc0649badd7e32617130a5",
+    "gridmet_weather_2015-01.csv": "dc204acefbfe3529b7bb63bea602e7860fe201efe4a2ca08a54d8318430c575c",
+    "daily_mass_balance_2015-01.csv": "d8af159dd261ea6169cb53fd737a2007ea4e64d2778ec41daa62bf14106f600d",
+    "final_state_rasters.zip": "221183a7ba076fcc1fb3550f671e3ce1408bdf0338b51603416df4779e79bf5e",
+    "two_day_internal_trace.zip": "15df55e8441d5230693d42dc1909e3c855a9915d4511e3625cb517b8032456ca",
+    "reference_config.yaml": "be65309bb70b01b8e799ea03fcf4d4c14fb83f0af3e089d66f231771f74b8e7d",
+    "legacy_simulate_manifest.json": "62553de71a145f710bb9f5db56565ba5e92cb9067631e6e6b17f21f9000815d3"
+  },
+  "binary_sha256": "cf93a72e3868ec136fbb6ce0637068a6d7d35c12475298f34bbc1a9711162f6a",
+  "binary_bytes": 422240,
+  "required_cells": 68121,
+  "representative_cells": 386,
+  "note": "Fresh GRASS slope, static properties and isolated lateral stages from frozen daily starting states; not integrated daily truth."
+}

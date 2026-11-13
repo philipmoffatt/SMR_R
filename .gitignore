@@ -1,3 +1,5 @@
 scratch/
 *.asc
 *.tif
+__pycache__/
+.pytest_cache/

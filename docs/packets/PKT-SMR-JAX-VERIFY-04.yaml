@@ -1,0 +1,66 @@
+packet_id: PKT-SMR-JAX-VERIFY-04
+task_id: TASK-SMR-JAX-VERIFY
+title: Verify integrated two and thirty day CPU parity
+status: active
+verification_result: strict-default-pure-jax-month-parity-deferred-by-operator
+sequencing_decision: operator-authorizes-VERIFY-05-on-2026-11-13
+native_math_diagnostic_result: two-and-thirty-day-pass-not-acceptance
+execution_tier: judgment
+repository: SMR_R
+base_revision: 47b517e14bcd44f456a25ed83f931469681920fd
+integration_base_ref: feature/smr-jax-plant-water
+read_scope:
+  paths:
+    - src/smr_jax/
+    - tests/
+    - tools/
+    - R/smr_buildup.pl
+    - reference/mica-creek-jan2015/
+    - docs/packets/
+write_scope:
+  allowed_paths:
+    - src/smr_jax/
+    - tests/test_jax_integrated_parity.py
+    - tests/test_jax_surface_parity.py
+    - tests/test_jax_soil_parity.py
+    - tests/test_jax_routing_parity.py
+    - tests/test_jax_initialization.py
+    - tests/fixtures/jax_verify04_capture.json
+    - tools/capture_jax_integrated_reference.py
+    - docs/packets/PKT-SMR-JAX-VERIFY-01A.md
+    - docs/packets/PKT-SMR-JAX-VERIFY-02.md
+    - docs/packets/PKT-SMR-JAX-VERIFY-03.md
+    - docs/packets/PKT-SMR-JAX-VERIFY-04.md
+    - docs/packets/PKT-SMR-JAX-VERIFY-04.yaml
+  forbidden_paths:
+    - R/
+    - reference/
+    - scripts/
+    - scratch/
+    - src/smr_jax/plant.py
+    - ../../plant-game-of-life/
+    - ../../platform/emdc-platform/
+    - ../../buildBoard/
+objective: Verify actual integrated JAX state evolution over two and thirty days against independently captured CPU daily fields, reporting and terminal rasters with only shortwave replay as prescribed input.
+implementation_constraints:
+  - Preserve legacy science, defaults, fixed six-hour steps and selected snow mode as a distinct behavior.
+  - Correct only demonstrated integrated parity defects; do not inject reference states or masks into model evolution.
+  - Never change original frozen artifacts or Perl source; any instrumentation is confined to a temporary copy and adds capture only.
+  - Run GRASS capture in a disposable location. Store large generated references outside Git at a new explicitly named output directory, with versioned capture tooling and checksum evidence.
+  - Distinguish original legacy report formatting from the optimized CPU reporting profile; do not fit numerical tolerances to failed fields.
+acceptance_criteria:
+  - Whole-engine two-day history agrees with every existing captured daily field on all required cells.
+  - A thirty-day reference extension is independently anchored to original two-day maps and frozen terminal rasters before acceptance.
+  - Default pure-JAX thirty-day named daily fluxes, states, basin history and terminal fields pass explicit strict checks on required support; optional native CPU FFI success is diagnostic and cannot close this criterion.
+  - Missing days/fields, changed support, nonfinite values and disagreements cause a nonzero verification CLI exit.
+  - Existing surface, soil, routing, selected snow-policy and plant interface tests pass.
+validation:
+  - python -m unittest discover -s tests -p test_jax_*.py -q
+  - python -m smr_jax.verify_integrated --days 2
+  - python -m smr_jax.verify_integrated --days 30 --capture-dir CAPTURE_DIRECTORY
+  - preflight.ps1 PKT-SMR-JAX-VERIFY-04
+  - scope.ps1 PKT-SMR-JAX-VERIFY-04
+completion_outputs:
+  - docs/packets/PKT-SMR-JAX-VERIFY-04.md
+stop_conditions:
+  - Out-of-scope work, unresolved scientific choices or an incompatible published-interface change is required for acceptance.

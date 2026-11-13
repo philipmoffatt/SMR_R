@@ -1,0 +1,45 @@
+packet_id: PKT-SMR-JAX-LAND-01
+task_id: TASK-SMR-JAX
+title: Close JAX feature and prepare pull request
+status: completed
+execution_tier: judgment
+repository: SMR_R
+base_revision: f30fc7a56cc87b9db0c3b766d6fbe6f41402c350
+integration_base_ref: feature/smr-jax-plant-water
+read_scope:
+  paths:
+    - README.md
+    - src/smr_jax/
+    - tests/
+    - docs/
+    - pyproject.toml
+write_scope:
+  allowed_paths:
+    - README.md
+    - docs/packets/PKT-SMR-JAX-LAND-01.md
+    - docs/packets/PKT-SMR-JAX-LAND-01.yaml
+  forbidden_paths:
+    - R/
+    - reference/
+    - src/
+    - tests/
+    - ../../plant-game-of-life/
+    - ../../platform/emdc-platform/
+objective: Reconcile the current README with the delivered JAX feature and record acceptance, deliberate deferrals and the PR boundary without changing model behavior or advancing the default branch.
+implementation_constraints:
+  - Preserve historical packet evidence and strict failures; record a current closure rather than rewriting old outcomes.
+  - No physics, tests, fixtures, dependencies, global board or other repository changes.
+  - Publishing the feature and preparing a PR are authorized; merging the default branch is outside scope.
+acceptance_criteria:
+  - Current README links the plant interface, prepared radiation and accepted GPU profile and states remaining scientific boundaries.
+  - Closure identifies the exact remote default branch, mergeability, accepted source and validation evidence.
+  - Existing uncommitted work and historical worktrees remain preserved.
+validation:
+  - python -m unittest discover -s tests -p test_jax*.py -q
+  - git merge-tree --write-tree origin/master HEAD
+  - preflight.ps1 PKT-SMR-JAX-LAND-01
+  - scope.ps1 PKT-SMR-JAX-LAND-01
+completion_outputs:
+  - docs/packets/PKT-SMR-JAX-LAND-01.md
+stop_conditions:
+  - Unexpected branch or overlapping work, model edits, or any requested default-branch merge.
