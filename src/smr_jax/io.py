@@ -21,11 +21,15 @@ class FrozenTraceProvider:
         self.target_grid = target_grid
 
     def raster(self, date: str, map_name: str) -> np.ndarray:
+        member = f"trace/{date}--{map_name.replace('.', '_')}.tif"
+        return self.raster_member(member)
+
+    def raster_member(self, member: str) -> np.ndarray:
+        """Read an explicitly named member with the same strict grid checks."""
         try:
             import tifffile
         except ImportError as exc:  # pragma: no cover - environment diagnosis
             raise RuntimeError("Replay radiation requires the project dependency tifffile") from exc
-        member = f"trace/{date}--{map_name.replace('.', '_')}.tif"
         with ZipFile(self.archive_path) as archive:
             try:
                 # The frozen archive was built on Windows. zip members can
@@ -66,7 +70,7 @@ class FrozenTraceProvider:
                 aligned[row:row + values.shape[0], col:col + values.shape[1]] = values
                 return aligned
             except KeyError as exc:
-                raise KeyError(f"No frozen trace field for {map_name} on {date}") from exc
+                raise KeyError(f"No frozen trace field: {member}") from exc
 
 
 class ReplayRadiationProvider(FrozenTraceProvider):

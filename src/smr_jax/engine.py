@@ -11,7 +11,7 @@ from .fluxes.surface import canopy, precipitation_and_temperature, road_runoff
 from .state import ModelState
 
 
-def daily_step(state: ModelState, forcing, static, *, melt_small_snow_next_day=False):
+def daily_step(state: ModelState, forcing, static, *, melt_small_snow_next_day=False, exponential=jnp.exp):
     """Legacy ordering, optionally releasing <= 1e-3 cm SWE on the next day.
 
     The opt-in residue release is spread evenly over four soil steps, including
@@ -21,10 +21,13 @@ def daily_step(state: ModelState, forcing, static, *, melt_small_snow_next_day=F
     surface = precipitation_and_temperature(static, forcing)
     canopy_storage, soil_pet, canopy_flux = canopy(state, static, surface["rain_cm"], surface["pet_cm"])
     snow, snow_flux = snow_energy(state, static, forcing, surface["tavg_c"], surface["tdew_c"], surface["snow_cm"], canopy_flux["throughfall_cm"],
-                                  melt_small_snow_next_day=melt_small_snow_next_day)
+                                  melt_small_snow_next_day=melt_small_snow_next_day, exponential=exponential)
     melt, throughfall, road = road_runoff(static, snow_flux["snowmelt_cm"], canopy_flux["throughfall_cm"])
     temp = forcing.temperatures_c[:, None, None] - (-3.20 / 1000.0) * (784.0 - static.elevation_m)[None, :, :]
-    temp_sum = jnp.sum(jnp.maximum(0.0, temp), axis=0)
+    # Perl accumulates the four temperatures sequentially, before the soil loop.
+    temp_sum = jnp.zeros_like(state.soil.total_water_cm)
+    for i in range(4):
+        temp_sum = jnp.maximum(0.0, temp[i]) + temp_sum
     zeros = jnp.zeros_like(state.soil.total_water_cm)
     residue_to_soil, residue_to_road = zeros, zeros
     if melt_small_snow_next_day:
@@ -40,26 +43,27 @@ def daily_step(state: ModelState, forcing, static, *, melt_small_snow_next_day=F
     def soil_substep(carry, temperature):
         soil, et_daily, perc_daily, runoff_daily, lateral_daily, saturation = carry
         denominator = jnp.where(temp_sum == 0.0, 1.0, temp_sum)
-        water_input = melt * jnp.maximum(temperature, 0.0) / denominator + throughfall * .25
+        water_input = melt * jnp.maximum(temperature, 0.0) / denominator + throughfall * 6.0 / 24.0
         if melt_small_snow_next_day:
             water_input = ((melt - residue_to_soil) * jnp.maximum(temperature, 0.0) / denominator
                            + throughfall * .25 + residue_to_soil * .25)
         soil = allocate_input(soil, static, water_input)
-        soil, lateral = lateral_route(soil, static)
+        soil, lateral = lateral_route(soil, static, exponential=exponential)
         a, b = soil.layer_water_cm
         from .state import TwoLayerState
         a, b = _reallocate(soil.total_water_cm, a, static)
         soil = TwoLayerState(soil.total_water_cm, jnp.stack((a, b)), soil.active_mask)
         soil, et = evapotranspiration(soil, static, forcing, soil_pet)
         soil, perc, runoff, saturation = percolation_and_runoff(soil, static)
-        return (soil, et_daily + et, perc_daily + perc, runoff_daily + runoff, lateral_daily + lateral, saturation), None
+        return (soil, et_daily + et, perc_daily + perc, runoff_daily + runoff, lateral_daily + lateral, saturation), lateral
 
     init = (state.soil, zeros, zeros, zeros, zeros, zeros)
-    (soil, et, perc, runoff, lateral, saturation), _ = jax.lax.scan(soil_substep, init, temp)
+    (soil, et, perc, runoff, lateral, saturation), lateral_steps = jax.lax.scan(soil_substep, init, temp)
+    soil_runoff = runoff
     runoff = runoff + road
     basin, discharge = basin_recurrence(state.basin, static, runoff, perc)
     next_state = replace(state, soil=soil, canopy_storage_cm=canopy_storage, snow=snow, basin=basin,
-                         annual_runoff_cm=state.annual_runoff_cm + runoff,
+                         annual_runoff_cm=state.annual_runoff_cm + soil_runoff,
                          annual_saturation_count=state.annual_saturation_count + (saturation >= 100.0))
     diagnostics = {**surface, **canopy_flux, **snow_flux, "road_runoff_cm": road,
                    "actual_et_cm": et, "percolation_cm": perc, "runoff_cm": runoff,
@@ -67,11 +71,21 @@ def daily_step(state: ModelState, forcing, static, *, melt_small_snow_next_day=F
                    "discharge_cms": discharge, "storage_amt_cm": soil.total_water_cm,
                    "storage_amt_a_cm": soil.layer_water_cm[0], "storage_amt_b_cm": soil.layer_water_cm[1],
                    "residual_snowmelt_to_soil_cm": residue_to_soil,
-                   "residual_snowmelt_road_runoff_cm": residue_to_road}
+                   "residual_snowmelt_road_runoff_cm": residue_to_road,
+                   "last_lateral_flow_cm": lateral_steps[-1],
+                   "soil_throughfall_cm": throughfall, "soil_snowmelt_cm": melt,
+                   "canopy_storage_cm": canopy_storage,
+                   "ice_cm": snow.ice_cm, "liquid_cm": snow.liquid_cm,
+                   "snow_age_days": snow.age_days, "snow_total_energy": snow.total_energy,
+                   "snow_surface_energy": snow.surface_energy, "snow_surface_temp_c": snow.surface_temp_c,
+                   "previous_swe_cm": snow.previous_swe_cm,
+                   "annual_runoff_cm": next_state.annual_runoff_cm,
+                   "annual_saturation_count": next_state.annual_saturation_count,
+                   "basin_reservoir": basin.reservoir_volume, "baseflow_cms": basin.baseflow_cms}
     return next_state, diagnostics
 
 
-def run_days(initial_state, forcings, static, *, melt_small_snow_next_day=False):
-    """Daily scan; bind the optional snow-residue mode statically under JIT."""
+def run_days(initial_state, forcings, static, *, melt_small_snow_next_day=False, exponential=jnp.exp):
+    """Daily scan; bind snow mode and optional exponential callable statically under JIT."""
     return jax.lax.scan(lambda carry, day: daily_step(carry, day, static,
-                        melt_small_snow_next_day=melt_small_snow_next_day), initial_state, forcings)
+                        melt_small_snow_next_day=melt_small_snow_next_day, exponential=exponential), initial_state, forcings)

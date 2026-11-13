@@ -10,7 +10,7 @@ SNOW_RESIDUE_CM = 1e-3  # Operator-selected convention, not a fitted tolerance.
 
 
 def snow_energy(state, static, forcing, tavg_c, tdew_c, snow_cm, throughfall_cm, *,
-                melt_small_snow_next_day=False):
+                melt_small_snow_next_day=False, exponential=jnp.exp):
     """Daily SAM update with an optional, explicit next-day residue convention.
 
     The default preserves legacy behavior. In the selected mode, positive
@@ -40,12 +40,12 @@ def snow_energy(state, static, forcing, tavg_c, tdew_c, snow_cm, throughfall_cm,
     q_srad = forcing.replay_shortwave
     cloud = forcing.cloud
     q_lw = 5.67e-8 * 3600.0 * 24.0 / 1000.0 * (
-        jnp.maximum(.72, ((9.2e-6 * (tavg_c + 273.15) ** 2) * (1.0 - .84 * cloud) + .84 * cloud)
+        jnp.maximum(.72, (((9.2 * (10.0 ** -6.0)) * (tavg_c + 273.15) ** 2) * (1.0 - .84 * cloud) + .84 * cloud)
         * (1 - static.canopy_cover) + .92 * static.canopy_cover) * (tavg_c + 273.15) ** 4
         - .98 * (snow.surface_temp_c + 273.15) ** 4)
-    vap_sat = jnp.exp((16.78 * snow.surface_temp_c - 116.9) / (snow.surface_temp_c + 237.3)) / (273.15 + snow.surface_temp_c) / .4615
-    vap_snow = jnp.where(snow.surface_temp_c < 0.0, vap_sat * jnp.exp(335.0 * snow.surface_temp_c / (.4615 * (273.15 + snow.surface_temp_c) ** 2)), vap_sat)
-    vap_air = jnp.exp((16.78 * tdew_c - 116.9) / (tdew_c + 237.3)) / (tdew_c + 273.15) / .4615
+    vap_sat = exponential((16.78 * snow.surface_temp_c - 116.9) / (snow.surface_temp_c + 237.3)) / (273.15 + snow.surface_temp_c) / .4615
+    vap_snow = jnp.where(snow.surface_temp_c < 0.0, vap_sat * exponential(335.0 * snow.surface_temp_c / (.4615 * (273.15 + snow.surface_temp_c) ** 2)), vap_sat)
+    vap_air = exponential((16.78 * tdew_c - 116.9) / (tdew_c + 237.3)) / (tdew_c + 273.15) / .4615
     q_latent = (2500.0 + 335.0) * (vap_air - vap_snow) / (rh / (3600.0 * 24.0))
     condens = jnp.where(snow.previous_swe_cm + snow_cm > 0.0, q_latent / ((2500.0 + 335.0) * 1000.0) * 100.0, 0.0)
     q_sensible = 1.0 * 1.29 * (tavg_c - snow.surface_temp_c) / (rh / (3600.0 * 24.0))
@@ -62,11 +62,12 @@ def snow_energy(state, static, forcing, tavg_c, tdew_c, snow_cm, throughfall_cm,
     factor = jnp.minimum(swe / 100.0, .02) / .05 + jnp.maximum(.02 - swe / 100.0, 0.0) / .3
     surface_energy = jnp.where(total_energy == 0.0, 0.0,
                                jnp.where(swe > 0.0, jnp.minimum(0.0, snow.surface_energy + (q_total + refreeze / 100.0 * 335.0 * 1000.0) * factor), snow.surface_energy + (q_total + refreeze / 100.0 * 335.0 * 1000.0) * factor))
-    denominator = 24.0 * (2.1 * 1000.0 * jnp.minimum(swe / 100.0, .02) + 1000.0 * 2.1 * jnp.maximum(0.0, .02 - swe / 100.0))
-    temp = surface_energy / denominator
+    denominator = (2.1 * 1000.0 * jnp.minimum(swe / 100.0, .02) + 1000.0 * 2.1 * jnp.maximum(0.0, .02 - swe / 100.0))
+    # The source divides sequentially; regrouping changes wet-period branches.
+    temp = surface_energy / 24.0 / denominator
     next_snow = replace(snow, swe_cm=swe, previous_swe_cm=swe, ice_cm=ice, liquid_cm=liquid,
                         age_days=age, total_energy=total_energy, surface_energy=surface_energy, surface_temp_c=temp)
     return next_snow, {"snowmelt_cm": snowmelt + residual_melt, "swe_cm": swe, "condens_cm": condens,
                        "residual_snowmelt_cm": residual_melt,
                        "q_srad": q_srad, "q_lw": q_lw, "q_latent": q_latent,
-                       "q_sensible": q_sensible, "q_total": q_total, "albedo": albedo}
+                       "q_sensible": q_sensible, "q_total": q_total, "q_rain_ground": q_rain, "albedo": albedo}

@@ -32,23 +32,23 @@ def allocate_input(soil, static, input_cm):
     return TwoLayerState(total, jnp.stack((a, b)), soil.active_mask)
 
 
-def _effective_conductivity(storage, fieldcap, sat_mc, depth, matrix, mpore, kfc):
+def _effective_conductivity(storage, fieldcap, sat_mc, depth, matrix, mpore, kfc, *, exponential=jnp.exp):
     safe_depth = jnp.where(depth == 0.0, 1.0, depth)
     # Source raster-only subexpressions are evaluated as FCELL before mixing
     # with DCELL storage and decimal constants in the enclosing expression.
     fc_moisture = _fcell(fieldcap / safe_depth)
     conductivity_range = _fcell(mpore - kfc)
     moisture_range = _fcell(sat_mc - fc_moisture)
-    value = jnp.where(storage < fieldcap, matrix * jnp.exp((-13.0 / sat_mc) * (sat_mc - storage / safe_depth)),
+    value = jnp.where(storage < fieldcap, matrix * exponential((-13.0 / sat_mc) * (sat_mc - storage / safe_depth)),
                       jnp.where(storage >= _fcell(sat_mc * depth), mpore,
                                 conductivity_range * (storage / safe_depth - fc_moisture) / moisture_range + kfc))
-    return value * .25
+    return value * 6.0 / 24.0
 
 
-def lateral_route(soil, static):
+def lateral_route(soil, static, *, exponential=jnp.exp):
     a, b = soil.layer_water_cm
-    eff_a = _effective_conductivity(a, static.fieldcap_a_cm, static.sat_mc_a, static.soil_depth_a_cm, static.ksat_matrix_a, static.ksat_mpore_a, static.kfc_a)
-    eff_b = _effective_conductivity(b, static.fieldcap_b_cm, static.sat_mc_b, static.soil_depth_b_cm, static.ksat_matrix_b, static.ksat_mpore_b, static.kfc_b)
+    eff_a = _effective_conductivity(a, static.fieldcap_a_cm, static.sat_mc_a, static.soil_depth_a_cm, static.ksat_matrix_a, static.ksat_mpore_a, static.kfc_a, exponential=exponential)
+    eff_b = _effective_conductivity(b, static.fieldcap_b_cm, static.sat_mc_b, static.soil_depth_b_cm, static.ksat_matrix_b, static.ksat_mpore_b, static.kfc_b, exponential=exponential)
     flow_a = jnp.minimum(eff_a * static.slope_percent / 100.0 * static.soil_depth_a_cm / 30.0 / 100.0, a)
     flow_b = jnp.minimum(eff_b * static.slope_percent / 100.0 * static.soil_depth_b_cm / 30.0 / 100.0, b)
     flow_a, flow_b = jnp.where(static.flowunits == 0.0, 0.0, flow_a), jnp.where(static.flowunits == 0.0, 0.0, flow_b)
@@ -70,11 +70,11 @@ def evapotranspiration(soil, static, forcing, pet_cm):
     coefficient_index = jnp.where(known_landuse, jnp.clip(landuse_index, 1, 6) - 1, 0)
     et_coeff = forcing.et_coeff_by_landuse[coefficient_index]
     threshold = root * static.et_reduction_mc
-    high = jnp.minimum(jnp.maximum(0.0, root_storage - static.wiltpt_amt_cm), pet_cm * et_coeff * .25)
+    high = jnp.minimum(jnp.maximum(0.0, root_storage - static.wiltpt_amt_cm), pet_cm * et_coeff * 6.0 / 24.0)
     reduction_denominator = static.et_reduction_mc - static.wiltpt_amt_cm / safe_root
     safe_reduction_denominator = jnp.where(reduction_denominator == 0.0, 1.0, reduction_denominator)
     reduction = (root_storage / safe_root - static.wiltpt_amt_cm / safe_root) / safe_reduction_denominator
-    low = jnp.minimum(jnp.maximum(0.0, root_storage - static.wiltpt_amt_cm), jnp.maximum(0.0, pet_cm * reduction * et_coeff * .25))
+    low = jnp.minimum(jnp.maximum(0.0, root_storage - static.wiltpt_amt_cm), jnp.maximum(0.0, pet_cm * reduction * et_coeff * 6.0 / 24.0))
     # GRASS selects the high-storage arm even when root_zone is zero. Protect
     # the unselected ratios without suppressing that legacy ET flux.
     et = jnp.where(root_storage > threshold, high, jnp.where(root_storage > static.wiltpt_amt_cm, low, 0.0))
