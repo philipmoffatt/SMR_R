@@ -1,8 +1,22 @@
 # PKT-SMR-JAX-VERIFY-04 — Integrated CPU verification
 
-## Result: two and thirty days pass with the explicit native CPU math profile
+## Result: OPEN - default pure-JAX month parity still fails
 
-The strict thirty-day gate now passes all **960 daily field comparisons**, full
+**Status correction, 2026-11-13, PKT-SMR-JAX-VERIFY-04A:** the completion claim
+landed in `0c0152e` was incorrect. The requested default pure-JAX engine has not
+passed strict thirty-day parity. Passing an optional native CPU exponential
+profile does not close that requirement. VERIFY-04 is **active and incomplete**;
+VERIFY-05 must not advance on the withdrawn completion claim.
+
+The code changes landed on the JAX feature branch; this is not evidence that
+the default JAX path achieved one-to-one parity. Keep the native profile as
+diagnostic evidence identifying arithmetic causes. Closure requires the default
+pure-JAX continuous run to pass the existing two-day and thirty-day criteria,
+without replacing its exponential with a native FFI or relaxing the budgets.
+
+## Native CPU diagnostic result (not VERIFY-04 acceptance)
+
+The optional native CPU profile passes all **960 daily field comparisons**, full
 daily reporting, actual terminal carry and both original golden rasters, with
 the original tolerances and all **68,121 required cells**. Every daily soil,
 snow, thermal and flux field matches exactly; 31 of the 32 field families have
@@ -10,14 +24,14 @@ zero maximum error. The remaining annual runoff counter differs by at most
 `1.3322676295501878e-15 cm`. No tolerance, source physics, six-hour step, input,
 reference artifact, support mask or threshold was changed.
 
-This acceptance uses an **explicit Windows x64 MinGW scalar-exp FFI profile**.
+This diagnostic uses an **explicit Windows x64 MinGW scalar-exp FFI profile**.
 The ordinary pure JAX exponential remains the model default and continues to
-fail the strict month gate; it is not covered by this CPU parity acceptance.
+fail the strict month gate. There is no default JAX month-parity acceptance.
 The new native library is optional, built outside Git, and needs no GRASS
 runtime. General radiation and GPU verification remain VERIFY-05 and VERIFY-06.
 The original two-day gate also passes with the default JAX math profile.
 
-See the strict closure and reproduction evidence below. The earlier failure
+See the native diagnostic and reproduction evidence below. The earlier failure
 evidence is retained as a historical record rather than recast as a pass.
 
 ## Historical audit before the source arithmetic corrections
@@ -173,9 +187,9 @@ operator decision changing acceptance or conductivity behavior. The operator
 selected continued strict verification. The measured maxima above were retained
 as evidence, not fitted replacement tolerances.
 
-## Strict closure on 2026-11-13
+## Native diagnostic on 2026-11-13; closure claim withdrawn
 
-Two source arithmetic details were jointly necessary:
+Two source arithmetic details jointly produced the native diagnostic pass:
 
 1. The snow surface temperature expression is `u.surface / 24.0 / capacity`.
    The translation grouped its denominator as `u.surface / (24.0 * capacity)`.
@@ -213,7 +227,7 @@ The distinction from XLA's intrinsic exponential is visible in the
 [CPU elemental emitter](https://github.com/openxla/xla/blob/main/xla/service/cpu/elemental_ir_emitter.cc)
 and [intrinsic implementation](https://github.com/openxla/xla/blob/main/xla/codegen/intrinsic/exp.cc).
 
-The accepted full audit is retained outside Git as
+The native diagnostic full audit is retained outside Git as
 `integrated-native-ffi-v2-audit.json`. It exits **0** with zero failed checks.
 The report includes the selected math profile and build provenance:
 
@@ -231,12 +245,12 @@ returned build metadata, all **8 native boundary/execution checks passed in
 12.726 seconds**, including the added test and the original two-day gate. These
 runs cover 109 distinct tests. Report-only scope and `git diff --check` passed.
 
-Build a NEW library outside Git, then select it explicitly for acceptance:
+Build a NEW library outside Git to reproduce the native diagnostic:
 
 ```powershell
 $env:PYTHONDONTWRITEBYTECODE='1'
 $env:PYTHONPATH="$PWD\src;$env:TEMP\smr-jax-plant-testdeps"
-# Choose a NEW output name; this is the already-built accepted artifact:
+# Choose a NEW output name; this is the already-built diagnostic artifact:
 $mathLibrary='C:\projects\git\worktrees\smr-verify04-reference\smr_legacy_exp_v2.dll'
 # To reproduce the build, use a different new output path:
 # python -B -m smr_jax.legacy_cpu_math --compiler C:\Strawberry\c\bin\g++.exe --output <new-library.dll>
@@ -251,7 +265,7 @@ For application use, load this library explicitly with
 The ordinary `run_days` default and GPU path still use JAX math. This packet
 does not claim GPU numerical parity or qualify a different math library.
 
-## Initial validation before strict closure
+## Initial validation before the native diagnostic
 
 - Preflight and report-only scope checks passed from feature base `47b517e`.
 - All **100 JAX tests passed in 141.913 seconds**, including the earlier gates,

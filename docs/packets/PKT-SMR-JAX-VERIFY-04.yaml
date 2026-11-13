@@ -1,8 +1,9 @@
 packet_id: PKT-SMR-JAX-VERIFY-04
 task_id: TASK-SMR-JAX-VERIFY
 title: Verify integrated two and thirty day CPU parity
-status: completed
-verification_result: two-and-thirty-day-strict-native-cpu-pass
+status: active
+verification_result: two-day-pass-default-pure-jax-thirty-day-strict-fail
+native_math_diagnostic_result: two-and-thirty-day-pass-not-acceptance
 execution_tier: judgment
 repository: SMR_R
 base_revision: 47b517e14bcd44f456a25ed83f931469681920fd
@@ -49,7 +50,7 @@ implementation_constraints:
 acceptance_criteria:
   - Whole-engine two-day history agrees with every existing captured daily field on all required cells.
   - A thirty-day reference extension is independently anchored to original two-day maps and frozen terminal rasters before acceptance.
-  - Thirty-day named daily fluxes, states, basin history and terminal fields pass explicit strict checks on required support.
+  - Default pure-JAX thirty-day named daily fluxes, states, basin history and terminal fields pass explicit strict checks on required support; optional native CPU FFI success is diagnostic and cannot close this criterion.
   - Missing days/fields, changed support, nonfinite values and disagreements cause a nonzero verification CLI exit.
   - Existing surface, soil, routing, selected snow-policy and plant interface tests pass.
 validation:
