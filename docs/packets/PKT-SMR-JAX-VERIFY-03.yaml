@@ -1,0 +1,66 @@
+packet_id: PKT-SMR-JAX-VERIFY-03
+task_id: TASK-SMR-JAX-VERIFY
+title: Verify lateral routing slope and basin recurrence
+status: completed
+execution_tier: judgment
+repository: SMR_R
+base_revision: 5dbdd71d5a762809c1f86b3288c47fe2cd6c81e2
+integration_base_ref: feature/smr-jax-plant-water
+read_scope:
+  paths:
+    - src/smr_jax/
+    - tests/
+    - examples/
+    - scripts/
+    - R/smr_buildup.pl
+    - reference/mica-creek-jan2015/
+    - docs/packets/
+write_scope:
+  allowed_paths:
+    - src/smr_jax/verify_routing.py
+    - src/smr_jax/fluxes/routing.py
+    - src/smr_jax/fluxes/basin.py
+    - src/smr_jax/fluxes/soil.py
+    - src/smr_jax/legacy.py
+    - src/smr_jax/verify_soil.py
+    - tests/test_jax_routing_parity.py
+    - tests/test_jax_routing.py
+    - tests/test_jax_soil_parity.py
+    - tests/fixtures/jax_verify03_grass.npz
+    - tests/fixtures/jax_verify03_grass.json
+    - tools/capture_jax_routing_reference.py
+    - docs/packets/PKT-SMR-JAX-VERIFY-02.md
+    - docs/packets/PKT-SMR-JAX-VERIFY-03.md
+    - docs/packets/PKT-SMR-JAX-VERIFY-03.yaml
+  forbidden_paths:
+    - R/
+    - reference/
+    - scratch/
+    - scripts/
+    - src/smr_jax/engine.py
+    - src/smr_jax/plant.py
+    - ../../plant-game-of-life/
+    - ../../platform/emdc-platform/
+    - ../../buildBoard/
+objective: Establish strict CPU verification of receiver-weighted lateral routing, slope defaults and basin recurrence using source expressions, independent GRASS capture, synthetic boundaries and frozen evidence.
+implementation_constraints:
+  - Preserve legacy receiver weights, slope degrees, six-hour rates, reporting-coupled recurrence and asymmetric units; do not replace them with new physics.
+  - Use only temporary disposable GRASS locations for reference capture; never edit existing runtimes.
+  - Correct only demonstrated parity defects within scope, including static precision effects required to establish routing parity.
+  - No reference-output injection into actual model state, tolerance fitting, dropped required support or altered original frozen artifacts.
+  - Source-only checks and captured GRASS evidence must be distinguished; multi-watershed and final-only reporting limitations must be stated.
+acceptance_criteria:
+  - Eight orientations, receiving weights, NULL/border behavior, zero flowunits, layer/total updates and domain gain/loss accounting agree with independent evidence.
+  - Slope values and their downstream flow effects match GRASS defaults on required frozen support.
+  - Reservoir initialization, percolation/runoff conversions and previous-baseflow update order match source and captured output.
+  - Missing, nonfinite, malformed and mismatching evidence causes nonzero CLI exit.
+  - Existing soil, surface, snow policy and plant checks pass.
+validation:
+  - python -m unittest discover -s tests -p test_jax_*.py -q
+  - python -m smr_jax.verify_routing
+  - preflight.ps1 PKT-SMR-JAX-VERIFY-03
+  - scope.ps1 PKT-SMR-JAX-VERIFY-03
+completion_outputs:
+  - docs/packets/PKT-SMR-JAX-VERIFY-03.md
+stop_conditions:
+  - Required out-of-scope changes, unresolved science or a published-interface break prevents valid acceptance.

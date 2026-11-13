@@ -6,15 +6,22 @@ from .routing import legacy_receive_gather
 from ..state import TwoLayerState
 
 
+def _fcell(value):
+    """Round a source FCELL intermediate, then retain float64 engine arrays."""
+    return value.astype(jnp.float32).astype(jnp.float64)
+
+
 def _reallocate(total, layer_a, static):
     """The repeated Perl A/B redistribution expressions, preserving total separately."""
     tmp_a = jnp.where(total < static.fieldcap_amt_cm, jnp.minimum(layer_a, static.fieldcap_a_cm), layer_a)
+    saturation_a = _fcell(static.sat_mc_a * static.soil_depth_a_cm)
+    saturation_b = _fcell(static.sat_mc_b * static.soil_depth_b_cm)
     layer_b = jnp.where(total < static.fieldcap_amt_cm, total - tmp_a,
-                        jnp.where(total - static.fieldcap_a_cm < static.sat_mc_b * static.soil_depth_b_cm,
-                                  total - static.fieldcap_a_cm, static.sat_mc_b * static.soil_depth_b_cm))
+                        jnp.where(total - static.fieldcap_a_cm < saturation_b,
+                                  total - static.fieldcap_a_cm, saturation_b))
     layer_a = jnp.where(total < static.fieldcap_amt_cm, tmp_a,
-                        jnp.where(total - layer_b < static.sat_mc_a * static.soil_depth_a_cm,
-                                  total - layer_b, static.sat_mc_a * static.soil_depth_a_cm))
+                        jnp.where(total - layer_b < saturation_a,
+                                  total - layer_b, saturation_a))
     return layer_a, layer_b
 
 
@@ -27,10 +34,14 @@ def allocate_input(soil, static, input_cm):
 
 def _effective_conductivity(storage, fieldcap, sat_mc, depth, matrix, mpore, kfc):
     safe_depth = jnp.where(depth == 0.0, 1.0, depth)
+    # Source raster-only subexpressions are evaluated as FCELL before mixing
+    # with DCELL storage and decimal constants in the enclosing expression.
+    fc_moisture = _fcell(fieldcap / safe_depth)
+    conductivity_range = _fcell(mpore - kfc)
+    moisture_range = _fcell(sat_mc - fc_moisture)
     value = jnp.where(storage < fieldcap, matrix * jnp.exp((-13.0 / sat_mc) * (sat_mc - storage / safe_depth)),
-                      jnp.where(storage >= sat_mc * depth, mpore,
-                                (mpore - kfc) * (storage / safe_depth - fieldcap / safe_depth) /
-                                (sat_mc - fieldcap / safe_depth) + kfc))
+                      jnp.where(storage >= _fcell(sat_mc * depth), mpore,
+                                conductivity_range * (storage / safe_depth - fc_moisture) / moisture_range + kfc))
     return value * .25
 
 
@@ -75,7 +86,10 @@ def evapotranspiration(soil, static, forcing, pet_cm):
 
 def percolation_and_runoff(soil, static):
     a, b = soil.layer_water_cm
-    perc = jnp.minimum(jnp.minimum(jnp.maximum(soil.total_water_cm - static.fieldcap_amt_cm, 0.0), b), static.ksubsurface * .25)
+    # Perl interpolates the six-hour multiplier as integer 6: FCELL * CELL
+    # rounds before division by the DCELL constant 24.0.
+    capacity = _fcell(static.ksubsurface * 6.0) / 24.0
+    perc = jnp.minimum(jnp.minimum(jnp.maximum(soil.total_water_cm - static.fieldcap_amt_cm, 0.0), b), capacity)
     total = soil.total_water_cm - perc
     b = b - perc
     a, b = _reallocate(total, a, static)

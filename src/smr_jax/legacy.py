@@ -108,9 +108,13 @@ def _landcover_properties(landuse: np.ndarray, soil_depth: np.ndarray, soil_dept
     tmin_snow = by_lu(-1., -3., -1., .9, -3., -3.)
     # Perl overwrites the imported raster before ET. Grass uses A only, while
     # forest/shrub/crop use the profile and water/urban use zero.
-    wilt_a = wiltpt_mc_a * soil_depth_a
-    wilt_profile = wilt_a + wiltpt_mc_b * soil_depth_b
-    wiltpt = by_lu(wilt_profile, wilt_a, wilt_profile, wilt_profile, 0., 0.)
+    # Both operands of these source products/sum are FCELL rasters. GRASS
+    # rounds each operation in single precision before the conditional's
+    # double-precision default arm promotes the resulting raster to DCELL.
+    wilt_a = np.asarray(wiltpt_mc_a, dtype=np.float32) * np.asarray(soil_depth_a, dtype=np.float32)
+    wilt_b = np.asarray(wiltpt_mc_b, dtype=np.float32) * np.asarray(soil_depth_b, dtype=np.float32)
+    wilt_profile = wilt_a + wilt_b
+    wiltpt = by_lu(wilt_profile, wilt_a, wilt_profile, wilt_profile, 0., 0.).astype(np.float64)
     return max_canopy, canopy_cover, root_zone, et_reduction, tmax_rain, tmin_snow, wiltpt
 
 
@@ -132,19 +136,18 @@ def _grass_default_slope_degrees(elevation_m: np.ndarray, cellsize_m: float) -> 
     complete 3x3 finite neighbourhood; NULL centres and borders remain NULL
     rather than being filled, extrapolated, or silently treated as flat.
 
-    This is an authorized emulation, not evidence of final parity. The routing
-    verification gate compares its downstream effect before this is promoted
-    from the replay implementation.
+    The default output is FCELL. Retain that rounding before promotion to the
+    engine's float64 arrays; VERIFY-03 checks it against a fresh GRASS capture.
     """
     padded = np.pad(elevation_m, 1, constant_values=np.nan)
     z1, z2, z3 = padded[:-2, :-2], padded[:-2, 1:-1], padded[:-2, 2:]
     z4, z6 = padded[1:-1, :-2], padded[1:-1, 2:]
     z7, z8, z9 = padded[2:, :-2], padded[2:, 1:-1], padded[2:, 2:]
-    valid = np.isfinite(np.stack((z1, z2, z3, z4, z6, z7, z8, z9))).all(axis=0)
+    valid = np.isfinite(elevation_m) & np.isfinite(np.stack((z1, z2, z3, z4, z6, z7, z8, z9))).all(axis=0)
     dz_dx = ((z3 + 2 * z6 + z9) - (z1 + 2 * z4 + z7)) / (8 * cellsize_m)
     dz_dy = ((z7 + 2 * z8 + z9) - (z1 + 2 * z2 + z3)) / (8 * cellsize_m)
     result = np.degrees(np.arctan(np.sqrt(dz_dx * dz_dx + dz_dy * dz_dy)))
-    return np.where(valid, result, np.nan)
+    return np.where(valid, result, np.nan).astype(np.float32).astype(np.float64)
 
 
 def load_legacy_bundle(bundle_path: str | Path) -> StaticInputs:

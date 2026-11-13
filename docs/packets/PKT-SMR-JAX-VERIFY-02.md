@@ -135,3 +135,21 @@ time in a separate selectable path, then verify conservative exchange and
 fixed-step refinement under identical physical profiles and forcing. Shared
 steps for interacting layers and synchronization at forcing/coupling events are
 the proposed starting design, not implemented behavior in this packet.
+
+## VERIFY-03 follow-up: source raster precision
+
+Fresh GRASS 8.5 evidence captured by `PKT-SMR-JAX-VERIFY-03` exposed a limitation
+of this packet's original source-only oracle: it evaluated imported raster
+subexpressions uniformly in double precision. GRASS retains FCELL arithmetic
+inside an expression until a DCELL operand promotes the result. The original
+results above remain historical evidence, not proof of GRASS raster precision.
+
+VERIFY-03 corrects the wilting-storage products/sum, layer saturation products,
+and the percolation `Ksubsurface * 6 / 24.0` intermediate accordingly. The source
+oracle now models FCELL/integer/DCELL promotion, and synthetic imported
+properties are represented as FCELL values. Grass stress and bottom-layer-full
+threshold probes are placed at those represented thresholds. The updated gate
+retains the same tolerances and passes all 918 synthetic and 588 representative
+cases. Fresh captured GRASS root depth, wilting storage and ET-reduction moisture
+match exactly on all 68,121 required cells. See
+[VERIFY-03](PKT-SMR-JAX-VERIFY-03.md) for capture provenance and validation.

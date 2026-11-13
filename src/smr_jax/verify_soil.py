@@ -40,11 +40,21 @@ _RAW = set(_STATIC.values()) | {"soil_depth", "wiltpt_mc_B", "wiltpt_amt"}
 def _evaluate(node, env):
     """Small allowlisted evaluator; scalar conditionals evaluate one arm only."""
     if isinstance(node, ast.Constant) and type(node.value) in (int, float):
-        return node.value
+        # GRASS decimal constants are DCELL. Explicit numpy scalars prevent
+        # numpy's weak Python-scalar promotion from keeping FCELL arithmetic.
+        return np.float64(node.value) if isinstance(node.value, float) else np.int64(node.value)
     if isinstance(node, ast.Name):
         return env[node.id]
     if isinstance(node, ast.BinOp) and type(node.op) in _BINARY:
-        return _BINARY[type(node.op)](_evaluate(node.left, env), _evaluate(node.right, env))
+        left, right = _evaluate(node.left, env), _evaluate(node.right, env)
+        # GRASS promotes integer/FCELL to FCELL, and any DCELL operand to DCELL.
+        # numpy otherwise promotes int64/float32 to float64.
+        types = (np.asarray(left).dtype, np.asarray(right).dtype)
+        if any(t == np.dtype("float64") for t in types):
+            left, right = np.asarray(left, dtype=np.float64), np.asarray(right, dtype=np.float64)
+        elif any(t == np.dtype("float32") for t in types):
+            left, right = np.asarray(left, dtype=np.float32), np.asarray(right, dtype=np.float32)
+        return _BINARY[type(node.op)](left, right)
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
         value = _evaluate(node.operand, env)
         return -value if isinstance(node.op, ast.USub) else value
@@ -59,6 +69,9 @@ def _evaluate(node, env):
         if node.func.id in ("min", "max") and len(node.args) == 2:
             function = np.minimum if node.func.id == "min" else np.maximum
             return function(_evaluate(node.args[0], env), _evaluate(node.args[1], env))
+        if node.func.id in ("exp", "isnull") and len(node.args) == 1:
+            function = np.exp if node.func.id == "exp" else np.isnan
+            return function(_evaluate(node.args[0], env))
     raise ValueError(f"unsupported source expression: {ast.dump(node)}")
 
 
@@ -90,14 +103,22 @@ class SourceOracle:
             parsed = []
             for expression in expressions:
                 target, value = expression.split(" = ", 1)
+                # Perl interpolates these numeric variables as integer text.
+                value = value.replace("$temp_time_step", "6").replace("$gridsize", "30")
                 value = re.sub(r"\$(\w+)", r"\1", value)
                 value = re.sub(r"\bif\(", "choose(", value)
                 parsed.append((target.strip(), ast.parse(value, mode="eval").body))
             self.blocks[name] = parsed
 
     def run(self, block, env):
+        # Imported rasters remain FCELL in every block. wiltpt_amt is replaced
+        # by the DCELL land-cover expression before the dynamic soil stages.
+        working = {**env, **{k: np.asarray(v, dtype=np.float32) for k, v in env.items()
+                            if k in _RAW and (block == "properties" or k != "wiltpt_amt")}}
         for target, expression in self.blocks[block]:
-            env[target] = _evaluate(expression, env)
+            value = _evaluate(expression, working)
+            env[target] = np.asarray(value, dtype=np.float64) if block == "properties" else value
+            working[target] = env[target]
         return env
 
 
@@ -123,12 +144,17 @@ def synthetic_cases():
                     wiltpt_amt=10., temp_time_step=6., gridsize=30.,
                     temp=1., temp_sum=4., snowmelt=0., throughfall=0.,
                     cc_water=.65, cc_urban=.3, cc_forest=1., cc_shrub=.45, cc_grass=.3, cc_row_crop=1.15)
+        # Imported FCELL properties define the actual threshold locations.
+        for key in _RAW & base.keys():
+            base[key] = float(np.float32(base[key]))
+        grass_stress = base["fieldcap_amt_A"] * .8
+        bottom_full = base["fieldcap_amt_A"] + float(np.float32(base["sat_mc_B"]*base["soil_depth_B"]))
         # Include each side of the allocation/FC/saturation boundaries, and the
         # forest A-only root storage versus other classes' total storage.
         for total in (0., 3.-1e-8, 3., 3.+1e-8, 10.-1e-8, 10., 10.+1e-8,
-                      8.4-1e-8, 8.4, 8.4+1e-8, 41.5-1e-8, 41.5, 41.5+1e-8,
+                      grass_stress-1e-8, grass_stress, grass_stress+1e-8, 41.5-1e-8, 41.5, 41.5+1e-8,
                       19.6-1e-8, 19.6, 19.6+1e-8, 22.4-1e-8, 22.4, 22.4+1e-8,
-                      28.-1e-8, 28., 28.+1e-8, 39.9-1e-8, 39.9, 39.9+1e-8,
+                      28.-1e-8, 28., 28.+1e-8, bottom_full-1e-8, bottom_full, bottom_full+1e-8,
                       45.-1e-8, 45., 45.+1e-8):
             for water, pet, ksub in ((0., 0., 0.), (.04, .8, .5), (60., 8., 1000.)):
                 env = dict(base, storage_amt=total, storage_amt_A=min(total, 8.4),
@@ -181,6 +207,7 @@ def verify_cases(oracle, template, forcing, cases):
     """Compare every stage and independently reconstruct each water ledger."""
     if not cases:
         raise ValueError("no required soil cases")
+    cases = [{k: float(np.float32(v)) if k in _RAW else v for k, v in case.items()} for case in cases]
     column = lambda key: np.asarray([[c[key] for c in cases]], dtype=np.float64)
     static = _packed_static(template, cases)
     # The forcing coefficient vector is deliberately nonuniform in the branch matrix.
