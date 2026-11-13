@@ -20,12 +20,13 @@ _MAPS = {
 }
 
 
-def comparison_rows(reference_dir: Path, days: int = 2):
+def comparison_rows(reference_dir: Path, days: int = 2, *, melt_small_snow_next_day=False):
     static = load_legacy_bundle(reference_dir / "model_inputs.zip")
     trace = FrozenTraceProvider(reference_dir / "two_day_internal_trace.zip", static.grid)
     forcings = load_daily_forcings(reference_dir / "gridmet_weather_2015-01.csv",
                                    ReplayRadiationProvider(reference_dir / "two_day_internal_trace.zip", static.grid), days)
-    _, history = run_days(initialize_legacy_state(static), forcings, static)
+    _, history = run_days(initialize_legacy_state(static), forcings, static,
+                          melt_small_snow_next_day=melt_small_snow_next_day)
     rows = []
     for day in range(days):
         date = f"2015-01-{day + 1:02d}"
@@ -41,9 +42,11 @@ def comparison_rows(reference_dir: Path, days: int = 2):
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Compare first-gate JAX surface/snow fields to frozen trace maps.")
     parser.add_argument("--reference-dir", type=Path, default=Path("reference/mica-creek-jan2015"))
+    parser.add_argument("--melt-small-snow-next-day", action="store_true",
+                        help="Report the explicit 1e-3 cm next-day-melt departure from frozen legacy behavior.")
     args = parser.parse_args(argv)
     print("date\tmap\tcells\trmse\tmax_abs")
-    for row in comparison_rows(args.reference_dir):
+    for row in comparison_rows(args.reference_dir, melt_small_snow_next_day=args.melt_small_snow_next_day):
         print("%s\t%s\t%d\t%.17g\t%.17g" % row)
     return 0
 

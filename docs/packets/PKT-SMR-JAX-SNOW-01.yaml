@@ -1,0 +1,58 @@
+packet_id: PKT-SMR-JAX-SNOW-01
+task_id: TASK-SMR-JAX-VERIFY
+title: Release small residual snow as next-day melt
+status: active
+execution_tier: judgment
+repository: SMR_R
+base_revision: 400765e47d270354cbadd77463181f130f06b4f8
+integration_base_ref: feature/smr-jax-plant-water
+read_scope:
+  paths:
+    - src/smr_jax/
+    - tests/
+    - examples/plant_water.py
+    - R/smr_buildup.pl
+    - reference/mica-creek-jan2015/
+    - C:/projects/git/worktrees/PKT-SMR-JAX-VERIFY-01/
+write_scope:
+  allowed_paths:
+    - src/smr_jax/fluxes/snow.py
+    - src/smr_jax/engine.py
+    - src/smr_jax/cli.py
+    - src/smr_jax/io.py
+    - src/smr_jax/verify_surface.py
+    - tests/test_jax_trace_contract.py
+    - tests/test_jax_snow_residue.py
+    - docs/packets/PKT-SMR-JAX-VERIFY-01.md
+    - docs/packets/PKT-SMR-JAX-SNOW-01.md
+    - docs/packets/PKT-SMR-JAX-SNOW-01.yaml
+  forbidden_paths:
+    - R/
+    - reference/
+    - scripts/
+    - scratch/
+    - ../../plant-game-of-life/
+    - ../../platform/emdc-platform/
+    - ../../buildBoard/
+    - ../../engineering-os/
+objective: Implement the operator-selected positive SWE <= 1e-3 cm next-day melt convention, retaining water overnight and preserving the selectable legacy path.
+required_context:
+  - Operator explicitly chose 1e-3 cm residual SWE and release as melt the next day.
+  - Existing VERIFY tooling reports day-two legacy discrepancies; this is not a parity pass.
+implementation_constraints:
+  - Reuse committed VERIFY tooling in this isolated branch; preserve the original VERIFY worktree.
+  - No canopy or litter-store transfer, new soil physics, threshold fitting, or default-branch change.
+  - Release residual once, bypass snow-presence decisions, conserve its route to soil/road runoff even on cold days.
+  - Preserve legacy mode by default; expose the corrected mode explicitly.
+acceptance_criteria:
+  - Positive residual at or below 1e-3 cm is released on the following day, not the day it forms.
+  - Zero/negative/above-threshold SWE and inactive cells do not trigger cleanup.
+  - Independent snow and residual routing ledgers close; threshold, new snowfall, cold-day and multi-day JIT tests pass.
+  - Existing JAX tests pass and legacy outputs remain unchanged in the available CPU environment.
+validation:
+  - python -m unittest discover -s tests -p test_jax_*.py -v
+  - Compare two-day legacy and selected-policy reports without claiming the changed policy matches frozen legacy traces.
+  - preflight.ps1 PKT-SMR-JAX-SNOW-01
+  - scope.ps1 PKT-SMR-JAX-SNOW-01
+completion_outputs:
+  - docs/packets/PKT-SMR-JAX-SNOW-01.md
