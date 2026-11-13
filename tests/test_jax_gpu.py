@@ -83,6 +83,54 @@ class ComparisonBoundaryTest(unittest.TestCase):
         self.assertEqual(report["gpu"]["qualification"], "unqualified-full-array-parity-failed")
 
 
+class PracticalAcceptanceTest(unittest.TestCase):
+    def classify(self, expected, actual, mask=None):
+        mask = np.asarray([[True]]) if mask is None else mask
+        return gate.practical_comparison(gate.compare_outputs(expected, actual, mask))
+
+    def test_small_water_differences_pass_but_material_errors_fail(self):
+        expected = {"water_cm": np.asarray([[0.]])}
+        for delta, passed in ((.0002, True), (.001, True), (.00101, False), (.1, False)):
+            with self.subTest(delta=delta):
+                result = self.classify(expected, {"water_cm": np.asarray([[delta]])})
+                self.assertEqual(result["passed"], passed)
+
+    def test_each_unit_limit_is_enforced_without_relative_error_allowance(self):
+        fields = {"q_total": "energy", "tavg_c": "temperature_or_percent", "discharge_cms": "cms",
+                  "reservoir_volume": "reservoir", "albedo": "dimensionless", "domain_residual_m3": "m3"}
+        for field, unit in fields.items():
+            expected = {field: np.asarray([[0.]])}
+            for scale, passed in ((.5, True), (2., False)):
+                with self.subTest(field=field, scale=scale):
+                    actual = {field: np.asarray([[scale*gate.PRACTICAL_LIMITS[unit]]])}
+                    self.assertEqual(self.classify(expected, actual)["passed"], passed)
+        self.assertFalse(self.classify({"water_cm": np.asarray([[1e6]])},
+                                       {"water_cm": np.asarray([[1e6+.01]])})["passed"])
+
+    def test_outside_numeric_values_are_diagnostic_but_counters_remain_exact(self):
+        mask = np.asarray([[True, False]])
+        expected = {"water_cm": np.asarray([[1., 2.]]), "snow_age_days": np.asarray([[2., 2.]])}
+        actual = {"water_cm": np.asarray([[1., 3.]]), "snow_age_days": expected["snow_age_days"]}
+        self.assertTrue(self.classify(expected, actual, mask)["passed"])
+        actual["snow_age_days"] = np.asarray([[2., 3.]])
+        self.assertFalse(self.classify(expected, actual, mask)["passed"])
+        with self.assertRaises(ValueError):
+            self.classify(expected, {**actual, "water_cm": np.asarray([[np.nan, 3.]])}, mask)
+
+    def test_practical_timing_qualification_retains_strict_failure(self):
+        expected = {"water_cm": np.asarray([[1.]])}
+        actual = {"water_cm": np.asarray([[1.0002]])}
+        def timing(resident, device, metrics, repeats, loader):
+            metrics["warmed_median_s"] = 1.
+        with patch.object(gate, "execute", side_effect=[(expected, {}, None), (actual, {}, None)]), \
+             patch.object(gate, "warmed_timing", side_effect=timing):
+            result, _, _ = gate.verify_case(None, (), None, None, np.asarray([[True]]),
+                repeats=5, acceptance_profile="practical")
+        self.assertTrue(result["comparison"]["passed"])
+        self.assertFalse(result["strict_comparison"]["passed"])
+        self.assertEqual(result["gpu"]["qualification"], "practical-acceptance-passed")
+
+
 class ExecutionHarnessTest(unittest.TestCase):
     def test_compiled_fcell_rounding_matches_explicit_host_rounding(self):
         # Values that change when rounded: returning float64 alone does not

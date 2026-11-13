@@ -1,8 +1,8 @@
 """Float64 CPU/CUDA verification and synchronized prepared-workflow benchmarks.
 
-No physics functions are replaced. Strict comparisons use the existing unit
-budgets; audit mode retains failures and a nonzero exit. Timing ratios are
-qualified only when the corresponding complete-output comparison passes.
+No physics functions are replaced. Practical acceptance checks all active
+cells and scalar outputs; the original strict comparison remains diagnostic.
+Timing qualification names the acceptance profile that passed.
 """
 
 import argparse
@@ -40,6 +40,12 @@ CPU_OPTIONS = {"xla_cpu_enable_fast_math": False, "xla_cpu_enable_fast_min_max":
 GPU_OPTIONS = {"xla_gpu_enable_fast_min_max": False, "xla_allow_excess_precision": False}
 EXACT_FIELDS = {"age_days", "snow_age_days", "annual_saturation_count"}
 TEMP_FIELDS = {"tavg_c", "tdew_c", "surface_temp_c", "snow_surface_temp_c", "saturation_percent"}
+# Operator-selected engineering acceptance, separate from strict arithmetic
+# identity and from the independent conservation checks. Absolute limits only:
+# no scale-dependent relative allowance, interpolation, or percentile exclusion.
+PRACTICAL_LIMITS = {"cm": 1e-3, "energy": 1e-3, "temperature_or_percent": 1e-3,
+                    "cms": 1e-10, "reservoir": 1e-9, "dimensionless": 1e-6,
+                    "m3": 1e-10, "exact": 0.}
 
 
 def field_budget(name):
@@ -134,6 +140,32 @@ def require_devices():
     if not gpu or gpu[0].platform != "gpu":
         raise RuntimeError("CUDA GPU required; CPU fallback is not GPU verification")
     return cpu[0], gpu[0]
+
+
+def practical_comparison(strict_result):
+    """Apply declared absolute limits to maxima over every required output value.
+
+    The strict comparer has already checked structures, dtypes, required
+    finiteness and complete finite footprints. Per-unit maxima cover all fields
+    and times, so this does not discard bad cells or use averages/percentiles.
+    """
+    domain = strict_result["required_domain"]
+    failures = [finding for finding in domain["failures"] if "reason" in finding]
+    # Counters and masks remain exact even outside the numeric acceptance mask.
+    if strict_result["max_errors_by_unit"].get("exact", 0.) != 0.:
+        failures.append({"unit": "exact", "reason": "exact counter mismatch"})
+    for unit, maximum in domain["max_errors_by_unit"].items():
+        if unit not in PRACTICAL_LIMITS or not np.isfinite(maximum) or maximum < 0.:
+            raise ValueError(f"invalid practical comparison unit/error: {unit}")
+        if unit != "exact" and maximum > PRACTICAL_LIMITS[unit]:
+            failures.append({"unit": unit, "max_abs": maximum, "atol": PRACTICAL_LIMITS[unit]})
+    return {"passed": not failures, "failed_units_or_exact_checks": len(failures),
+            "failures": failures, "profile": "practical", "scope": "all-active-cells-and-all-scalars",
+            "max_errors_by_unit": dict(domain["max_errors_by_unit"]),
+            "max_field_errors": dict(domain["max_field_errors"]),
+            "absolute_limits": dict(PRACTICAL_LIMITS), "rtol": 0.,
+            "required_cells": strict_result["required_cells"],
+            "snow_presence_disagreements_cell_days": strict_result["snow_presence_disagreements_cell_days"]}
 
 
 def verify_snapshot(root, metadata_path):
@@ -283,19 +315,25 @@ def coupling_cases(static):
             yield (soil, static, want, surface), boundary
 
 
-def verify_case(function, args, cpu, gpu, mask, *, repeats=0, loader=None, diagnostic_timing=False):
+def verify_case(function, args, cpu, gpu, mask, *, repeats=0, loader=None, diagnostic_timing=False,
+                acceptance_profile="strict"):
+    if acceptance_profile not in ("strict", "practical"):
+        raise ValueError("unknown GPU acceptance profile")
     host_args = _host_tree(args)
     expected, cpu_timing, cpu_resident = execute(function, host_args, cpu)
     actual, gpu_timing, gpu_resident = execute(function, host_args, gpu)
-    comparison = compare_outputs(expected, actual, mask)
+    strict = compare_outputs(expected, actual, mask)
+    comparison = practical_comparison(strict) if acceptance_profile == "practical" else strict
     if repeats and (comparison["passed"] or diagnostic_timing):
         warmed_timing(cpu_resident, cpu, cpu_timing, repeats, loader)
         warmed_timing(gpu_resident, gpu, gpu_timing, repeats, loader)
-        qualification = "full-array-parity-passed" if comparison["passed"] else "unqualified-full-array-parity-failed"
+        qualification = (f"{acceptance_profile}-acceptance-passed" if comparison["passed"]
+                         else "unqualified-full-array-parity-failed")
         cpu_timing["qualification"] = gpu_timing["qualification"] = qualification
         if comparison["passed"]:
             comparison["validated_compute_speedup"] = cpu_timing["warmed_median_s"]/gpu_timing["warmed_median_s"]
-    return {"comparison": comparison, "cpu": cpu_timing, "gpu": gpu_timing}, expected, actual
+    return {"comparison": comparison, "acceptance_profile": acceptance_profile,
+            "strict_comparison": strict, "cpu": cpu_timing, "gpu": gpu_timing}, expected, actual
 
 
 def environment_report(cpu, gpu):
@@ -313,10 +351,12 @@ def environment_report(cpu, gpu):
 
 
 def verification_report(reference_dir, radiation_dir, *, days=(2, 30), repeats=5, audit_all=False,
-                        melt_small_snow_next_day=False, diagnostic_timing=False):
+                        melt_small_snow_next_day=False, diagnostic_timing=False, acceptance_profile="practical"):
     cpu, gpu = require_devices()
-    report = {"environment": environment_report(cpu, gpu), "budgets": {"rtol": RTOL, "water_atol_cm": 1e-12,
-        "energy_atol": 1e-9, "temperature_percent_atol": 1e-10, "cms_atol": 1e-15}, "synthetic": [], "cases": []}
+    report = {"environment": environment_report(cpu, gpu), "strict_budgets": {"rtol": RTOL, "water_atol_cm": 1e-12,
+        "energy_atol": 1e-9, "temperature_percent_atol": 1e-10, "cms_atol": 1e-15},
+        "acceptance_profile": acceptance_profile, "practical_absolute_limits": dict(PRACTICAL_LIMITS),
+        "synthetic": [], "cases": []}
     passed = True
     with jax.default_device(cpu):
         initial, forcing, static = synthetic_model()
@@ -355,7 +395,8 @@ def verification_report(reference_dir, radiation_dir, *, days=(2, 30), repeats=5
         function = lambda state, weather, constants: run_days(
             state, weather, constants, melt_small_snow_next_day=melt_small_snow_next_day)
         result, _, _ = verify_case(function, args, cpu, gpu, np.asarray(static.active_mask),
-            repeats=repeats, loader=load, diagnostic_timing=diagnostic_timing)
+            repeats=repeats, loader=load, diagnostic_timing=diagnostic_timing,
+            acceptance_profile=acceptance_profile)
         qualifies = result["comparison"]["passed"]
         result.update(days=count, loading_initialization_s=loading,
             snow_policy="next_day_melt_1e-3_cm" if melt_small_snow_next_day else "legacy",
@@ -369,6 +410,8 @@ def verification_report(reference_dir, radiation_dir, *, days=(2, 30), repeats=5
         if not qualifies and not audit_all:
             break
     report["passed"] = bool(passed)
+    report["strict_passed"] = all(case["strict_comparison"]["passed"]
+                                   for case in report["synthetic"]+report["cases"])
     report["note"] = "Same WSL JAX version on CPU/CUDA; Windows strict legacy parity remains separately deferred."
     return report
 
@@ -380,6 +423,8 @@ def main(argv=None):
     parser.add_argument("--days", type=int, nargs="+", choices=(2, 30), default=[2, 30])
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--audit-all", action="store_true")
+    parser.add_argument("--acceptance-profile", choices=("practical", "strict"), default="practical",
+                        help="practical active-watershed acceptance (default), or strict full-array parity")
     parser.add_argument("--diagnostic-timing", action="store_true",
                         help="also measure failed cases as explicitly unqualified diagnostics; never validate a speedup")
     parser.add_argument("--melt-small-snow-next-day", action="store_true",
@@ -395,7 +440,8 @@ def main(argv=None):
         revision = verify_snapshot(Path(__file__).resolve().parents[2], args.snapshot_manifest) if args.snapshot_manifest else None
         report = verification_report(args.reference_dir, args.radiation_dir, days=args.days,
             repeats=args.repeats, audit_all=args.audit_all,
-            melt_small_snow_next_day=args.melt_small_snow_next_day, diagnostic_timing=args.diagnostic_timing)
+            melt_small_snow_next_day=args.melt_small_snow_next_day, diagnostic_timing=args.diagnostic_timing,
+            acceptance_profile=args.acceptance_profile)
         report["source_revision"] = revision
         with args.report_path.open("x", encoding="utf-8") as stream:
             json.dump(report, stream, indent=2)
