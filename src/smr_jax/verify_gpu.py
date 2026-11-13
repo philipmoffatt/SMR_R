@@ -10,6 +10,7 @@ from dataclasses import replace
 from hashlib import sha256
 import importlib.metadata
 import json
+import os
 from pathlib import Path
 import platform
 import statistics
@@ -71,6 +72,7 @@ def compare_outputs(expected, actual, required_mask):
     if required_mask.dtype != np.bool_ or required_mask.ndim != 2 or not required_mask.any():
         raise ValueError("need nonempty independent boolean model support")
     failures, errors, units = [], {}, {}
+    domain_failures, domain_errors, domain_units = [], {}, {}
     for (path, cpu), (_, gpu) in zip(expected_leaves, actual_leaves):
         label = jax.tree_util.keystr(path)
         name = getattr(path[-1], "key", getattr(path[-1], "name", None))
@@ -79,7 +81,9 @@ def compare_outputs(expected, actual, required_mask):
             raise ValueError(f"{label}: CPU/GPU shape or type differs")
         if cpu.dtype.kind in "biu":
             if not np.array_equal(cpu, gpu):
-                failures.append({"field": label, "reason": "exact boolean/integer mismatch"})
+                finding = {"field": label, "reason": "exact boolean/integer mismatch"}
+                failures.append(finding)
+                domain_failures.append(finding)
             continue
         if cpu.dtype != np.float64:
             raise ValueError(f"{label}: floating outputs must be float64")
@@ -99,12 +103,27 @@ def compare_outputs(expected, actual, required_mask):
         if bad.any():
             failures.append({"field": label, "max_abs": maximum, "outside_budget": int(bad.sum()),
                              "atol": atol, "rtol": rtol})
+        # Keep full finite-array acceptance above unchanged. This additional
+        # view distinguishes a modeled-watershed error from unused terrain
+        # values outside its independent input mask; it never qualifies timing.
+        delta = np.abs(gpu[required]-cpu[required])
+        maximum = float(delta.max()) if delta.size else 0.
+        domain_errors[label] = maximum
+        domain_units[unit] = max(domain_units.get(unit, 0.), maximum)
+        bad = delta > atol+rtol*np.abs(cpu[required])
+        if bad.any():
+            domain_failures.append({"field": label, "max_abs": maximum, "outside_budget": int(bad.sum()),
+                                    "atol": atol, "rtol": rtol})
     presence = 0
     if isinstance(expected, tuple) and len(expected) == 2 and isinstance(expected[1], dict) and "swe_cm" in expected[1]:
         cpu, gpu = np.asarray(expected[1]["swe_cm"]), np.asarray(actual[1]["swe_cm"])
         presence = int(np.count_nonzero((cpu[..., required_mask] > 0.) != (gpu[..., required_mask] > 0.)))
     return {"passed": not failures, "failed_fields": len(failures), "failures": failures,
+            "required_cells": int(required_mask.sum()),
             "max_errors_by_unit": units, "max_field_errors": errors,
+            "required_domain": {"passed": not domain_failures, "failed_fields": len(domain_failures),
+                "failures": domain_failures, "max_errors_by_unit": domain_units,
+                "max_field_errors": domain_errors},
             "snow_presence_disagreements_cell_days": presence}
 
 
@@ -279,7 +298,13 @@ def verify_case(function, args, cpu, gpu, mask, *, repeats=0, loader=None):
 def environment_report(cpu, gpu):
     versions = {d.metadata["Name"]: d.version for d in importlib.metadata.distributions()
                 if d.metadata["Name"].lower().startswith(("jax", "numpy", "nvidia-", "tifffile"))}
+    cpu_info = Path("/proc/cpuinfo")
+    cpu_model = next((line.split(":", 1)[1].strip() for line in cpu_info.read_text().splitlines()
+                      if line.startswith("model name")), platform.processor()) if cpu_info.is_file() else platform.processor()
     return {"system": platform.platform(), "python": platform.python_version(), "packages": versions,
+            "cpu_model": cpu_model, "logical_cpus": os.cpu_count(),
+            "process_environment": {k: os.environ.get(k) for k in ("JAX_ENABLE_X64", "JAX_PLATFORMS",
+                "XLA_FLAGS", "XLA_PYTHON_CLIENT_PREALLOCATE", "OMP_NUM_THREADS")},
             "cpu": str(cpu), "gpu": str(gpu), "gpu_kind": gpu.device_kind,
             "float64": jax.config.jax_enable_x64}
 

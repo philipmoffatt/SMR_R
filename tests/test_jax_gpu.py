@@ -50,6 +50,16 @@ class ComparisonBoundaryTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "no declared"):
             gate.compare_outputs({"new_quantity": np.ones((1, 1))}, {"new_quantity": np.ones((1, 1))}, np.asarray([[True]]))
 
+    def test_outside_domain_error_still_fails_full_array_acceptance(self):
+        expected = {"water_cm": np.asarray([[1., 2.]])}
+        actual = {"water_cm": np.asarray([[1., 3.]])}
+        result = gate.compare_outputs(expected, actual, self.mask)
+        self.assertFalse(result["passed"])
+        self.assertTrue(result["required_domain"]["passed"])
+        actual["water_cm"][0, 0] += .01
+        result = gate.compare_outputs(expected, actual, self.mask)
+        self.assertFalse(result["required_domain"]["passed"])
+
     def test_failed_parity_never_produces_a_validated_speedup(self):
         cpu_value = {"water_cm": np.asarray([[1.]])}
         gpu_value = {"water_cm": np.asarray([[1.1]])}
