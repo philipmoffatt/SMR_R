@@ -90,9 +90,9 @@ _RASTERS = (
 )
 
 
-def _landcover_properties(landuse: np.ndarray, soil_depth: np.ndarray, soil_depth_a: np.ndarray,
+def _landcover_properties(landuse: np.ndarray, soil_depth: np.ndarray, soil_depth_a: np.ndarray, soil_depth_b: np.ndarray,
                           fieldcap_amt: np.ndarray, fieldcap_a: np.ndarray,
-                          wiltpt_amt: np.ndarray) -> tuple[np.ndarray, ...]:
+                          wiltpt_mc_a: np.ndarray, wiltpt_mc_b: np.ndarray) -> tuple[np.ndarray, ...]:
     """The nested Perl land-use expressions, evaluated once as static inputs."""
     lu = landuse
     def by_lu(v6, v5, v4, v3, v2, v1, other=0.0):
@@ -106,7 +106,12 @@ def _landcover_properties(landuse: np.ndarray, soil_depth: np.ndarray, soil_dept
                          0., 0.)
     tmax_rain = by_lu(1.8, -.5, 1.8, 3.1, -.5, -.5)
     tmin_snow = by_lu(-1., -3., -1., .9, -3., -3.)
-    return max_canopy, canopy_cover, root_zone, et_reduction, tmax_rain, tmin_snow
+    # Perl overwrites the imported raster before ET. Grass uses A only, while
+    # forest/shrub/crop use the profile and water/urban use zero.
+    wilt_a = wiltpt_mc_a * soil_depth_a
+    wilt_profile = wilt_a + wiltpt_mc_b * soil_depth_b
+    wiltpt = by_lu(wilt_profile, wilt_a, wilt_profile, wilt_profile, 0., 0.)
+    return max_canopy, canopy_cover, root_zone, et_reduction, tmax_rain, tmin_snow, wiltpt
 
 
 def _reservoirs(archive: ZipFile) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -159,8 +164,9 @@ def load_legacy_bundle(bundle_path: str | Path) -> StaticInputs:
     # Integer watershed NULLs have already become NaN. Never use their original
     # uint sentinel as a basin ID.
     watershed = fields["watershed"]
-    props = _landcover_properties(fields["landuse"], fields["soil_depth"], fields["soil_depth_A"],
-                                  fields["fieldcap_amt"], fields["fieldcap_amt_A"], fields["wiltpt_amt"])
+    *props, wiltpt = _landcover_properties(fields["landuse"], fields["soil_depth"], fields["soil_depth_A"], fields["soil_depth_B"],
+                                  fields["fieldcap_amt"], fields["fieldcap_amt_A"],
+                                  fields["wiltpt_mc_A"], fields["wiltpt_mc_B"])
     ordered_weights = np.stack([fields[n] for n in ("n", "ne", "e", "se", "s", "sw", "w", "nw")])
     # GRASS r.mask and map algebra propagate NULL. The runnable engine uses the
     # intersection of every operand required before the soil loop, rather than
@@ -173,7 +179,7 @@ def load_legacy_bundle(bundle_path: str | Path) -> StaticInputs:
     return StaticInputs(
         grid, jnp.asarray(active), f("el"), jnp.asarray(slope, dtype=jnp.float64),
         f("landuse"), jnp.asarray(watershed, dtype=jnp.float64), f("flowunits"), jnp.asarray(ordered_weights, dtype=jnp.float64),
-        f("sat_amt"), f("fieldcap_amt"), f("fieldcap_amt_A"), f("fieldcap_amt_B"), f("wiltpt_amt"),
+        f("sat_amt"), f("fieldcap_amt"), f("fieldcap_amt_A"), f("fieldcap_amt_B"), jnp.asarray(wiltpt, dtype=jnp.float64),
         f("soil_depth_A"), f("soil_depth_B"), f("sat_mc_A"), f("sat_mc_B"), f("fieldcap_mc_A"), f("fieldcap_mc_B"),
         f("wiltpt_mc_A"), f("Ksat_matrix_A"), f("Ksat_matrix_B"), f("Ksat_mpore_A"), f("Ksat_mpore_B"),
         f("Kfc_A"), f("Kfc_B"), f("Ksubsurface"), *(jnp.asarray(x, dtype=jnp.float64) for x in props),
