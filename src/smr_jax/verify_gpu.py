@@ -31,8 +31,12 @@ from .state import GridSpec, TwoLayerState
 
 
 RTOL = 512*np.finfo(np.float64).eps
-CPU_OPTIONS = {"xla_cpu_enable_fast_math": False, "xla_cpu_enable_fast_min_max": False}
-GPU_OPTIONS = {"xla_gpu_enable_fast_min_max": False}
+# FCELL round trips are part of the source model, not redundant conversions.
+# XLA's excess-precision optimization can remove them on CUDA, changing snow
+# branches and subsequent fluxes despite float64 inputs and outputs.
+CPU_OPTIONS = {"xla_cpu_enable_fast_math": False, "xla_cpu_enable_fast_min_max": False,
+               "xla_allow_excess_precision": False}
+GPU_OPTIONS = {"xla_gpu_enable_fast_min_max": False, "xla_allow_excess_precision": False}
 EXACT_FIELDS = {"age_days", "snow_age_days", "annual_saturation_count"}
 TEMP_FIELDS = {"tavg_c", "tdew_c", "surface_temp_c", "snow_surface_temp_c", "saturation_percent"}
 

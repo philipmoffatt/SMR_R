@@ -62,6 +62,18 @@ class ComparisonBoundaryTest(unittest.TestCase):
 
 
 class ExecutionHarnessTest(unittest.TestCase):
+    def test_compiled_fcell_rounding_matches_explicit_host_rounding(self):
+        # Values that change when rounded: returning float64 alone does not
+        # prove that the source raster's intermediate FCELL boundary survived.
+        source = np.asarray([[.731, .2, 4096.0003]], dtype=np.float64)
+        expected = source.astype(np.float32).astype(np.float64)
+        self.assertTrue(np.any(source != expected))
+        for device in jax.devices():
+            with self.subTest(device=str(device)):
+                output, _, _ = gate.execute(
+                    lambda value: value.astype(jnp.float32).astype(jnp.float64), (source,), device)
+                np.testing.assert_array_equal(output, expected)
+
     def test_dataclass_arguments_lower_and_warm_without_changing_first_timings(self):
         cpu = jax.devices("cpu")[0]
         with jax.default_device(cpu):
