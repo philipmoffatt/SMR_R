@@ -283,15 +283,18 @@ def coupling_cases(static):
             yield (soil, static, want, surface), boundary
 
 
-def verify_case(function, args, cpu, gpu, mask, *, repeats=0, loader=None):
+def verify_case(function, args, cpu, gpu, mask, *, repeats=0, loader=None, diagnostic_timing=False):
     host_args = _host_tree(args)
     expected, cpu_timing, cpu_resident = execute(function, host_args, cpu)
     actual, gpu_timing, gpu_resident = execute(function, host_args, gpu)
     comparison = compare_outputs(expected, actual, mask)
-    if comparison["passed"] and repeats:
+    if repeats and (comparison["passed"] or diagnostic_timing):
         warmed_timing(cpu_resident, cpu, cpu_timing, repeats, loader)
         warmed_timing(gpu_resident, gpu, gpu_timing, repeats, loader)
-        comparison["validated_compute_speedup"] = cpu_timing["warmed_median_s"]/gpu_timing["warmed_median_s"]
+        qualification = "full-array-parity-passed" if comparison["passed"] else "unqualified-full-array-parity-failed"
+        cpu_timing["qualification"] = gpu_timing["qualification"] = qualification
+        if comparison["passed"]:
+            comparison["validated_compute_speedup"] = cpu_timing["warmed_median_s"]/gpu_timing["warmed_median_s"]
     return {"comparison": comparison, "cpu": cpu_timing, "gpu": gpu_timing}, expected, actual
 
 
@@ -310,7 +313,7 @@ def environment_report(cpu, gpu):
 
 
 def verification_report(reference_dir, radiation_dir, *, days=(2, 30), repeats=5, audit_all=False,
-                        melt_small_snow_next_day=False):
+                        melt_small_snow_next_day=False, diagnostic_timing=False):
     cpu, gpu = require_devices()
     report = {"environment": environment_report(cpu, gpu), "budgets": {"rtol": RTOL, "water_atol_cm": 1e-12,
         "energy_atol": 1e-9, "temperature_percent_atol": 1e-10, "cms_atol": 1e-15}, "synthetic": [], "cases": []}
@@ -351,7 +354,8 @@ def verification_report(reference_dir, radiation_dir, *, days=(2, 30), repeats=5
         loading = time.perf_counter()-started
         function = lambda state, weather, constants: run_days(
             state, weather, constants, melt_small_snow_next_day=melt_small_snow_next_day)
-        result, _, _ = verify_case(function, args, cpu, gpu, np.asarray(static.active_mask), repeats=repeats, loader=load)
+        result, _, _ = verify_case(function, args, cpu, gpu, np.asarray(static.active_mask),
+            repeats=repeats, loader=load, diagnostic_timing=diagnostic_timing)
         qualifies = result["comparison"]["passed"]
         result.update(days=count, loading_initialization_s=loading,
             snow_policy="next_day_melt_1e-3_cm" if melt_small_snow_next_day else "legacy",
@@ -376,6 +380,8 @@ def main(argv=None):
     parser.add_argument("--days", type=int, nargs="+", choices=(2, 30), default=[2, 30])
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--audit-all", action="store_true")
+    parser.add_argument("--diagnostic-timing", action="store_true",
+                        help="also measure failed cases as explicitly unqualified diagnostics; never validate a speedup")
     parser.add_argument("--melt-small-snow-next-day", action="store_true",
                         help="verify the existing selected 1e-3 cm next-day melt policy")
     parser.add_argument("--snapshot-manifest", type=Path)
@@ -389,7 +395,7 @@ def main(argv=None):
         revision = verify_snapshot(Path(__file__).resolve().parents[2], args.snapshot_manifest) if args.snapshot_manifest else None
         report = verification_report(args.reference_dir, args.radiation_dir, days=args.days,
             repeats=args.repeats, audit_all=args.audit_all,
-            melt_small_snow_next_day=args.melt_small_snow_next_day)
+            melt_small_snow_next_day=args.melt_small_snow_next_day, diagnostic_timing=args.diagnostic_timing)
         report["source_revision"] = revision
         with args.report_path.open("x", encoding="utf-8") as stream:
             json.dump(report, stream, indent=2)

@@ -70,6 +70,18 @@ class ComparisonBoundaryTest(unittest.TestCase):
         self.assertFalse(report["comparison"]["passed"])
         self.assertNotIn("validated_compute_speedup", report["comparison"])
 
+    def test_explicit_diagnostic_timing_does_not_qualify_failed_parity(self):
+        cpu_value = {"water_cm": np.asarray([[1.]])}
+        gpu_value = {"water_cm": np.asarray([[1.1]])}
+        with patch.object(gate, "execute", side_effect=[(cpu_value, {}, None), (gpu_value, {}, None)]), \
+             patch.object(gate, "warmed_timing") as benchmark:
+            report, _, _ = gate.verify_case(None, (), None, None, np.asarray([[True]]),
+                                           repeats=5, diagnostic_timing=True)
+        self.assertEqual(benchmark.call_count, 2)
+        self.assertFalse(report["comparison"]["passed"])
+        self.assertNotIn("validated_compute_speedup", report["comparison"])
+        self.assertEqual(report["gpu"]["qualification"], "unqualified-full-array-parity-failed")
+
 
 class ExecutionHarnessTest(unittest.TestCase):
     def test_compiled_fcell_rounding_matches_explicit_host_rounding(self):
