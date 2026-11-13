@@ -15,6 +15,7 @@ from .fluxes.legacy_math import compile_legacy_cpu
 from .initialization import initialize_legacy_state
 from .io import FrozenTraceProvider, ReplayRadiationProvider, load_daily_forcings
 from .legacy import load_legacy_bundle
+from .legacy_cpu_math import compile_native_cpu, load_library
 from .verify_surface import (RELATIVE_TOLERANCE, WATER_ATOL_CM, ENERGY_ATOL,
                              _MAPS as SURFACE_MAPS, verify_reference_manifest, verify_initialization)
 
@@ -33,6 +34,7 @@ REPORT_COLUMNS = {3: "runoff_daily_flow", 4: "precip", 5: "rain", 6: "actualET_d
     22: "q.rain.ground", 23: "q.total"}
 REPORT_MAPS = {**DAILY_MAPS, **EXTRA_MAPS, "condens": "condens_cm"}
 _run_cpu = compile_legacy_cpu(run_days, static_argnames=("melt_small_snow_next_day",))
+_run_native_cpu = compile_native_cpu(run_days, static_argnames=("melt_small_snow_next_day",))
 
 
 def _budget(name):
@@ -168,7 +170,7 @@ def compare_reports(history, rows, provider, soil_mask, initial_mask, *, extende
     return float(max(errors))
 
 
-def verification_report(reference_dir, *, days=2, capture_dir=None, collect_failures=False):
+def verification_report(reference_dir, *, days=2, capture_dir=None, collect_failures=False, native_math_library=None):
     if days not in (2, 30):
         raise ValueError("integrated gate requires exactly two or thirty days")
     reference_dir = Path(reference_dir)
@@ -199,7 +201,12 @@ def verification_report(reference_dir, *, days=2, capture_dir=None, collect_fail
     forcings = load_daily_forcings(reference_dir/"gridmet_weather_2015-01.csv", ReplayRadiationProvider(trace_path, static.grid), days)
     initial = initialize_legacy_state(static)
     verify_initialization(static, initial)
-    final, history = _run_cpu(initial, forcings, static, melt_small_snow_next_day=False)
+    math_profile = {"profile": "jax-exp"}
+    run = _run_cpu
+    if native_math_library is not None:
+        math_profile = load_library(native_math_library)
+        run = _run_native_cpu
+    final, history = run(initial, forcings, static, melt_small_snow_next_day=False)
     if days == 30:
         for name, value in (("storage_amt", initial.soil.total_water_cm), ("storage_amt_A", initial.soil.layer_water_cm[0])):
             expected = provider.raster("initial", name)
@@ -258,7 +265,8 @@ def verification_report(reference_dir, *, days=2, capture_dir=None, collect_fail
         terminal = FrozenTraceProvider(reference_dir/"final_state_rasters.zip", static.grid)
         observe("original golden storage", "storage_amt", np.asarray(final.soil.total_water_cm), terminal.raster_member("golden_storage_amt.tif"), mask)
         observe("original golden saturation", "saturation", np.asarray(final.soil.total_water_cm/static.sat_amt_cm*100.), terminal.raster_member("golden_saturation.tif"), mask)
-    return {"passed": not failures, "failures": failures, "days": days, "required_cells": required_count, "daily_field_comparisons": len(errors),
+    return {"passed": not failures, "failures": failures, "math_profile": math_profile,
+            "days": days, "required_cells": required_count, "daily_field_comparisons": len(errors),
             "max_water_error_cm": max(error for name, error in errors.items() if not name.split(" ", 1)[1].startswith("q.")
                                       and name.split(" ", 1)[1] not in ("u.total", "u.surface", "tsnow_surf", "saturation")),
             "max_field_errors": {name: max(error for key, error in errors.items() if key.endswith(" "+name)) for name in maps},
@@ -270,11 +278,14 @@ def main(argv=None):
     parser.add_argument("--reference-dir", type=Path, default=Path("reference/mica-creek-jan2015"))
     parser.add_argument("--days", type=int, choices=(2, 30), default=2)
     parser.add_argument("--capture-dir", type=Path)
+    parser.add_argument("--native-math-library", type=Path,
+                        help="Explicit optional Windows/MinGW scalar exp FFI library and build record.")
     parser.add_argument("--audit-all", action="store_true", help="Collect numerical failures; exit remains nonzero if any check fails.")
     parser.add_argument("--report-path", type=Path, help="Write JSON to a NEW file; existing files are preserved.")
     args = parser.parse_args(argv)
     try:
-        report = verification_report(args.reference_dir, days=args.days, capture_dir=args.capture_dir, collect_failures=args.audit_all)
+        report = verification_report(args.reference_dir, days=args.days, capture_dir=args.capture_dir,
+                                     collect_failures=args.audit_all, native_math_library=args.native_math_library)
         if args.report_path is not None:
             with args.report_path.open("x", encoding="utf-8", newline="\n") as stream:
                 json.dump(report, stream, indent=2)

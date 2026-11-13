@@ -11,7 +11,7 @@ from .fluxes.surface import canopy, precipitation_and_temperature, road_runoff
 from .state import ModelState
 
 
-def daily_step(state: ModelState, forcing, static, *, melt_small_snow_next_day=False):
+def daily_step(state: ModelState, forcing, static, *, melt_small_snow_next_day=False, exponential=jnp.exp):
     """Legacy ordering, optionally releasing <= 1e-3 cm SWE on the next day.
 
     The opt-in residue release is spread evenly over four soil steps, including
@@ -21,7 +21,7 @@ def daily_step(state: ModelState, forcing, static, *, melt_small_snow_next_day=F
     surface = precipitation_and_temperature(static, forcing)
     canopy_storage, soil_pet, canopy_flux = canopy(state, static, surface["rain_cm"], surface["pet_cm"])
     snow, snow_flux = snow_energy(state, static, forcing, surface["tavg_c"], surface["tdew_c"], surface["snow_cm"], canopy_flux["throughfall_cm"],
-                                  melt_small_snow_next_day=melt_small_snow_next_day)
+                                  melt_small_snow_next_day=melt_small_snow_next_day, exponential=exponential)
     melt, throughfall, road = road_runoff(static, snow_flux["snowmelt_cm"], canopy_flux["throughfall_cm"])
     temp = forcing.temperatures_c[:, None, None] - (-3.20 / 1000.0) * (784.0 - static.elevation_m)[None, :, :]
     # Perl accumulates the four temperatures sequentially, before the soil loop.
@@ -48,7 +48,7 @@ def daily_step(state: ModelState, forcing, static, *, melt_small_snow_next_day=F
             water_input = ((melt - residue_to_soil) * jnp.maximum(temperature, 0.0) / denominator
                            + throughfall * .25 + residue_to_soil * .25)
         soil = allocate_input(soil, static, water_input)
-        soil, lateral = lateral_route(soil, static)
+        soil, lateral = lateral_route(soil, static, exponential=exponential)
         a, b = soil.layer_water_cm
         from .state import TwoLayerState
         a, b = _reallocate(soil.total_water_cm, a, static)
@@ -85,7 +85,7 @@ def daily_step(state: ModelState, forcing, static, *, melt_small_snow_next_day=F
     return next_state, diagnostics
 
 
-def run_days(initial_state, forcings, static, *, melt_small_snow_next_day=False):
-    """Daily scan; bind the optional snow-residue mode statically under JIT."""
+def run_days(initial_state, forcings, static, *, melt_small_snow_next_day=False, exponential=jnp.exp):
+    """Daily scan; bind snow mode and optional exponential callable statically under JIT."""
     return jax.lax.scan(lambda carry, day: daily_step(carry, day, static,
-                        melt_small_snow_next_day=melt_small_snow_next_day), initial_state, forcings)
+                        melt_small_snow_next_day=melt_small_snow_next_day, exponential=exponential), initial_state, forcings)

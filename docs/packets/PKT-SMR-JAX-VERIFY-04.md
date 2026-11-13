@@ -1,12 +1,31 @@
 # PKT-SMR-JAX-VERIFY-04 — Integrated CPU verification
 
-## Result: two days pass; strict thirty-day gate remains open
+## Result: two and thirty days pass with the explicit native CPU math profile
 
-The actual JAX daily scan passes all **40 existing two-day daily-map comparisons**
+The strict thirty-day gate now passes all **960 daily field comparisons**, full
+daily reporting, actual terminal carry and both original golden rasters, with
+the original tolerances and all **68,121 required cells**. Every daily soil,
+snow, thermal and flux field matches exactly; 31 of the 32 field families have
+zero maximum error. The remaining annual runoff counter differs by at most
+`1.3322676295501878e-15 cm`. No tolerance, source physics, six-hour step, input,
+reference artifact, support mask or threshold was changed.
+
+This acceptance uses an **explicit Windows x64 MinGW scalar-exp FFI profile**.
+The ordinary pure JAX exponential remains the model default and continues to
+fail the strict month gate; it is not covered by this CPU parity acceptance.
+The new native library is optional, built outside Git, and needs no GRASS
+runtime. General radiation and GPU verification remain VERIFY-05 and VERIFY-06.
+The original two-day gate also passes with the default JAX math profile.
+
+See the strict closure and reproduction evidence below. The earlier failure
+evidence is retained as a historical record rather than recast as a pass.
+
+## Historical audit before the source arithmetic corrections
+
+At packet revision `b17dcc6`, the actual JAX daily scan passed all **40 existing two-day daily-map comparisons**
 and the CPU report checks. The full **30-day, 960-map-comparison audit** is now
-available and fails the unchanged strict numerical budget. This packet is
-**active**, not a claim that VERIFY-04 is closed. Its work is retained on the
-packet branch for review; the accepted feature base is `47b517e`.
+available and failed the unchanged strict numerical budget. The packet remained
+active at that revision, with accepted feature base `47b517e`.
 
 The thirty-day audit has 173 failed checks: 167 daily map comparisons plus a
 reporting check and five terminal checks. Its first failing daily field is
@@ -126,7 +145,7 @@ support, missing fields, nonfinite values and malformed/checksum-invalid
 evidence still fail. `--report-path` requires a new file and preserves existing
 reports. A diagnostic report cannot be mistaken for a successful acceptance.
 
-## Investigation of the remaining mismatch
+## Investigation at the initial failing revision
 
 All surface/snow/thermal maps pass the month budget, including exact snow
 presence. The failures are small soil-state/transport differences accumulating
@@ -149,14 +168,90 @@ not remove the mismatch. A floating-power experiment also did not resolve it
 and is not retained. No NumPy callbacks, expected-value substitutions, FC snaps,
 new infiltration physics or threshold smoothing were added.
 
-Remaining work to close 04 is explicit: either establish a source-faithful
-arithmetic treatment that keeps the continuous run inside the existing budget,
-or obtain an operator decision for a scientifically declared acceptance budget
-or a separate continuous-conductivity behavior. The measured maxima above are
-evidence, not a fitted replacement tolerance. The current strict month gate
-continues to fail.
+At that revision, closure required a source-faithful arithmetic treatment or an
+operator decision changing acceptance or conductivity behavior. The operator
+selected continued strict verification. The measured maxima above were retained
+as evidence, not fitted replacement tolerances.
 
-## Validation and reproduction
+## Strict closure on 2026-11-13
+
+Two source arithmetic details were jointly necessary:
+
+1. The snow surface temperature expression is `u.surface / 24.0 / capacity`.
+   The translation grouped its denominator as `u.surface / (24.0 * capacity)`.
+   Restoring the sequential divisions preserves the original rounding and
+   first-day internal temperature exactly. A regression checks this distinction
+   on the actual integrated state, including cells where regrouping differs.
+2. XLA's CPU float64 exponential and the frozen GRASS executable's scalar
+   exponential can differ by one rounding unit. The source conductivity
+   threshold can amplify that difference during continuous wet-period
+   evolution. The optional `legacy_cpu_math` profile binds the same model
+   functions to a typed JAX FFI exponential, leaving the default `jnp.exp`
+   binding available. All other state evolution remains in the actual JAX
+   daily/four-substep scans.
+
+The C++ handler applies native MinGW scalar `exp` directly to XLA float64 CPU
+buffers. Its x87 precision guard restores the calling thread's control word
+after each call. Native C starts at 64-bit x87 precision, while CPython starts
+at 53-bit precision; an early Python/GRASS-DLL diagnostic without this guard
+was therefore not an equivalent test of the executable. A separate 100,001-point
+comparison over `[-700,700]` found the installed compiler's native exponential
+and GRASS's bundled exponential identical under the native precision setting.
+The model does not depend on the GRASS DLLs.
+
+The FFI path contains no Python/NumPy callback, copied reference state, FC snap,
+threshold smoothing, alternative infiltration equation or global XLA flag.
+JIT, batching and an elementwise exponential JVP are supported. The builder
+requires an explicit compiler/output, refuses existing library/build-record
+paths and records source/library hashes, JAX version, compiler version and the
+exact command. Loading verifies these hashes and JAX version, retains the DLL
+for executable lifetimes and refuses changing the library within a process.
+Other compiler/platform profiles require their own successful strict gate.
+
+The implementation follows the public [JAX typed FFI API](https://docs.jax.dev/en/latest/ffi.html).
+The distinction from XLA's intrinsic exponential is visible in the
+[CPU elemental emitter](https://github.com/openxla/xla/blob/main/xla/service/cpu/elemental_ir_emitter.cc)
+and [intrinsic implementation](https://github.com/openxla/xla/blob/main/xla/codegen/intrinsic/exp.cc).
+
+The accepted full audit is retained outside Git as
+`integrated-native-ffi-v2-audit.json`. It exits **0** with zero failed checks.
+The report includes the selected math profile and build provenance:
+
+- Profile: `windows-mingw64-scalar-exp`, JAX `0.12.0.1`.
+- Compiler: MinGW-W64 x86_64-ucrt-posix-seh GCC `13.2.0`, r8.
+- C++ source SHA-256: `b456ae671ac5ec98ab00fa52090df492548029b9f9bb1ed09e66d84a3b69b32d`.
+- Library SHA-256: `63a180c1d413d143747a0ad7c40f9f6596fa5944277af808db9b5cea78abad4b`.
+- Largest water-map difference: `1.3322676295501878e-15 cm`, annual runoff only.
+- Largest daily reporting sum difference: `4.291534423828125e-6` in inherited
+  aggregate units, within the unchanged field-specific aggregate budget.
+
+The full suite passed **108 tests in 118.191 seconds** with the native option
+enabled. After adding a binding-immutability regression and defensively copying
+returned build metadata, all **8 native boundary/execution checks passed in
+12.726 seconds**, including the added test and the original two-day gate. These
+runs cover 109 distinct tests. Report-only scope and `git diff --check` passed.
+
+Build a NEW library outside Git, then select it explicitly for acceptance:
+
+```powershell
+$env:PYTHONDONTWRITEBYTECODE='1'
+$env:PYTHONPATH="$PWD\src;$env:TEMP\smr-jax-plant-testdeps"
+# Choose a NEW output name; this is the already-built accepted artifact:
+$mathLibrary='C:\projects\git\worktrees\smr-verify04-reference\smr_legacy_exp_v2.dll'
+# To reproduce the build, use a different new output path:
+# python -B -m smr_jax.legacy_cpu_math --compiler C:\Strawberry\c\bin\g++.exe --output <new-library.dll>
+& C:\projects\git\plant-game-of-life\.venv\Scripts\python.exe -B -m smr_jax.verify_integrated --days 30 --capture-dir C:\projects\git\worktrees\smr-verify04-reference --native-math-library $mathLibrary
+$env:SMR_JAX_NATIVE_MATH_LIBRARY=$mathLibrary
+& C:\projects\git\plant-game-of-life\.venv\Scripts\python.exe -B -m unittest discover -s tests -p 'test_jax_*.py' -q
+```
+
+For application use, load this library explicitly with
+`smr_jax.legacy_cpu_math.load_library(path)` and bind
+`compile_native_cpu(run_days, static_argnames=('melt_small_snow_next_day',))`.
+The ordinary `run_days` default and GPU path still use JAX math. This packet
+does not claim GPU numerical parity or qualify a different math library.
+
+## Initial validation before strict closure
 
 - Preflight and report-only scope checks passed from feature base `47b517e`.
 - All **100 JAX tests passed in 141.913 seconds**, including the earlier gates,

@@ -32,23 +32,23 @@ def allocate_input(soil, static, input_cm):
     return TwoLayerState(total, jnp.stack((a, b)), soil.active_mask)
 
 
-def _effective_conductivity(storage, fieldcap, sat_mc, depth, matrix, mpore, kfc):
+def _effective_conductivity(storage, fieldcap, sat_mc, depth, matrix, mpore, kfc, *, exponential=jnp.exp):
     safe_depth = jnp.where(depth == 0.0, 1.0, depth)
     # Source raster-only subexpressions are evaluated as FCELL before mixing
     # with DCELL storage and decimal constants in the enclosing expression.
     fc_moisture = _fcell(fieldcap / safe_depth)
     conductivity_range = _fcell(mpore - kfc)
     moisture_range = _fcell(sat_mc - fc_moisture)
-    value = jnp.where(storage < fieldcap, matrix * jnp.exp((-13.0 / sat_mc) * (sat_mc - storage / safe_depth)),
+    value = jnp.where(storage < fieldcap, matrix * exponential((-13.0 / sat_mc) * (sat_mc - storage / safe_depth)),
                       jnp.where(storage >= _fcell(sat_mc * depth), mpore,
                                 conductivity_range * (storage / safe_depth - fc_moisture) / moisture_range + kfc))
     return value * 6.0 / 24.0
 
 
-def lateral_route(soil, static):
+def lateral_route(soil, static, *, exponential=jnp.exp):
     a, b = soil.layer_water_cm
-    eff_a = _effective_conductivity(a, static.fieldcap_a_cm, static.sat_mc_a, static.soil_depth_a_cm, static.ksat_matrix_a, static.ksat_mpore_a, static.kfc_a)
-    eff_b = _effective_conductivity(b, static.fieldcap_b_cm, static.sat_mc_b, static.soil_depth_b_cm, static.ksat_matrix_b, static.ksat_mpore_b, static.kfc_b)
+    eff_a = _effective_conductivity(a, static.fieldcap_a_cm, static.sat_mc_a, static.soil_depth_a_cm, static.ksat_matrix_a, static.ksat_mpore_a, static.kfc_a, exponential=exponential)
+    eff_b = _effective_conductivity(b, static.fieldcap_b_cm, static.sat_mc_b, static.soil_depth_b_cm, static.ksat_matrix_b, static.ksat_mpore_b, static.kfc_b, exponential=exponential)
     flow_a = jnp.minimum(eff_a * static.slope_percent / 100.0 * static.soil_depth_a_cm / 30.0 / 100.0, a)
     flow_b = jnp.minimum(eff_b * static.slope_percent / 100.0 * static.soil_depth_b_cm / 30.0 / 100.0, b)
     flow_a, flow_b = jnp.where(static.flowunits == 0.0, 0.0, flow_a), jnp.where(static.flowunits == 0.0, 0.0, flow_b)
