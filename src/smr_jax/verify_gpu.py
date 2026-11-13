@@ -284,7 +284,8 @@ def environment_report(cpu, gpu):
             "float64": jax.config.jax_enable_x64}
 
 
-def verification_report(reference_dir, radiation_dir, *, days=(2, 30), repeats=5, audit_all=False):
+def verification_report(reference_dir, radiation_dir, *, days=(2, 30), repeats=5, audit_all=False,
+                        melt_small_snow_next_day=False):
     cpu, gpu = require_devices()
     report = {"environment": environment_report(cpu, gpu), "budgets": {"rtol": RTOL, "water_atol_cm": 1e-12,
         "energy_atol": 1e-9, "temperature_percent_atol": 1e-10, "cms_atol": 1e-15}, "synthetic": [], "cases": []}
@@ -323,10 +324,12 @@ def verification_report(reference_dir, radiation_dir, *, days=(2, 30), repeats=5
         args = load()
         static = args[2]
         loading = time.perf_counter()-started
-        function = lambda state, weather, constants: run_days(state, weather, constants)
+        function = lambda state, weather, constants: run_days(
+            state, weather, constants, melt_small_snow_next_day=melt_small_snow_next_day)
         result, _, _ = verify_case(function, args, cpu, gpu, np.asarray(static.active_mask), repeats=repeats, loader=load)
         qualifies = result["comparison"]["passed"]
         result.update(days=count, loading_initialization_s=loading,
+            snow_policy="next_day_melt_1e-3_cm" if melt_small_snow_next_day else "legacy",
             radiation_components_sha256=json.loads((Path(radiation_dir)/"manifest.json").read_text())["components_sha256"],
             workflow_boundary="prepared local inputs to complete host state/history outputs; excludes GRASS preparation and verification")
         for device in ("cpu", "gpu"):
@@ -348,6 +351,8 @@ def main(argv=None):
     parser.add_argument("--days", type=int, nargs="+", choices=(2, 30), default=[2, 30])
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--audit-all", action="store_true")
+    parser.add_argument("--melt-small-snow-next-day", action="store_true",
+                        help="verify the existing selected 1e-3 cm next-day melt policy")
     parser.add_argument("--snapshot-manifest", type=Path)
     parser.add_argument("--report-path", required=True, type=Path)
     args = parser.parse_args(argv)
@@ -357,7 +362,9 @@ def main(argv=None):
         parser.error("report output must be NEW")
     try:
         revision = verify_snapshot(Path(__file__).resolve().parents[2], args.snapshot_manifest) if args.snapshot_manifest else None
-        report = verification_report(args.reference_dir, args.radiation_dir, days=args.days, repeats=args.repeats, audit_all=args.audit_all)
+        report = verification_report(args.reference_dir, args.radiation_dir, days=args.days,
+            repeats=args.repeats, audit_all=args.audit_all,
+            melt_small_snow_next_day=args.melt_small_snow_next_day)
         report["source_revision"] = revision
         with args.report_path.open("x", encoding="utf-8") as stream:
             json.dump(report, stream, indent=2)
