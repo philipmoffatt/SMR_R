@@ -71,7 +71,8 @@ The source of the discrepancy and per-field errors are recorded in
 `PKT-SMR-JAX-VERIFY-01A.md`; all 57 tests pass.
 
 This closes the numerical VERIFY-01 gate for the frozen legacy two-day CPU
-target on that packet branch, pending feature integration. It does not accept
+target. The operator accepted its JAX feature landing on 2026-11-12; the
+operational completion record identifies the actual landing commit. It does not accept
 the ordinary optimized profile or claim bitwise equality for every energy
 operation. The selected next-day residue-melt convention remains separately
 tested and explicitly report-only against the unchanged legacy trace.

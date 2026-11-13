@@ -15,7 +15,8 @@ scale. This is not a claim of bitwise identity for every energy expression,
 optimized execution, arbitrary dates, general radiation or GPU parity.
 
 Implementation is isolated on the packet branch from JAX feature base
-`722151c3c38b14d0e961e20695e2da34102f1dcd`, pending feature integration. No
+`722151c3c38b14d0e961e20695e2da34102f1dcd`; the operator accepted feature
+landing on 2026-11-12. No
 equation, source fixture, soil/routing module, selected residue policy, original
 VERIFY worktree or default branch was changed. The original packet's earlier
 failure records remain historical evidence.
@@ -141,14 +142,14 @@ No strict check was added to a Git hook or commit/push path.
 
 The adjacent completed packet definition explicitly names `PKT-SMR-JAX-VERIFY-01`
 as the gate it closes. The local parent record now records the passing result
-on this branch. Feature landing and default-branch publication are separate
-integration actions; neither is inferred complete from this passing gate.
+on this branch. The operator accepted feature landing on 2026-11-12; the EOS
+run record records the actual landing commit after integration. Default-branch
+publication remains a separate action.
 
-After feature integration, the controller can reconcile the parent packet's
-execution status to completed in its current control/operational record,
-with `PKT-SMR-JAX-VERIFY-01A` and this evidence as provenance. This is a proposed
-delta, not an edit to the archived `engineering-os` definition or any global
-board. The legacy source definition's historical active status is not rewritten
-in a read-only repository. No board/registry identity change is needed for the
-numerical result. Soil (VERIFY-02) is the next verification gate; routing/basin,
-30-day integration, general radiation and GPU remain open.
+The accepted landing reconciles the parent gate's operational completion record
+with `PKT-SMR-JAX-VERIFY-01A`, the feature landing and this evidence as provenance.
+The archived `engineering-os` source definition's historical active status is
+preserved in its read-only repository; it is not the current completion evidence.
+No global board or registry identity change is needed for this numerical result.
+Soil (VERIFY-02) is the next verification gate; routing/basin, 30-day integration,
+general radiation and GPU remain open. No worktree removal or push is included.
